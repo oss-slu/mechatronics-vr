@@ -48,125 +48,9 @@ APartActor::APartActor()
     
 
 }
+//TODO: FIX THIS MESS!!
 
-void APartActor::UpdatePreviewState()
-{
-	if (!GrabComonent || !GrabCompnent->IsGrabbed())
-	{
-		HideSnapPreview();
-		CurrentPreviewTarget = nullptr;
-		return;
-	}
-    
-	// Find the best snap point to preview with
-	USnapPointComponent* BestTarget = FindBestPreviewTarget();
-    
-	if (BestTarget && BestTarget != CurrentPreviewTarget)
-	{
-		// Show preview with new target
-		USnapPointComponent* MySnapPoint = GetBestSnapPointFor(BestTarget);
-		if (MySnapPoint)
-		{
-			ShowSnapPreview(MySnapPoint, BestTarget);
-			CurrentPreviewTarget = BestTarget;
-		}
-	}
-	else if (!BestTarget && CurrentPreviewTarget)
-	{
-		// No good target anymore, hide preview
-		HideSnapPreview();
-		CurrentPreviewTarget = nullptr;
-	}
-}
-USnapPointComponent* APartActor::GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const
 
-{
-	
-}
-
-USnapPointComponent* APartActor::FindBestPreviewTarget() const
-{
-	USnapPointComponent* BestTarget = nullptr;
-	float BestDistance = FLT_MAX;
-
-	// check all of my snap points for nearby compatible snap points
-	/* TODO: , this has to check not nearby ones but the ones the part is meant to attatch to, each part has to know which part it is supposed to attach to*/
-
-	TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
-
-	for (USnapPointComponent* MySnapPoint : MySnapPoints)
-	{
-		if (!MySnapPoint || MySnapPoint->bIsAssembled)
-		{
-			continue; // Skip if null or already assembled
-		}
-
-		// check each nearby snap point
-		for (USnapPointComponent* NearbySnapPoint : MySnapPoint->NearbySnapPoints)
-		{
-			if (!NearbySnapPoint || NearbySnapPoint->bIsAssembled)
-			{
-				continue;
-			}
-            
-			// Check compatibility
-			if (!MySnapPoint->CanAcceptPoint(NearbySnapPoint))
-			{
-				continue;
-			}
-            
-			// TODO: Check lesson system constraints (when implemented)
-			// if (!MySnapPoint->IsPartAllowedInCurrentStep(this))
-			// {
-			// 	continue;
-			// }
-			// FInd closest compatible snap point
-			float Distance = FVector::Dist(MySnapPoint->GetComponentLocation(), NearbySnapPoint->GetComponentLocation());
-			if (Distance < BestDistance && Distance <= MaxSnapDistance)
-			{
-				BestDistance = Distance;
-				BestTarget = NearbySnapPoint;
-			}
-		}
-		
-	}
-	return BestTarget;
-}
-
-// const TArray<USnapPointComponent*>& APartActor::GetSnapPoints()
-// {
-// 	return Assembly->GetSnapPoints();
-// }
-
-void APartActor::ShowSnapPreview(USnapPointComponent* MySnapPoint, USnapPointComponent* TargetSnapPoint)
-{
-	if (!MySnapPoint || !TargetSnapPoint)
-	{
-		return;
-	}
-
-	// copy the mesh to the preview
-	if (Mesh && Mesh->GetStaticMesh())
-	{
-		PreviewMesh->SetStaticMesh(Mesh->GetStaticMesh());
-
-		//calculate where the preview should be positioned
-		const FTransform SnapTransform = CalculateSnapTransform(MySnapPoint, TargetSnapPoint);
-		PreviewMesh->SetWorldTransform(SnapTransform);
-
-		// create dynamic material for ghost effect
-		if (PreviewMaterial)
-		{
-			UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(PreviewMaterial, this);
-			if (DynamicMaterial)
-			{
-				DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), PreviewOpacity);
-				DynamicMaterial->SetVectorParameterValue(TEXT("Color"), PreviewColor);
-				PreviewMesh->SetMaterial(0, DynamicMaterial);
-			}
-		}
-	}
-}
 
 void APartActor::OnPartGrabbed()
 {
@@ -180,7 +64,7 @@ void APartActor::OnPartGrabbed()
 	}
     
 	// Update preview state
-	UpdatePreviewState();
+	// UpdatePreviewState();
 }
 
 void APartActor::OnPartReleased()
@@ -195,8 +79,8 @@ void APartActor::OnPartReleased()
 	}
     
 	// Hide preview
-	HideSnapPreview();
-	CurrentPreviewTarget = nullptr;
+	// HideSnapPreview();
+	// CurrentPreviewTarget = nullptr;
 }
 
 const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const

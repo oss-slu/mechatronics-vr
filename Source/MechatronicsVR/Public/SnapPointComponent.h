@@ -53,10 +53,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Detection")
 	float SnapDetectionRadius = 5.0f; // 5cm - much more reasonable
 
-	/** Currently overlapping snap points */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Detection")
-	TArray<TObjectPtr<USnapPointComponent>> NearbySnapPoints;
-
+	
 
 
 

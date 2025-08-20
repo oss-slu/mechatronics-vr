@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "SnapPointComponent.h"
 #include "PartActor.h"
-#include "MechatronicsVR/Public/SnapPointComponent.h"
 
 #include "AssemblyComponent.h"
 

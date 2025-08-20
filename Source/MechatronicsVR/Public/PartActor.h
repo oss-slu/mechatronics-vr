@@ -25,15 +25,22 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
 	TObjectPtr<USnapPointComponent> CurrentPreviewTarget = nullptr;
 
-	/** Check if we should show preview based on grab state and nearby snap points */
-	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	void UpdatePreviewState();
+	// /** Check if we should show preview based on grab state and nearby snap points */
+	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	// void UpdatePreviewState();
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grab")
+	TObjectPtr<APartActor> PartAssembledOnto;
 
-	/** Find the best snap point to preview with */
-	UFUNCTION(BlueprintCallable, Category = "Snap Preview") 
-	USnapPointComponent* FindBestPreviewTarget() const;
+	// /** Find the best snap point to preview with */
+	// UFUNCTION(BlueprintCallable, Category = "Snap Preview") 
+	// USnapPointComponent* FindBestPreviewTarget() const;
 
-	USnapPointComponent* GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const
+	// Add this property in the public section with your other components
+	/** Component that handles grab interactions */
+	
+
+	// USnapPointComponent* GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const;
 	
 	/** Preview mesh that shows where this part will snap */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
@@ -57,18 +64,18 @@ public:
 
 	// Preview functions
 	/** Show preview of where this part will snap */
-	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	void ShowSnapPreview(USnapPointComponent* MySnapPoint, USnapPointComponent* TargetSnapPoint);
+	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	// void ShowSnapPreview(USnapPointComponent* MySnapPoint, USnapPointComponent* TargetSnapPoint);
 	void OnPartGrabbed();
 	void OnPartReleased();
 
 	/** Hide the snap preview */
-	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	void HideSnapPreview();
+	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	// void HideSnapPreview();
 
-	/** Calculate where this part should be positioned when snapped */
-	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	FTransform CalculateSnapTransform(USnapPointComponent* MySnapPoint, USnapPointComponent* TargetSnapPoint) const;
+	// /** Calculate where this part should be positioned when snapped */
+	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	// FTransform CalculateSnapTransform(USnapPointComponent* MySnapPoint, USnapPointComponent* TargetSnapPoint) const;
 
 
 	/** Snap system for this part */

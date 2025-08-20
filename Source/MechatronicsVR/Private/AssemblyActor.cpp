@@ -1,8 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "AssemblyActor.h"
 #include "PartActor.h"
 #include "SnapPointComponent.h"
-#include "MechatronicsVR/Public/AssemblyActor.h"
+
 
 // Sets default values
 AAssemblyActor::AAssemblyActor()
