@@ -16,6 +16,7 @@ class MECHATRONICSVR_API APartActor : public AActor
 public:
 	
 	APartActor();
+	USnapPointComponent* GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const;
 
 	/** Visual mesh of the part */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Part")
@@ -25,22 +26,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
 	TObjectPtr<USnapPointComponent> CurrentPreviewTarget = nullptr;
 
-	// /** Check if we should show preview based on grab state and nearby snap points */
-	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	// void UpdatePreviewState();
+	/** Check if we should show preview based on grab state and nearby snap points */
+	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	void UpdatePreviewState();
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grab")
 	TObjectPtr<APartActor> PartAssembledOnto;
 
 	// /** Find the best snap point to preview with */
-	// UFUNCTION(BlueprintCallable, Category = "Snap Preview") 
-	// USnapPointComponent* FindBestPreviewTarget() const;
+	UFUNCTION(BlueprintCallable, Category = "Snap Preview") 
+	USnapPointComponent* FindBestPreviewTarget() const;
 
 	// Add this property in the public section with your other components
 	/** Component that handles grab interactions */
-	
+	/** Optional: specific snap point IDs this part prefers to connect to */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assembly Configuration")
+	TArray<FName> PreferredTargetSnapIDs;
 
-	// USnapPointComponent* GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const;
+
 	
 	/** Preview mesh that shows where this part will snap */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
@@ -62,20 +65,24 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
 	bool bShowingPreview = false;
 
+	UFUNCTION(BlueprintCallable, Category = "Grab State")
+	bool IsAttachedToMotionController() const;
+
 	// Preview functions
 	/** Show preview of where this part will snap */
-	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	// void ShowSnapPreview(USnapPointComponent* MySnapPoint, USnapPointComponent* TargetSnapPoint);
+	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	void ShowSnapPreview();
+	void ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint);
 	void OnPartGrabbed();
 	void OnPartReleased();
 
 	/** Hide the snap preview */
-	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	// void HideSnapPreview();
+	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	void HideSnapPreview();
 
 	// /** Calculate where this part should be positioned when snapped */
-	// UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	// FTransform CalculateSnapTransform(USnapPointComponent* MySnapPoint, USnapPointComponent* TargetSnapPoint) const;
+	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
+	FTransform CalculateSnapTransform(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint) const;
 
 
 	/** Snap system for this part */
@@ -106,12 +113,8 @@ protected:
 	/** Clear snap highlighting for a specific part */
 	UFUNCTION(BlueprintCallable, Category = "Snap Detection")
 	void ClearSnapHighlight(APartActor* OtherPart);
-    
-	/** Find the best snap point pair between this part and another */
-	UFUNCTION(BlueprintCallable, Category = "Snap Detection")
-	bool FindBestSnapPointPair(APartActor* OtherPart, USnapPointComponent*& OutMySnapPoint, 
-							  USnapPointComponent*& OutOtherSnapPoint, float& OutDistance);
-    
+  
+
 	/** Maximum distance for snap detection */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Detection")
 	float MaxSnapDistance = 25.0f;

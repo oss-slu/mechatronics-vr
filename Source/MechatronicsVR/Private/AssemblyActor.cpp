@@ -2,13 +2,14 @@
 
 #include "AssemblyActor.h"
 #include "PartActor.h"
+#include "AssemblyComponent.h"
 #include "SnapPointComponent.h"
 
 
 // Sets default values
 AAssemblyActor::AAssemblyActor()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	// Initialize default state
@@ -17,6 +18,18 @@ AAssemblyActor::AAssemblyActor()
 	// Create root component
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 
+    
+	// Create the base snap point
+	USnapPointComponent* BaseSnapPoint = CreateDefaultSubobject<USnapPointComponent>(TEXT("BaseSnapPoint"));
+	BaseSnapPoint->SetupAttachment(RootComponent);
+	BaseSnapPoint->SnapID = FName("BaseSnapPoint");  // Default ID, can be changed in BP
+    
+	// Add to the array
+	BaseSnapPoints.Add(BaseSnapPoint);
+    
+	// Default settings
+	bIsAssemblyActive = true;
+	bShowBaseSnapPoints = true;
 }
 
 // Called when the game starts or when spawned
@@ -35,6 +48,35 @@ void AAssemblyActor::Tick(float DeltaTime)
 
 	CleanupInvalidConstraints();
 
+}
+
+bool AAssemblyActor::IsPartAttachedToBase(APartActor* Part) const
+{
+	if (!Part) return false;
+
+
+	// check if this part is connected to any base snap point
+	for (const FPartConnection& Connection : Connections)
+	{
+		bool bConnectedToBase = false;
+		if (Connection.PartA == Part || Connection.PartB == Part)
+		{
+			// Check if this is a base connection
+			if (Connection.bIsBaseConnection)
+			{
+				return true;
+			}
+            
+			// Alternative check: see if either snap point is in our base snap points
+			if (BaseSnapPoints.Contains(Connection.SnapPointA) || 
+				BaseSnapPoints.Contains(Connection.SnapPointB))
+			{
+				return true;
+			}
+			
+		}
+	}
+	return false;
 }
 
 void AAssemblyActor::AddPart(APartActor* NewPart)
@@ -90,7 +132,24 @@ void AAssemblyActor::RemovePart(APartActor* Part)
 
 bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPointComponent* SnapPointA, USnapPointComponent* SnapPointB)
 {
+	bool bIsBaseConnection = false;
+
+	//check if SnapPointA or SnapPointB is part of the base snap poi
+	if (BaseSnapPoints.Contains(SnapPointA))
+	{
+		bIsBaseConnection = true;
+		// PartB is connecting to the assembly base
+		PartB = PartA; // Swap so the part is always in PartB
+		PartA = nullptr; // No part on the base side
+	}
+	else if (BaseSnapPoints.Contains(SnapPointB))
+	{
+		bIsBaseConnection = true;
+		// PartA is connecting to the assembly base
+		PartA = nullptr; // No part on the base side
+	}
 	// Validate inputs
+	
 	if (!PartA || !PartB || !SnapPointA || !SnapPointB)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("AAssemblyActor::ConnectParts: Invalid input parameters"));
@@ -130,7 +189,11 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 	FPartConnection NewConnection;
 	NewConnection.PartA = PartA;
 	NewConnection.PartB = PartB;
+	NewConnection.SnapPointA = SnapPointA;
+	NewConnection.SnapPointB = SnapPointB;
 	NewConnection.Constraint = Constraint;
+	NewConnection.bIsBaseConnection = bIsBaseConnection;
+	NewConnection.bIsConnected = true;
 
 	Connections.Add(NewConnection);
 
@@ -140,6 +203,16 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 
 	// update assembly state
 	UpdateAssemblyState();
+
+	// Add part to the assembly
+	if (PartA && !Parts.Contains(PartA))
+	{
+		Parts.Add(PartA);
+	}
+	if (PartB && !Parts.Contains(PartB))
+	{
+		Parts.Add(PartB);
+	}
 
 	//fire events
 	OnPartsConnected.Broadcast(PartA, PartB);

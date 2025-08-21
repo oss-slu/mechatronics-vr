@@ -31,17 +31,30 @@ struct FPartConnection
 	TObjectPtr<APartActor> PartB;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Part Connection")
+	TObjectPtr<USnapPointComponent> SnapPointA;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Part Connection")
+	TObjectPtr<USnapPointComponent> SnapPointB;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Part Connection")
 	TObjectPtr<UPhysicsConstraintComponent> Constraint;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Part Connection")
 	bool bIsConnected;
 
+	/** Is this connection to a base snap point? */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Part Connection")
+	bool bIsBaseConnection;
+
 	FPartConnection()
 	{
 		PartA = nullptr;
 		PartB = nullptr;
+		SnapPointA = nullptr;
+		SnapPointB = nullptr;
 		Constraint = nullptr;
 		bIsConnected = false;
+		bIsBaseConnection = false;
 	}
 };
 
@@ -64,9 +77,36 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	/** Snap points that belong directly to the assembly (for base connections) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Assembly")
+	TArray<USnapPointComponent*> BaseSnapPoints; 
+    
+	/** Root component for snap points */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Assembly")
+	TObjectPtr<USceneComponent> SnapPointRoot;
+    
+	/** Is this assembly ready to accept parts? */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assembly")
+	bool bIsAssemblyActive = true;
+    
+	/** Optional: Visual indicator for base snap points (for debugging) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assembly")
+	bool bShowBaseSnapPoints = true;
+    
+	/** Get all base snap points on this assembly */
+	UFUNCTION(BlueprintCallable, Category = "Assembly")
+	TArray<USnapPointComponent*> GetBaseSnapPoints() const { return BaseSnapPoints; }
+    
+
+    
+	/** Check if a part is the first part (attached to base) */
+	UFUNCTION(BlueprintCallable, Category = "Assembly")
+	bool IsPartAttachedToBase(APartActor* Part) const;
+
 	/* ================== PART MANAGEMENT ================== */
 
 	/** All parts that belong to this assembly */
@@ -134,8 +174,7 @@ public:
 	/** Get all parts connected to a specific part */
 	UFUNCTION(BlueprintCallable, Category = "Assembly")
 	TArray<APartActor*> GetConnectedParts(APartActor* Part) const;
-	UPhysicsConstraintComponent* CreateConstraintBetweenParts(APartActor* PartA, USnapPointComponent* SnapPointA,
-	                                                          APartActor* PartB, USnapPointComponent* SnapPointB);
+	
 
 	// ================== EVENTS ==================
 	UPROPERTY(BlueprintAssignable, Category = "Assembly Events")
@@ -149,13 +188,17 @@ public:
 
 protected:
 	// ================== INTERNAL FUNCTIONS ==================
-	UPhysicsConstraintComponent* CreateConstraintBetweenParts(
-		APartActor* PartA, APartActor* PartB,
-		USnapPointComponent* SnapPointA, USnapPointComponent* SnapPointB);
+	UPhysicsConstraintComponent* CreateConstraintBetweenParts(APartActor* PartA, USnapPointComponent* SnapPointA,
+															  APartActor* PadtB, USnapPointComponent* SnapPointB);
 
 	/** Determine constraint type between two parts */
 	void ConfigureConstraintType(UPhysicsConstraintComponent* Constraint, 
 		USnapPointComponent* SnapPointA, USnapPointComponent* SnapPointB);
+
+	UPhysicsConstraintComponent* CreateConstraintToBase(
+	APartActor* Part, 
+	USnapPointComponent* PartSnapPoint,
+	USnapPointComponent* BaseSnapPoint);
 
 	/** CLean up broken constraints */
 	void CleanupInvalidConstraints();
