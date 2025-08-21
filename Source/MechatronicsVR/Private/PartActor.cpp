@@ -348,6 +348,17 @@ FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoi
     
 	FTransform ResultTransform = GetActorTransform();
 	ResultTransform.SetLocation(NewActorPos);
+	if (AActor* TargetOwner = TargetSnapPoint->GetOwner())
+	{
+		// Use the rotation of what we're attaching to
+		ResultTransform.SetRotation(TargetOwner->GetActorRotation().Quaternion());
+	}
+	else
+	{
+		// Fallback: just use world aligned
+		ResultTransform.SetRotation(FQuat::Identity);
+	}
+	
     
 	return ResultTransform;
 }
