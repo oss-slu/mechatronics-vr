@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AssemblyActor.h"
 #include "PartActor.generated.h"
+
 
 class UAssemblyComponent;
 class USnapValidatorComponent;
 class USnapPointComponent;
+class AAssemblyActor; 
 UCLASS()
 class MECHATRONICSVR_API APartActor : public AActor
 {
@@ -24,7 +27,7 @@ public:
 
 	/** Currently previewing snap with this target snap point */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
-	TObjectPtr<USnapPointComponent> CurrentPreviewTarget = nullptr;
+	TObjectPtr<USnapPointComponent> CurrentTargetSnapPoint = nullptr;
 
 	/** Check if we should show preview based on grab state and nearby snap points */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
@@ -43,6 +46,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assembly Configuration")
 	TArray<FName> PreferredTargetSnapIDs;
 
+	/** Attempt to snap to the current preview target */
+	UFUNCTION(BlueprintCallable, Category = "Snap")
+	bool TrySnapToPreview();
+
 
 	
 	/** Preview mesh that shows where this part will snap */
@@ -52,6 +59,14 @@ public:
 	/** Material for preview (ghost-like appearance) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
 	TObjectPtr<UMaterialInterface> PreviewMaterial;
+
+	/** Maximum distance for actual snapping when released (in Unreal units, cm) */
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Snap")
+	float SnapDistance = 50.0f;
+
+	/** Corresponding Assembly Actor (if any) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
+	TSoftObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
 
 	/** Preview opacity (0.0 to 1.0) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
@@ -110,9 +125,9 @@ protected:
 
 
     
-	/** Clear snap highlighting for a specific part */
-	UFUNCTION(BlueprintCallable, Category = "Snap Detection")
-	void ClearSnapHighlight(APartActor* OtherPart);
+	// /** Clear snap highlighting for a specific part */
+	// UFUNCTION(BlueprintCallable, Category = "Snap Detection")
+	// void ClearSnapHighlight(APartActor* OtherPart);
   
 
 	/** Maximum distance for snap detection */

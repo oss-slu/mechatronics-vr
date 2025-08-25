@@ -109,10 +109,10 @@ void APartActor::UpdatePreviewState()
 	if (!IsAttachedToMotionController())
 	{
 		HideSnapPreview();
-		CurrentPreviewTarget = nullptr;
+		CurrentTargetSnapPoint = nullptr;
 		return;
 	}
-	CurrentPreviewTarget = FindBestPreviewTarget();
+	CurrentTargetSnapPoint = FindBestPreviewTarget();
 }
 
 USnapPointComponent* APartActor::FindBestPreviewTarget() const
@@ -154,50 +154,111 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
     }
     
     // SECOND: Try the assembly base
-    TArray<AActor*> FoundAssemblies;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAssemblyActor::StaticClass(), FoundAssemblies);
-    
-    for (AActor* Actor : FoundAssemblies)
+    // Check assembly's base snap points
+    TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
+    for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
     {
-        AAssemblyActor* MyAssembly = Cast<AAssemblyActor>(Actor);
-        if (!MyAssembly || !MyAssembly->bIsAssemblyActive)
-        {
-            continue;
-        }
+	    if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
+	    {
+	    	continue;
+	    }
         
-        // Check assembly's base snap points
-        TArray<USnapPointComponent*> BaseSnapPoints = MyAssembly->GetBaseSnapPoints();
-        for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
-        {
-            if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
-            {
-                continue;
-            }
+    	// Check each of my snap points for compatibility with base
+    	for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
+    	{
+    		if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
+    		{
+    			continue;
+    		}
             
-            // Check each of my snap points for compatibility with base
-            for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
-            {
-                if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
-                {
-                    continue;
-                }
-                
-                if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) && 
-                    BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
-                {
-                    // Found compatible base - return it!
-                    UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"), 
-                        *GetName(), *BaseSnapPoint->GetName());
-                    return BaseSnapPoint;
-                }
-            }
-        }
+    		if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) &&			BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
+    		{
+    			// Found compatible base - return it!
+    			UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"),				*GetName(), *BaseSnapPoint->GetName());
+    			return BaseSnapPoint;
+    		}
+    	}
     }
-    
     return nullptr;  // No compatible target found
 }
 
-bool APartActor::IsAttachedToMotionController() const 
+bool APartActor::TrySnapToPreview()
+{
+	
+	UE_LOG(LogTemp, Warning, TEXT("TrySnapToPreview called for %s"), *GetName());
+
+	if (!CurrentTargetSnapPoint)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TrySnapToPreview: No CurrentPreviewTarget set, returning false."));
+		return false;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("  - Has preview target: %s"), *CurrentTargetSnapPoint->GetName());
+	// Find which of my snap points should connect
+	USnapPointComponent* SnapPoint = GetBestSnapPointFor(CurrentTargetSnapPoint);
+	if (!SnapPoint)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  - No compatible snap point on me"));
+		return false;
+	}
+
+	// Check if target is a base snap point on the assembly
+	if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  - Target is a base snap point"));
+
+		//calculate and apply the snap transform
+		FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
+		SetActorTransform(SnapTransform);
+		// Notify assembly to add me as first part
+		bool bSuccess = AssemblyActor->ConnectParts(nullptr, this, CurrentTargetSnapPoint, SnapPoint);
+		if (bSuccess)
+		{
+			// Disable physics since we're now connected
+			if (Mesh)
+			{
+				Mesh->SetSimulatePhysics(false);
+				Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			}
+			HideSnapPreview();
+			CurrentTargetSnapPoint = nullptr;
+			UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
+			return true;
+		}
+	} else
+	{
+		// target is another part actor
+		APartActor* TargetPart = Cast<APartActor>(CurrentTargetSnapPoint->GetOwner());
+		if (TargetPart)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("  - Target is another part: %s"), *TargetPart->GetName());
+			//calculate and apply the snap transform
+			FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
+			SetActorTransform(SnapTransform);
+			// Notify assembly to connect the two parts
+			bool bSuccess = AssemblyActor->ConnectParts(this, TargetPart, SnapPoint, CurrentTargetSnapPoint);
+			if (bSuccess)
+			{
+				// Disable physics since we're now connected
+				if (Mesh)
+				{
+					Mesh->SetSimulatePhysics(false);
+					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+				}
+				HideSnapPreview();
+				CurrentTargetSnapPoint = nullptr;
+				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("  - Failed to connect parts in assembly"));				
+			}
+		}
+	}
+	return false;
+}
+
+bool APartActor::IsAttachedToMotionController() const
 {
 	if (USceneComponent* RootComp = GetRootComponent()) 
 	{
@@ -218,7 +279,7 @@ bool APartActor::IsAttachedToMotionController() const
 void APartActor::ShowSnapPreview()
 {
 	// Part figures out which snap points to use
-	if (!CurrentPreviewTarget)
+	if (!CurrentTargetSnapPoint)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreview: No CurrentPreviewTarget set, returning early."));
 		return;
@@ -226,11 +287,11 @@ void APartActor::ShowSnapPreview()
 	}
     
 	// Find which of MY snap points should connect
-	USnapPointComponent* MyBestSnapPoint = GetBestSnapPointFor(CurrentPreviewTarget);
+	USnapPointComponent* MyBestSnapPoint = GetBestSnapPointFor(CurrentTargetSnapPoint);
     
 	if (MyBestSnapPoint)	
 	{
-		ShowSnapPreviewInternal(MyBestSnapPoint, CurrentPreviewTarget);
+		ShowSnapPreviewInternal(MyBestSnapPoint, CurrentTargetSnapPoint);
 	}
 }
 
@@ -300,7 +361,7 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 
 		PreviewMesh->SetVisibility(true);
 		bShowingPreview = true;
-		CurrentPreviewTarget = TargetSnapPoint;
+		CurrentTargetSnapPoint = TargetSnapPoint;
 
 		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreview: Showing preview for %s at snap point %s to target %s"), 
 		  *GetName(), 
@@ -321,7 +382,7 @@ void APartActor::HideSnapPreview()
 	{
 		PreviewMesh->SetVisibility(false);
 		bShowingPreview = false;
-		CurrentPreviewTarget = nullptr;
+		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Log, TEXT("HideSnapPreview: Hiding preview for %s"), *GetName());
 	}
 }
@@ -391,7 +452,7 @@ void APartActor::OnPartReleased()
     
 	// Hide preview
 	HideSnapPreview();
-	CurrentPreviewTarget = nullptr;
+	CurrentTargetSnapPoint = nullptr;
 }
 
 const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
@@ -400,20 +461,20 @@ const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
 }
 
 
-void APartActor::ClearSnapHighlight(APartActor* OtherPart)
-{
-    if (SnapCandidate == OtherPart)
-    {
-        SnapCandidate = nullptr;
-        MySnapPoint = nullptr;
-        CandidateSnapPoint = nullptr;
-        
-        UE_LOG(LogTemp, Log, TEXT("PartActor %s: Cleared snap highlight for %s"), 
-               *GetName(), *OtherPart->GetName());
-        
-        // TODO: Remove visual feedback
-    }
-}
+// void APartActor::ClearSnapHighlight(APartActor* OtherPart)
+// {
+//     if (SnapCandidate == OtherPart)
+//     {
+//         SnapCandidate = nullptr;
+//         SnapPoint = nullptr;
+//         CandidateSnapPoint = nullptr;
+//         
+//         UE_LOG(LogTemp, Log, TEXT("PartActor %s: Cleared snap highlight for %s"), 
+//                *GetName(), *OtherPart->GetName());
+//         
+//         // TODO: Remove visual feedback
+//     }
+// }
 
 
 
