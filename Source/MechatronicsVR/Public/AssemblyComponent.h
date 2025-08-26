@@ -28,6 +28,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Assembly")
 	TArray<USnapPointComponent*> GetSnapPoints() const;
 
+	//snap point debug
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Assembly|Debug")
+	bool bShowSnapPointDebug = false;
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;

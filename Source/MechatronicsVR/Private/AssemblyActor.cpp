@@ -209,8 +209,7 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 	{
 		UE_LOG(LogTemp, Log, TEXT("AAssemblyActor::ConnectParts: Successfully connected %s to base"), 
 		   *PartB->GetName());
-	}
-	else
+	} else
 	{
 		UE_LOG(LogTemp, Log, TEXT("AAssemblyActor::ConnectParts: Successfully connected %s to %s"), 
 		   *PartA->GetName(), *PartB->GetName());

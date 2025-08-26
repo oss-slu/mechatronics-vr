@@ -5,6 +5,7 @@
 
 #include "AssemblyActor.h"
 #include "AssemblyComponent.h"
+#include "EngineUtils.h"
 #include "MotionControllerComponent.h"
 #include "SnapValidatorComponent.h"
 
@@ -123,7 +124,7 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
     TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
     
     // FIRST: Check if we have a specific actor we should assemble onto
-    if (PartAssembledOnto != nullptr)
+    if (PartAssembledOnto && PartAssembledOnto->IsValidLowLevelFast())
     {
         TArray<USnapPointComponent*> TargetSnapPoints = PartAssembledOnto->GetSnapPoints();
         
@@ -155,7 +156,7 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
         }
     }
     
-	else {
+	
 		// SECOND: Try the assembly base
     	// Check assembly's base snap points
     	TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
@@ -182,7 +183,7 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
     			}
     		}
     	}
-	}
+	
     return nullptr;  // No compatible target found
 }
 
@@ -222,6 +223,36 @@ bool APartActor::TrySnapToPreview()
 	// Check if target is a base snap point on the assembly
 	if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 	{
+		// target is another part actor
+		APartActor* TargetPart = Cast<APartActor>(CurrentTargetSnapPoint->GetOwner());
+		if (TargetPart)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("  - Target is another part: %s"), *TargetPart->GetName());
+			//calculate and apply the snap transform
+			FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
+			SetActorTransform(SnapTransform);
+			// Notify assembly to connect the two parts
+			bool bSuccess = AssemblyActor->ConnectParts(this, TargetPart, SnapPoint, CurrentTargetSnapPoint);
+			if (bSuccess)
+			{
+				// Disable physics since we're now connected
+				if (Mesh)
+				{
+					Mesh->SetSimulatePhysics(false);
+					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+				}
+				HideSnapPreview();
+				CurrentTargetSnapPoint = nullptr;
+				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("  - Failed to connect parts in assembly"));				
+			}
+		}
+	}
+	{
 		UE_LOG(LogTemp, Warning, TEXT("  - Target is a base snap point"));
 
 		/* calculate and apply the snap transform from the preview mesh */
@@ -259,37 +290,8 @@ bool APartActor::TrySnapToPreview()
 				Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 			}
 		}
-	} else
-	{
-		// target is another part actor
-		APartActor* TargetPart = Cast<APartActor>(CurrentTargetSnapPoint->GetOwner());
-		if (TargetPart)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("  - Target is another part: %s"), *TargetPart->GetName());
-			//calculate and apply the snap transform
-			FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
-			SetActorTransform(SnapTransform);
-			// Notify assembly to connect the two parts
-			bool bSuccess = AssemblyActor->ConnectParts(this, TargetPart, SnapPoint, CurrentTargetSnapPoint);
-			if (bSuccess)
-			{
-				// Disable physics since we're now connected
-				if (Mesh)
-				{
-					Mesh->SetSimulatePhysics(false);
-					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-				}
-				HideSnapPreview();
-				CurrentTargetSnapPoint = nullptr;
-				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
-				return true;
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("  - Failed to connect parts in assembly"));				
-			}
-		}
-	}
+	} 
+	
 	return false;
 }
 
@@ -431,21 +433,22 @@ FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoi
 	}
     
 
-    
+	FTransform ActorTransform = GetActorTransform();
+	
 	// Simple calculation
-	FVector MySnapWorldPos = SourceSnapPoint->GetComponentLocation();
-	FVector TargetSnapWorldPos = TargetSnapPoint->GetComponentLocation();
-	FVector MyActorPos = GetActorLocation();
+	const FVector SourceSnapWorldPos = SourceSnapPoint->GetComponentLocation();
+	const FVector TargetSnapWorldPos = TargetSnapPoint->GetComponentLocation();
+	const FVector MyActorPos = GetActorLocation();
     
-	// Offset from actor center to snap point
-	FVector ActorToSnap = MySnapWorldPos - MyActorPos;
+	// Calculate offset in LOCAL space (this is key!)
+	FVector LocalOffset = ActorTransform.InverseTransformPosition(SourceSnapWorldPos);
     
 	// Where actor needs to be
-	FVector NewActorPos = TargetSnapWorldPos - ActorToSnap;
+	FVector NewActorPos = TargetSnapWorldPos - ActorTransform.TransformVector(LocalOffset);
     
-	FTransform ResultTransform = GetActorTransform();
+	FTransform ResultTransform = ActorTransform;
 	ResultTransform.SetLocation(NewActorPos);
-	if (AActor* TargetOwner = TargetSnapPoint->GetOwner())
+	if (const AActor* TargetOwner = TargetSnapPoint->GetOwner())
 	{
 		// Use the rotation of what we're attaching to
 		ResultTransform.SetRotation(TargetOwner->GetActorRotation().Quaternion());
@@ -524,6 +527,50 @@ const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
 void APartActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (PartAssembledOntoClass)
+	{
+		for (TActorIterator<APartActor> It(GetWorld()); It; ++It)
+		{
+			APartActor* PotentialTarget = *It;
+			if  (PotentialTarget && 
+				PotentialTarget != this &&
+				PotentialTarget->IsA(PartAssembledOntoClass))
+			{
+				PartAssembledOnto = PotentialTarget;
+				UE_LOG(LogTemp, Log, TEXT("%s: Found PartAssembledOnto: %s"), 
+					*GetName(), *PartAssembledOnto->GetName());
+				break;
+			}
+		}
+		if (!PartAssembledOnto)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s: Could not find instance of class %s"), 
+				*GetName(), *PartAssembledOntoClass->GetName());
+		}
+	}
+
+	if (AssemblyActorClass)
+	{
+		for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
+		{
+			AAssemblyActor* PotentialAssembly = *It;
+			if  (PotentialAssembly && 
+				PotentialAssembly->IsA(AssemblyActorClass))
+			{
+				AssemblyActor = PotentialAssembly;
+				UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"), 
+					*GetName(), *AssemblyActor->GetName());
+				break;
+			}
+		}
+		if (!AssemblyActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s: Could not find instance of class %s"), 
+				*GetName(), *AssemblyActorClass->GetName());
+		}
+	}
+	
 	
 	PreviewMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/M_GhostPreview"));
 

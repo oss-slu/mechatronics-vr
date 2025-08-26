@@ -32,9 +32,11 @@ public:
 	/** Check if we should show preview based on grab state and nearby snap points */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
 	void UpdatePreviewState();
+
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
-	TSoftObjectPtr<APartActor> PartAssembledOnto = nullptr;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Grab")
+	TSubclassOf<APartActor> PartAssembledOntoClass;
 
 	// /** Find the best snap point to preview with */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview") 
@@ -66,7 +68,7 @@ public:
 
 	/** Corresponding Assembly Actor (if any) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Part")
-	TSoftObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
+	TSubclassOf<AAssemblyActor> AssemblyActorClass;
 
 	/** Preview opacity (0.0 to 1.0) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
@@ -153,4 +155,10 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+private:
+	UPROPERTY()
+	TObjectPtr<APartActor> PartAssembledOnto = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
 };
