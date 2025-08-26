@@ -33,8 +33,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
 	void UpdatePreviewState();
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grab")
-	TObjectPtr<APartActor> PartAssembledOnto;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
+	TSoftObjectPtr<APartActor> PartAssembledOnto = nullptr;
 
 	// /** Find the best snap point to preview with */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview") 
@@ -118,6 +118,7 @@ public:
 	// Current nearby parts for snapping
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Detection")
 	TArray<TObjectPtr<APartActor>> NearbyParts;
+
 	
 	
 
@@ -132,7 +133,7 @@ protected:
 
 	/** Maximum distance for snap detection */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Detection")
-	float MaxSnapDistance = 25.0f;
+	float MaxSnapDistance = 50.0f;
     
 	/** Current snap candidate (if any) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Detection")

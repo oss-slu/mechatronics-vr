@@ -55,6 +55,7 @@ bool UGrabComponent::TryGrab(UMotionControllerComponent* MotionController, bool 
 	if (UPrimitiveComponent* RootPrimitive = Cast<UPrimitiveComponent>(Owner->GetRootComponent()))
 	{
 		RootPrimitive->SetSimulatePhysics(false);
+		RootPrimitive->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	}
 
 	// Attach parent to motion controller (matching the macro)
