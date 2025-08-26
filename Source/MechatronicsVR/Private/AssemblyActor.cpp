@@ -132,29 +132,17 @@ void AAssemblyActor::RemovePart(APartActor* Part)
 
 bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPointComponent* SnapPointA, USnapPointComponent* SnapPointB)
 {
-	bool bIsBaseConnection = false;
-
-	//check if SnapPointA or SnapPointB is part of the base snap poi
-	if (BaseSnapPoints.Contains(SnapPointA))
-	{
-		bIsBaseConnection = true;
-		// PartB is connecting to the assembly base
-		PartB = PartA; // Swap so the part is always in PartB
-		PartA = nullptr; // No part on the base side
-	}
-	else if (BaseSnapPoints.Contains(SnapPointB))
-	{
-		bIsBaseConnection = true;
-		// PartA is connecting to the assembly base
-		PartA = nullptr; // No part on the base side
-	}
+	
+	// Declare AND use it immediately to prevent optimization
+	bool bIsBaseConnection = BaseSnapPoints.Contains(SnapPointA) || 
+							BaseSnapPoints.Contains(SnapPointB);
+    
+	UE_LOG(LogTemp, Warning, TEXT("bIsBaseConnection = %s"), 
+		   bIsBaseConnection ? TEXT("true") : TEXT("false"));
+	
 	// Validate inputs
 	
-	if (!PartA || !PartB || !SnapPointA || !SnapPointB)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("AAssemblyActor::ConnectParts: Invalid input parameters"));
-		return false;
-	}
+	
     
 	// Check if parts are already connected
 	if (ArePartsConnected(PartA, PartB))
@@ -177,13 +165,13 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 		return false;
 	}
 
-	// Create physics constraint
-	UPhysicsConstraintComponent* Constraint = CreateConstraintBetweenParts(PartA, SnapPointA, PartB, SnapPointB);
-	if (!Constraint)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AAssemblyActor::ConnectParts: Failed to create constraint"));
-		return false;
-	}
+	// // Create physics constraint
+	// UPhysicsConstraintComponent* Constraint = CreateConstraintBetweenParts(PartA, SnapPointA, PartB, SnapPointB);
+	// if (!Constraint)
+	// {
+	// 	UE_LOG(LogTemp, Error, TEXT("AAssemblyActor::ConnectParts: Failed to create constraint"));
+	// 	return false;
+	// }
 
 	//Create connection record
 	FPartConnection NewConnection;
@@ -191,7 +179,7 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 	NewConnection.PartB = PartB;
 	NewConnection.SnapPointA = SnapPointA;
 	NewConnection.SnapPointB = SnapPointB;
-	NewConnection.Constraint = Constraint;
+	// NewConnection.Constraint = Constraint;
 	NewConnection.bIsBaseConnection = bIsBaseConnection;
 	NewConnection.bIsConnected = true;
 
@@ -217,8 +205,16 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 	//fire events
 	OnPartsConnected.Broadcast(PartA, PartB);
 
-	UE_LOG(LogTemp, Log, TEXT("AAssemblyActor::ConnectParts: Successfully connected %s to %s"), 
+	if (bIsBaseConnection)
+	{
+		UE_LOG(LogTemp, Log, TEXT("AAssemblyActor::ConnectParts: Successfully connected %s to base"), 
+		   *PartB->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("AAssemblyActor::ConnectParts: Successfully connected %s to %s"), 
 		   *PartA->GetName(), *PartB->GetName());
+	}
     
 	return true;
 }

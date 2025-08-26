@@ -209,7 +209,7 @@ bool APartActor::TrySnapToPreview()
 		//calculate and apply the snap transform
 		FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
 		SetActorTransform(SnapTransform);
-		// Notify assembly to add me as first part
+			// Notify assembly to add me as first part
 		bool bSuccess = AssemblyActor->ConnectParts(nullptr, this, CurrentTargetSnapPoint, SnapPoint);
 		if (bSuccess)
 		{
@@ -223,6 +223,15 @@ bool APartActor::TrySnapToPreview()
 			CurrentTargetSnapPoint = nullptr;
 			UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
 			return true;
+		}
+		else
+		{
+			if (Mesh)
+			{
+				//simulate the physics again
+				Mesh->SetSimulatePhysics(true);
+				Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			}
 		}
 	} else
 	{
