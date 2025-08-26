@@ -22,6 +22,7 @@ APartActor::APartActor()
 	RootComponent = Mesh;
 	Mesh->SetSimulatePhysics(true);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	Mesh->SetCollisionObjectType(ECC_PhysicsBody);
 
 
 	// Create preview mesh component
@@ -43,9 +44,9 @@ APartActor::APartActor()
 	
     
 	// Configure for VR Template grabbing
-	Mesh->SetCollisionObjectType(ECC_WorldDynamic);
+	
 	Mesh->SetCollisionResponseToAllChannels(ECR_Block);
-	Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore); // Don't block player movement
+	// Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore); // Don't block player movement
     
 	// Set mass for realistic feel (adjust per part)
 	Mesh->SetMassOverrideInKg(NAME_None, 1.0f, true);

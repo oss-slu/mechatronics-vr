@@ -19,6 +19,7 @@ UGrabComponent::UGrabComponent()
 
 bool UGrabComponent::TryGrab(UMotionControllerComponent* MotionController, bool bIsSecondaryGrab)
 {
+	
 	if (!MotionController || bIsHeld)
 	{
 		return false;

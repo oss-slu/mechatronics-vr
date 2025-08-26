@@ -61,11 +61,11 @@ public:
 
 	
 	/** Try to grab this component */
-	UFUNCTION(BlueprintCallable, Category = "Grab")
+	UFUNCTION(BlueprintCallable, Category = "Grab", meta = (ReturnDisplayName = " Is Held"))
 	bool TryGrab(UMotionControllerComponent* MotionController, bool bIsSecondaryGrab = false);
 	
 	/** Release this component */
-	UFUNCTION(BlueprintCallable, Category = "Grab")
+	UFUNCTION(BlueprintCallable, Category = "Grab", meta = (ReturnDisplayName = " Is Held"))
 	bool TryRelease();
 
 	/** Get which hand is holding this */
