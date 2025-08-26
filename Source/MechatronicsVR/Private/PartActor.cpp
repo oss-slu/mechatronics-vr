@@ -22,6 +22,7 @@ APartActor::APartActor()
 	RootComponent = Mesh;
 	Mesh->SetSimulatePhysics(true);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	Mesh->SetCollisionObjectType(ECC_PhysicsBody);
 
 
 	// Create preview mesh component
@@ -30,6 +31,7 @@ APartActor::APartActor()
 	PreviewMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	PreviewMesh->SetVisibility(false);
 	PreviewMesh->SetCastShadow(false);
+
 
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> PreviewMaterialFinder(TEXT("/Game/M_GhostPreview.M_GhostPreview"));
 	if (PreviewMaterialFinder.Succeeded())
@@ -43,9 +45,9 @@ APartActor::APartActor()
 	
     
 	// Configure for VR Template grabbing
-	Mesh->SetCollisionObjectType(ECC_WorldDynamic);
+	
 	Mesh->SetCollisionResponseToAllChannels(ECR_Block);
-	Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore); // Don't block player movement
+	// Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore); // Don't block player movement
     
 	// Set mass for realistic feel (adjust per part)
 	Mesh->SetMassOverrideInKg(NAME_None, 1.0f, true);
@@ -121,7 +123,7 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
     TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
     
     // FIRST: Check if we have a specific actor we should assemble onto
-    if (PartAssembledOnto && IsValid(PartAssembledOnto))
+    if (PartAssembledOnto != nullptr)
     {
         TArray<USnapPointComponent*> TargetSnapPoints = PartAssembledOnto->GetSnapPoints();
         
@@ -153,32 +155,34 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
         }
     }
     
-    // SECOND: Try the assembly base
-    // Check assembly's base snap points
-    TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
-    for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
-    {
-	    if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
-	    {
-	    	continue;
-	    }
-        
-    	// Check each of my snap points for compatibility with base
-    	for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
+	else {
+		// SECOND: Try the assembly base
+    	// Check assembly's base snap points
+    	TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
+    	for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
     	{
-    		if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
+    		if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
     		{
     			continue;
     		}
-            
-    		if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) &&			BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
+        
+    		// Check each of my snap points for compatibility with base
+    		for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
     		{
-    			// Found compatible base - return it!
-    			UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"),				*GetName(), *BaseSnapPoint->GetName());
-    			return BaseSnapPoint;
+    			if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
+    			{
+    				continue;
+    			}
+            
+    			if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) &&			BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
+    			{
+    				// Found compatible base - return it!
+    				UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"),				*GetName(), *BaseSnapPoint->GetName());
+    				return BaseSnapPoint;
+    			}
     		}
     	}
-    }
+	}
     return nullptr;  // No compatible target found
 }
 
@@ -201,14 +205,36 @@ bool APartActor::TrySnapToPreview()
 		return false;
 	}
 
+	// CHECK DISTANCE - must be within snap range
+
+	if (const float Distance = FVector::Dist(SnapPoint->GetComponentLocation(),
+	                                         CurrentTargetSnapPoint->GetComponentLocation()); Distance > MaxSnapDistance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("  - Too far to snap: %.1f cm (max: %.1f cm)"), 
+			Distance, MaxSnapDistance);
+        
+		// Too far - just drop normally
+		HideSnapPreview();
+		CurrentTargetSnapPoint = nullptr;
+		return false;
+	}
+
 	// Check if target is a base snap point on the assembly
 	if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("  - Target is a base snap point"));
 
-		//calculate and apply the snap transform
-		FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
-		SetActorTransform(SnapTransform);
+		/* calculate and apply the snap transform from the preview mesh */
+		if (PreviewMesh)
+		{
+			const FTransform PreviewTransform = PreviewMesh->GetComponentTransform();
+			SetActorTransform(PreviewTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
+		else
+		{
+			const FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
+			SetActorTransform(SnapTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		}
 			// Notify assembly to add me as first part
 		bool bSuccess = AssemblyActor->ConnectParts(nullptr, this, CurrentTargetSnapPoint, SnapPoint);
 		if (bSuccess)
@@ -217,7 +243,7 @@ bool APartActor::TrySnapToPreview()
 			if (Mesh)
 			{
 				Mesh->SetSimulatePhysics(false);
-				Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+				Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 			}
 			HideSnapPreview();
 			CurrentTargetSnapPoint = nullptr;
@@ -328,6 +354,7 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 			*SnapTransform.GetLocation().ToString(), *SnapTransform.GetRotation().Rotator().ToString());
 		PreviewMesh->SetWorldTransform(SnapTransform);
 
+
 		if (PreviewMaterial)
 		{
 			UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Using PreviewMaterial: %s"), *PreviewMaterial->GetName());
@@ -436,6 +463,9 @@ FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoi
 void APartActor::OnPartGrabbed() 
 {
 	UE_LOG(LogTemp, Warning, TEXT("🔥 GRABBED: %s"), *GetName());
+	
+	UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed - PreviewMaterial: %s"), 
+		PreviewMaterial ? TEXT("Valid") : TEXT("NULL"));
     
 	// Print to screen for easy debugging
 	if (GEngine)
@@ -446,6 +476,7 @@ void APartActor::OnPartGrabbed()
     
 	// Update preview state
 	UpdatePreviewState();
+	ShowSnapPreview();
 }
 
 void APartActor::OnPartReleased() 
@@ -458,10 +489,12 @@ void APartActor::OnPartReleased()
 		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, 
 			FString::Printf(TEXT("RELEASED: %s"), *GetName()));
 	}
-    
+	TrySnapToPreview();
 	// Hide preview
 	HideSnapPreview();
 	CurrentTargetSnapPoint = nullptr;
+
+	
 }
 
 const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
@@ -491,6 +524,18 @@ const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
 void APartActor::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	PreviewMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/M_GhostPreview"));
+
+	  
+	if (!PreviewMaterial)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to load preview material in BeginPlay"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Preview material loaded: %s"), *PreviewMaterial->GetName());
+	}
 	
 }
 
