@@ -348,8 +348,8 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Setting PreviewMesh static me+sh to %s"), *Mesh->GetStaticMesh()->GetName());
 		PreviewMesh->SetStaticMesh(Mesh->GetStaticMesh());
 		
-		// DETACH the preview mesh so it doesn't move with the part!
-		PreviewMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		// DETACH the preview mesh, so it doesn't move with the part!
+		PreviewMesh->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 
 		const FTransform SnapTransform = CalculateSnapTransform(SourceSnapPoint, TargetSnapPoint);
 		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Setting PreviewMesh world transform. Location: %s, Rotation: %s"),
@@ -432,35 +432,48 @@ FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoi
 		return GetActorTransform();
 	}
     
-
-	FTransform ActorTransform = GetActorTransform();
-	
-	// Simple calculation
-	const FVector SourceSnapWorldPos = SourceSnapPoint->GetComponentLocation();
-	const FVector TargetSnapWorldPos = TargetSnapPoint->GetComponentLocation();
-	const FVector MyActorPos = GetActorLocation();
+	// Force update transforms before calculation
+	TargetSnapPoint->UpdateComponentToWorld();
+	SourceSnapPoint->UpdateComponentToWorld();
     
-	// Calculate offset in LOCAL space (this is key!)
-	FVector LocalOffset = ActorTransform.InverseTransformPosition(SourceSnapWorldPos);
+	// Get the ACTUAL world transform of target
+	FTransform TargetSnapWorld = TargetSnapPoint->GetComponentTransform();
     
-	// Where actor needs to be
-	FVector NewActorPos = TargetSnapWorldPos - ActorTransform.TransformVector(LocalOffset);
+	// Get MY snap point's LOCAL transform
+	FTransform MySnapLocal = SourceSnapPoint->GetRelativeTransform();
     
-	FTransform ResultTransform = ActorTransform;
-	ResultTransform.SetLocation(NewActorPos);
-	if (const AActor* TargetOwner = TargetSnapPoint->GetOwner())
+	// DEBUG: Check if MySnapLocal is actually constant
+	static FTransform LastMySnapLocal;
+	if (!LastMySnapLocal.Equals(MySnapLocal))
 	{
-		// Use the rotation of what we're attaching to
-		ResultTransform.SetRotation(TargetOwner->GetActorRotation().Quaternion());
+		UE_LOG(LogTemp, Warning, TEXT("MySnapLocal changed! Was: %s Now: %s"), 
+			*LastMySnapLocal.ToString(), *MySnapLocal.ToString());
+		LastMySnapLocal = MySnapLocal;
 	}
-	else
-	{
-		// Fallback: just use world aligned
-		ResultTransform.SetRotation(FQuat::Identity);
-	}
-	
     
-	return ResultTransform;
+	// Calculate
+	FTransform NewActorWorld = TargetSnapWorld * MySnapLocal.Inverse();
+    
+	// DEBUG: Test alternative calculation
+	FVector SimpleOffset = SourceSnapPoint->GetRelativeLocation();
+	FVector SimpleResult = TargetSnapWorld.GetLocation() - SimpleOffset;
+    
+	float Diff = FVector::Dist(SimpleResult, NewActorWorld.GetLocation());
+	if (Diff > 0.01f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Calculation difference: %.2f"), Diff);
+		UE_LOG(LogTemp, Warning, TEXT("  Transform method: %s"), *NewActorWorld.GetLocation().ToString());
+		UE_LOG(LogTemp, Warning, TEXT("  Simple method: %s"), *SimpleResult.ToString());
+        
+		// Try using the simple method instead
+		FTransform SimpleTransform;
+		SimpleTransform.SetLocation(SimpleResult);
+		SimpleTransform.SetRotation(TargetSnapWorld.GetRotation());
+		SimpleTransform.SetScale3D(FVector::OneVector);
+		return SimpleTransform;
+	}
+    
+	return NewActorWorld;
 }
 
 void APartActor::OnPartGrabbed() 
@@ -493,8 +506,7 @@ void APartActor::OnPartReleased()
 			FString::Printf(TEXT("RELEASED: %s"), *GetName()));
 	}
 	TrySnapToPreview();
-	// Hide preview
-	HideSnapPreview();
+	// HideSnapPreview();
 	CurrentTargetSnapPoint = nullptr;
 
 	

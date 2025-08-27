@@ -82,7 +82,7 @@ bool UGrabComponent::TryGrab(UMotionControllerComponent* MotionController, bool 
 	if (OnGrabHapticEffect)
 	{
 		// Get the player controller from the motion controller's owner
-		if (APawn* Pawn = Cast<APawn>(MotionController->GetOwner()))
+		if (const APawn* Pawn = Cast<APawn>(MotionController->GetOwner()))
 		{
 			if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
 			{
