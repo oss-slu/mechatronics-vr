@@ -16,7 +16,7 @@
 APartActor::APartActor()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	// Set root as mesh so physics can drive movement
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
@@ -221,8 +221,31 @@ bool APartActor::TrySnapToPreview()
 	}
 
 	// Check if target is a base snap point on the assembly
-	if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
+if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
+{
+	UE_LOG(LogTemp, Warning, TEXT("  - Target is a base snap point"));
+
+	//calculate and apply the snap transform
+	FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
+	SetActorTransform(SnapTransform);
+	// Notify assembly to add me as first part
+	bool bSuccess = AssemblyActor->ConnectParts(nullptr, this, CurrentTargetSnapPoint, SnapPoint);
+	if (bSuccess)
 	{
+		// Disable physics since we're now connected
+		if (Mesh)
+		{
+			Mesh->SetSimulatePhysics(false);
+			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		}
+		HideSnapPreview();
+		CurrentTargetSnapPoint = nullptr;
+		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
+		return true;
+	}
+}
+		
+	
 		// target is another part actor
 		APartActor* TargetPart = Cast<APartActor>(CurrentTargetSnapPoint->GetOwner());
 		if (TargetPart)
@@ -245,52 +268,9 @@ bool APartActor::TrySnapToPreview()
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
 				return true;
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("  - Failed to connect parts in assembly"));				
-			}
+			} 
+			
 		}
-	}
-	{
-		UE_LOG(LogTemp, Warning, TEXT("  - Target is a base snap point"));
-
-		/* calculate and apply the snap transform from the preview mesh */
-		if (PreviewMesh)
-		{
-			const FTransform PreviewTransform = PreviewMesh->GetComponentTransform();
-			SetActorTransform(PreviewTransform, false, nullptr, ETeleportType::TeleportPhysics);
-		}
-		else
-		{
-			const FTransform SnapTransform = CalculateSnapTransform(SnapPoint, CurrentTargetSnapPoint);
-			SetActorTransform(SnapTransform, false, nullptr, ETeleportType::TeleportPhysics);
-		}
-			// Notify assembly to add me as first part
-		bool bSuccess = AssemblyActor->ConnectParts(nullptr, this, CurrentTargetSnapPoint, SnapPoint);
-		if (bSuccess)
-		{
-			// Disable physics since we're now connected
-			if (Mesh)
-			{
-				Mesh->SetSimulatePhysics(false);
-				Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-			}
-			HideSnapPreview();
-			CurrentTargetSnapPoint = nullptr;
-			UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
-			return true;
-		}
-		else
-		{
-			if (Mesh)
-			{
-				//simulate the physics again
-				Mesh->SetSimulatePhysics(true);
-				Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-			}
-		}
-	} 
 	
 	return false;
 }
@@ -349,12 +329,25 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		PreviewMesh->SetStaticMesh(Mesh->GetStaticMesh());
 		
 		// DETACH the preview mesh, so it doesn't move with the part!
-		PreviewMesh->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-
+		// Completely reset the preview mesh transform
+		// Check if already detached
+		if (PreviewMesh->GetAttachParent() != nullptr)
+		{
+			// First time - detach it
+			PreviewMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+			UE_LOG(LogTemp, Warning, TEXT("Detaching preview mesh"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Preview mesh already detached"));
+		}
+        
 		const FTransform SnapTransform = CalculateSnapTransform(SourceSnapPoint, TargetSnapPoint);
-		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Setting PreviewMesh world transform. Location: %s, Rotation: %s"),
-			*SnapTransform.GetLocation().ToString(), *SnapTransform.GetRotation().Rotator().ToString());
-		PreviewMesh->SetWorldTransform(SnapTransform);
+        
+
+		PreviewMesh->SetWorldLocation(SnapTransform.GetLocation());
+		PreviewMesh->SetWorldRotation(SnapTransform.GetRotation());
+		PreviewMesh->SetWorldScale3D(SnapTransform.GetScale3D());
 
 
 		if (PreviewMaterial)
@@ -431,47 +424,23 @@ FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoi
 	{
 		return GetActorTransform();
 	}
-    
-	// Force update transforms before calculation
+
+	// Make sure both are up-to-date
 	TargetSnapPoint->UpdateComponentToWorld();
 	SourceSnapPoint->UpdateComponentToWorld();
-    
+	
 	// Get the ACTUAL world transform of target
-	FTransform TargetSnapWorld = TargetSnapPoint->GetComponentTransform();
+	const FTransform TargetSnapWorld = TargetSnapPoint->GetComponentTransform();
     
 	// Get MY snap point's LOCAL transform
-	FTransform MySnapLocal = SourceSnapPoint->GetRelativeTransform();
+	// Source snap RELATIVE TO *ACTOR* (not just its parent component)
+	const FTransform SourceRelToActor =
+		SourceSnapPoint->GetComponentTransform().GetRelativeTransform(GetActorTransform());
     
-	// DEBUG: Check if MySnapLocal is actually constant
-	static FTransform LastMySnapLocal;
-	if (!LastMySnapLocal.Equals(MySnapLocal))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MySnapLocal changed! Was: %s Now: %s"), 
-			*LastMySnapLocal.ToString(), *MySnapLocal.ToString());
-		LastMySnapLocal = MySnapLocal;
-	}
+	
     
 	// Calculate
-	FTransform NewActorWorld = TargetSnapWorld * MySnapLocal.Inverse();
-    
-	// DEBUG: Test alternative calculation
-	FVector SimpleOffset = SourceSnapPoint->GetRelativeLocation();
-	FVector SimpleResult = TargetSnapWorld.GetLocation() - SimpleOffset;
-    
-	float Diff = FVector::Dist(SimpleResult, NewActorWorld.GetLocation());
-	if (Diff > 0.01f)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Calculation difference: %.2f"), Diff);
-		UE_LOG(LogTemp, Warning, TEXT("  Transform method: %s"), *NewActorWorld.GetLocation().ToString());
-		UE_LOG(LogTemp, Warning, TEXT("  Simple method: %s"), *SimpleResult.ToString());
-        
-		// Try using the simple method instead
-		FTransform SimpleTransform;
-		SimpleTransform.SetLocation(SimpleResult);
-		SimpleTransform.SetRotation(TargetSnapWorld.GetRotation());
-		SimpleTransform.SetScale3D(FVector::OneVector);
-		return SimpleTransform;
-	}
+	const FTransform NewActorWorld = SourceRelToActor.Inverse() * TargetSnapWorld;
     
 	return NewActorWorld;
 }
@@ -603,4 +572,6 @@ void APartActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	
+	
 }
