@@ -447,6 +447,11 @@ FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoi
 
 void APartActor::OnPartGrabbed() 
 {
+	if (*GetName()==FName("BP_Magnets_C_1"))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Debug Break on grab of Magnets"));
+	}
+	
 	UE_LOG(LogTemp, Warning, TEXT("🔥 GRABBED: %s"), *GetName());
 	
 	UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed - PreviewMaterial: %s"), 
