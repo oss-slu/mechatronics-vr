@@ -6,6 +6,7 @@
 #include "AssemblyActor.h"
 #include "AssemblyComponent.h"
 #include "EngineUtils.h"
+#include "GrabComponent.h"
 #include "MotionControllerComponent.h"
 #include "SnapValidatorComponent.h"
 
@@ -56,6 +57,10 @@ APartActor::APartActor()
 	// Attach assembly component
 	Assembly = CreateDefaultSubobject<UAssemblyComponent>(TEXT("Assembly"));
 	Assembly->SetupAttachment(RootComponent);
+
+	// attach grab component
+	GrabComponent = CreateDefaultSubobject<UGrabComponent>(TEXT("GrabComponent"));
+	GrabComponent->SetupAttachment(RootComponent);
 
 	// Attach validator
 	SnapValidator = CreateDefaultSubobject<USnapValidatorComponent>(TEXT("SnapValidator"));

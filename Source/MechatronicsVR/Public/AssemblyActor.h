@@ -19,6 +19,7 @@ enum class EAssemblyState : uint8
 	FullyAssembled     UMETA(DisplayName = "Fully Assembled"),
 	
 };
+
 USTRUCT(BlueprintType)
 struct FPartConnection
 {

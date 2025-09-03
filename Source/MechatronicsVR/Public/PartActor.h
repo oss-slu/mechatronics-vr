@@ -10,7 +10,9 @@
 class UAssemblyComponent;
 class USnapValidatorComponent;
 class USnapPointComponent;
-class AAssemblyActor; 
+class AAssemblyActor;
+class UGrabComponent;
+
 UCLASS()
 class MECHATRONICSVR_API APartActor : public AActor
 {
@@ -105,6 +107,10 @@ public:
 	/** Snap system for this part */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Part")
 	TObjectPtr<UAssemblyComponent> Assembly;
+
+	/**Grab component for this part */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Part")
+	TObjectPtr<class UGrabComponent> GrabComponent;
 
 	/** Validator for lesson logic */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Part")
