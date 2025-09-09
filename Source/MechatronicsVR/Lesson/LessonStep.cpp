@@ -25,7 +25,7 @@ void ULessonStep::StartStep()
 	OnStarted();
 	OnStepStarted.Broadcast(this);
 
-	if (checkCompletion())
+	if (CheckCompletion())
 	{
 		CompleteStep();
 	}
@@ -65,7 +65,7 @@ void ULessonStep::TickStep(float DeltaTime)
 	}
 }
 
-bool ULessonStep::CheckCompletion_Implementation() const
+bool ULessonStep::CheckCompletion_Implementation()
 {
 	return false; // should be defined in subclasses
 }
@@ -91,7 +91,7 @@ void ULessonStep::OnStarted()
 	//to be defined in subclass
 }
 
-void ULessonStep::onStopped()
+void ULessonStep::OnStopped()
 {
 	//to be defined in subclass
 }

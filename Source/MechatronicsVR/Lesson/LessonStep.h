@@ -80,7 +80,7 @@ protected:
 
 	virtual void OnStarted();
 
-	virtual void onStopped();
+	virtual void OnStopped();
 	
 	virtual void OnReset();
 
