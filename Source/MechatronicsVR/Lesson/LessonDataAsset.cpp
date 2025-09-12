@@ -17,7 +17,7 @@ ULessonDataAsset::ULessonDataAsset()
 
 bool ULessonDataAsset::IsLessonValid() const
 {
-	// basic validaiton
+	// basic validation
 	if (LessonTitle.IsEmpty()) return false;
 	if (StepDefinitions.Num() == 0) return false;
 	if (AssociatedLevelName.IsNone()) return false;
@@ -71,7 +71,7 @@ bool ULessonDataAsset::IsValidStepIndex(int32 StepIndex) const
 	return StepIndex >= 0 && StepIndex < StepDefinitions.Num();
 }
 
-FLessonStepData ULessonDataAsset::GetStepData(int32 StepIndex) const
+FLessonStepData ULessonDataAsset::GetStepData(const int32 StepIndex) const
 {
 	if (IsValidStepIndex(StepIndex))
 	{
