@@ -70,6 +70,16 @@ bool ULessonStep::CheckCompletion_Implementation()
 	return false; // should be defined in subclasses
 }
 
+void ULessonStep::setPreviousStep(ULessonStep* InPreviousStep)
+{
+	PreviousStep = InPreviousStep;
+}
+
+void ULessonStep::setNextStep(ULessonStep* InNextStep)
+{
+	NextStep = InNextStep;
+}
+
 void ULessonStep::CompleteStep()
 {
 	if (bStepCompleted)

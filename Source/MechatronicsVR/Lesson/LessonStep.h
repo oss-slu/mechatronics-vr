@@ -31,7 +31,13 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
 	FText InstructionText;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
+	TObjectPtr<ULessonStep> PreviousStep = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
+	TObjectPtr<ULessonStep> NextStep = nullptr;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson|Step")
 	bool bStepCompleted = false;
 
@@ -57,6 +63,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Lesson|Step")
 	bool IsActive() const {return bIsActive;}
+
+	UFUNCTION(BlueprintCallable, Category="Lesson|Step")
+	void setPreviousStep(ULessonStep * InPreviousStep);
+
+	UFUNCTION(BlueprintCallable, Category="Lesson|Step")
+	void setNextStep(ULessonStep * InNextStep);
 
 	// Event Dispatchers
 	UPROPERTY(BlueprintAssignable, Category="Lesson|Events")
