@@ -14,6 +14,15 @@ enum class ELessonStepType : uint8
 	Interaction UMETA(DisplayName = "Interaction Step")
 };
 
+UENUM(BlueprintType)
+enum class EInteractionType : uint8
+{
+	Grab        UMETA(DisplayName="Grab"),
+	Drop        UMETA(DisplayName="Drop"),
+	Proximity   UMETA(DisplayName="Proximity"),
+	Manual      UMETA(DisplayName="Manual")
+};
+
 USTRUCT(BlueprintType)
 struct FLessonStepData
 {
