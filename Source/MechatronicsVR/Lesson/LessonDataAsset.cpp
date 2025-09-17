@@ -3,6 +3,14 @@
 
 #include "LessonDataAsset.h"
 
+#include "AssembleStep.h"
+#include "FocusStep.h"
+#include "InteractionStep.h"
+#include "LessonStep.h"
+
+class UInteractionStep;
+class UFocusStep;
+
 ULessonDataAsset::ULessonDataAsset()
 {
 	LessonTitle = FText::FromString("New Lesson");
@@ -17,18 +25,31 @@ ULessonDataAsset::ULessonDataAsset()
 
 bool ULessonDataAsset::IsLessonValid() const
 {
-	// basic validation
-	if (LessonTitle.IsEmpty()) return false;
-	if (StepDefinitions.Num() == 0) return false;
-	if (AssociatedLevelName.IsNone()) return false;
-
-	//validate each step
+	// Basic validation
+	if (LessonTitle.IsEmpty())
+		return false;
+        
+	if (StepDefinitions.Num() == 0)
+		return false;
+        
+	if (AssociatedLevelName.IsNone())
+		return false;
+        
+	// Validate each step instance
 	for (const FLessonStepData& Step : StepDefinitions)
 	{
-		if (Step.InstructionText.IsEmpty()) return false;
-		if (Step.StepType == ELessonStepType::Assemble && Step.TargetParts.Num() == 0) return false;
-		if (Step.StepType == ELessonStepType::Focus && !Step.FocusTarget) return false;
+		if (!Step.StepInstance)
+		{
+			return false;
+		}
+        
+		// Check if step instance has instruction text
+		if (Step.StepInstance->InstructionText.IsEmpty())
+		{
+			return false;
+		}
 	}
+    
 	return true;
 }
 bool ULessonDataAsset::HasValidLevel() const
@@ -49,19 +70,44 @@ TArray<FString> ULessonDataAsset::GetValidationErrors() const
 	if (AssociatedLevelName.IsNone())
 		Errors.Add("No associated level specified");
         
-	// Check each step
+	// Check each step instance
 	for (int32 i = 0; i < StepDefinitions.Num(); i++)
 	{
 		const FLessonStepData& Step = StepDefinitions[i];
         
-		if (Step.InstructionText.IsEmpty())
-			Errors.Add(FString::Printf(TEXT("Step %d: Instruction text is empty"), i + 1));
-            
-		if (Step.StepType == ELessonStepType::Assemble && Step.TargetParts.Num() == 0)
-			Errors.Add(FString::Printf(TEXT("Step %d: Assembly step has no target parts"), i + 1));
-            
-		if (Step.StepType == ELessonStepType::Focus && !Step.FocusTarget)
-			Errors.Add(FString::Printf(TEXT("Step %d: Focus step has no target actor"), i + 1));
+		if (!Step.StepInstance)
+		{
+			Errors.Add(FString::Printf(TEXT("Step %d: No step instance assigned"), i + 1));
+			continue;
+		}
+        
+		if (Step.StepInstance->InstructionText.IsEmpty())
+		{
+			Errors.Add(FString::Printf(TEXT("Step %d: Step instance has no instruction text"), i + 1));
+		}
+        
+		// Type-specific validation
+		if (UAssembleStep* AssembleStep = Cast<UAssembleStep>(Step.StepInstance))
+		{
+			if (AssembleStep->TargetPartClasses.Num() == 0)
+			{
+				Errors.Add(FString::Printf(TEXT("Step %d: Assembly step has no target parts"), i + 1));
+			}
+		}
+		else if (const UFocusStep* FocusStep = Cast<UFocusStep>(Step.StepInstance))
+		{
+			if (!FocusStep->TargetActor)
+			{
+				Errors.Add(FString::Printf(TEXT("Step %d: Focus step has no target actor"), i + 1));
+			}
+		}
+		else if (UInteractionStep* InteractionStep = Cast<UInteractionStep>(Step.StepInstance))
+		{
+			if (!InteractionStep->TargetActor)
+			{
+				Errors.Add(FString::Printf(TEXT("Step %d: Interaction step has no target actor"), i + 1));
+			}
+		}
 	}
     
 	return Errors;
