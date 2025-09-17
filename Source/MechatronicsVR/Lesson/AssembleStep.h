@@ -21,7 +21,7 @@ class MECHATRONICSVR_API UAssembleStep : public ULessonStep
 public:
 	UAssembleStep();
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category="Assemble Step|Setup",
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Assemble Step|Setup",
 			  meta=(AllowedClasses="/Script/MechatronicsVR.AssemblyActor", DisplayThumbnail="true"))
 	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
 

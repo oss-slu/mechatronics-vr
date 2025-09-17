@@ -22,7 +22,7 @@ class MECHATRONICSVR_API UInteractionStep : public ULessonStep
 public:
 	UInteractionStep();
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category="Interaction Step|Setup")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Step|Setup")
 	TObjectPtr<AActor> TargetActor = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Step|Criteria")

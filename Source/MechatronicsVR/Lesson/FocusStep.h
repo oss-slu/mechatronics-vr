@@ -18,7 +18,7 @@ class MECHATRONICSVR_API UFocusStep : public ULessonStep
 public:
 	UFocusStep();
 	
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category="Focus Step|Setup")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus Step|Setup")
 	TObjectPtr<AActor> TargetActor = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Focus Step|Criteria", meta=(ClampMin="1.0", ClampMax="45.0"))

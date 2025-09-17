@@ -26,11 +26,17 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLessonStepReset, ULessonStep*, Step);
 	
 	ULessonStep();
+
+	UFUNCTION(BlueprintCallable, Category = "Lesson|Step")
+	void SetWorldContext(UObject* InWorldContextObject);
+
+	UFUNCTION(BlueprintPure, Category = "Lesson Step")
+	UWorld* GetWorld() const override;
 	
 	// Base properties
-	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
 	FText InstructionText;
+	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
 	TObjectPtr<ULessonStep> PreviousStep = nullptr;
@@ -57,6 +63,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lesson|Step")
 	virtual void TickStep(float DeltaTime);
 
+	UFUNCTION(BlueprintCallable, Category = "Lesson Step")
+	void StartTicking();
+    
+	UFUNCTION(BlueprintCallable, Category = "Lesson Step") 
+	void StopTicking();
+	
 	UFUNCTION(BlueprintNativeEvent, Category="Lesson|Step")
 	bool CheckCompletion() const;
 	virtual bool CheckCompletion_Implementation();
@@ -90,6 +102,18 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Lesson|Step")
 	void NotifyUpdated();
 
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UObject> WorldContextObject;
+
+	FTimerHandle TickTimer;
+    
+	// Tick interval
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Step Ticking")
+	float TickInterval = 0.1f;
+    
+	UFUNCTION()
+	void HandleTick();
+	
 	virtual void OnStarted();
 
 	virtual void OnStopped();

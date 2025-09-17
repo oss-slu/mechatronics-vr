@@ -10,6 +10,26 @@ ULessonStep::ULessonStep()
 	bIsActive = false;
 }
 
+void ULessonStep::SetWorldContext(UObject* InWorldContextObject)
+{
+	WorldContextObject = InWorldContextObject;
+}
+
+UWorld* ULessonStep::GetWorld() const
+{
+	if (WorldContextObject.IsValid())
+	{
+		return WorldContextObject->GetWorld();
+	}
+	 
+	// Fallback to router's world
+	if (const UObject* Outer = GetOuter())
+	{
+		return Outer->GetWorld();
+	}
+    
+	return nullptr;
+}
 
 
 void ULessonStep::StartStep()
@@ -22,6 +42,11 @@ void ULessonStep::StartStep()
 	bIsActive = true;
 	bStepCompleted = false;
 
+	UE_LOG(LogTemp, Log, TEXT("ULessonStep::StartStep - Starting step: %s"), 
+		   *InstructionText.ToString());
+    
+	StartTicking();  // Add this
+	
 	OnStarted();
 	OnStepStarted.Broadcast(this);
 
@@ -59,11 +84,49 @@ void ULessonStep::TickStep(float DeltaTime)
 	{
 		return;
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("ULessonStep::EndStep - Ending step: %s"), 
+		   *InstructionText.ToString());
+    
+	StopTicking();  // Add this
+    
+	
 	if (CheckCompletion())
 	{
 		CompleteStep();
 	}
 }
+
+void ULessonStep::StartTicking()
+{
+	if (bWantsTickWhileActive && GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			TickTimer,
+			this,
+			&ULessonStep::HandleTick,
+			TickInterval,
+			true  // Loop
+		);
+	}
+}
+
+void ULessonStep::StopTicking()
+{
+	if (GetWorld() && TickTimer.IsValid())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TickTimer);
+	}
+}
+
+void ULessonStep::HandleTick()
+{
+	if (bWantsTickWhileActive)
+	{
+		TickStep(TickInterval);
+	}
+}
+
 
 bool ULessonStep::CheckCompletion_Implementation()
 {
