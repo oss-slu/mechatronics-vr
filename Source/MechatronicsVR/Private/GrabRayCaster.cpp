@@ -3,9 +3,12 @@
 
 #include "GrabRayCaster.h"
 #include "Engine/World.h"
+#include "GrabComponent.h"
 #include "MotionControllerComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "Components/PrimitiveComponent.h"
+#include "PhysicsEngine/BodyInstance.h"
 #include "DrawDebugHelpers.h"
 
 // Sets default values for this component's properties
@@ -18,14 +21,47 @@ UGrabRayCaster::UGrabRayCaster()
 	// ...
 }
 
+// KNOWN BUG: Sometimes will pull object too far (past the hand)
+// Also, if the pulled objects collides with a physics object, the pull can be off (could interp location, but I would rather it be more physical)
+void UGrabRayCaster::SuckObjectToSource()
+{
+	UStaticMeshComponent* MeshComponent = ActorRef->FindComponentByClass<UStaticMeshComponent>();
+	if (UPrimitiveComponent* PrimitiveComp = MeshComponent)
+	{
+		if (FBodyInstance* BodyInst = PrimitiveComp->GetBodyInstance())
+		{
+			FVector CenterOfMassLocation = BodyInst->GetCOMPosition();
+			
+			FVector Velocity = (MotionControllerRef->GetComponentLocation() - CenterOfMassLocation) / SuckTime;
+
+			float Mass = PrimitiveComp->GetMass();
+			FVector Impulse = Velocity * Mass * 2;
+
+			// disable gravity for duration of suck
+			// I realize I could have used the word "pull" instead of "suck" but it's too late now
+			PrimitiveComp->SetEnableGravity(false);
+			FTimerHandle TimerHandle;
+			ActorRef->GetWorldTimerManager().SetTimer(TimerHandle, [PrimitiveComp]()
+			{
+				PrimitiveComp->SetEnableGravity(true);
+			}, 0.2f, false);
+			
+			if (MeshComponent && MeshComponent->IsSimulatingPhysics())
+			{
+				MeshComponent->AddImpulse(Impulse);
+			}
+		}
+	}
+}
+
+
 void UGrabRayCaster::DeselectObject()
 {
 	// if referencing an object previous tick
 	if (ActorRef != nullptr)
 	{
 		// set overlay material to none
-		UStaticMeshComponent* MeshComponent = ActorRef->FindComponentByClass<UStaticMeshComponent>();
-		if (MeshComponent)
+		if (UStaticMeshComponent* MeshComponent = ActorRef->FindComponentByClass<UStaticMeshComponent>())
 		{
 			MeshComponent->SetOverlayMaterial(nullptr);
 		}
@@ -34,65 +70,89 @@ void UGrabRayCaster::DeselectObject()
 	}
 }
 
-
-void UGrabRayCaster::CheckReachForGrabComponent()
+UGrabComponent* UGrabRayCaster::CheckReachForGrabComponent()
 {
 	FVector ComponentLocation = MotionControllerRef->GetComponentLocation();
 	
 	FVector LocalForward = FVector::ForwardVector; // (1, 0, 0)
 
 	// Apply rotation offset relative to controller's rotation
-	FRotator HandOffsetRotation(-65.f, IsLeft ? 60.f : -60.f, 0.f); // Manual values
+	FRotator HandOffsetRotation(-58.f, IsLeft ? 50.f : -50.f, 0.f); // Manual values (close-ish, not perfect)
 	FVector AdjustedDirection = MotionControllerRef->GetComponentRotation().RotateVector(HandOffsetRotation.RotateVector(LocalForward));
 	
 	FVector CastEndPoint = ComponentLocation + (AdjustedDirection * CastRange);
 
+	// Create the capsule collision shape
+	FCollisionShape SweepShape = FCollisionShape::MakeSphere(CapsuleRadius);
 	
 	FHitResult HitResult;
-	FCollisionQueryParams TraceParams(FName(TEXT("GrabTrace")), true, GetOwner());
-	TraceParams.AddIgnoredActor(GetOwner());
+	
+	FCollisionObjectQueryParams ObjectQueryParams;
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_WorldDynamic);
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+	
+	FCollisionQueryParams QueryParams;
 
-	bool bHit = GetWorld()->LineTraceSingleByObjectType(
+	// ray cast sweep with sphere
+	bool bHit = GetWorld()->SweepSingleByObjectType(
 		HitResult,
 		ComponentLocation,
 		CastEndPoint,
-		ECC_PhysicsBody,
-		TraceParams
+		FQuat::Identity,
+		ObjectQueryParams,
+		SweepShape,
+		QueryParams
 	);
 
-	DrawDebugLine(GetWorld(), ComponentLocation, CastEndPoint, bHit ? FColor::Green : FColor::Red, false, 0.f, 0, 1.f);
-
+	/*
+	// debug
+	if (bHit)
+	{
+		DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, CapsuleRadius, 16,FColor::Green, false, 0.0f);
+	}
+	else
+	{
+		DrawDebugSphere(GetWorld(), CastEndPoint, CapsuleRadius,16,  FColor::Red, false, 0.0f);
+	}
+	*/
+	
 	if (bHit)
 	{
 		if (AActor* GrabActor = HitResult.GetActor())
 		{
-			UE_LOG(LogTemp, Log, TEXT("Hit GrabComponent Actor: %s"), *GrabActor->GetName());
-
-			// action for if you high different objects on consecutive ticks
-			if (ActorRef != GrabActor)
+			if (UGrabComponent* GrabComponent = GrabActor->GetComponentByClass<UGrabComponent>())
 			{
-				DeselectObject();
+				UE_LOG(LogTemp, Log, TEXT("Hit GrabComponent Actor: %s"), *GrabActor->GetName());
+
+				// action for if you hit different objects on consecutive ticks
+				if (ActorRef != GrabActor)
+				{
+					DeselectObject();
+				}
+
+				// save reference to object
+				ActorRef = GrabActor;
+
+				UStaticMeshComponent* MeshComponent = GrabActor->FindComponentByClass<UStaticMeshComponent>();
+				
+				if (GrabComponent->bIsHeld)
+				{
+					MeshComponent->SetOverlayMaterial(nullptr);
+				}
+				else if (MeshComponent && OverlayMaterial)
+				{
+					MeshComponent->SetOverlayMaterial(OverlayMaterial);
+				}
+				return GrabComponent;
 			}
-
-			// save reference to object
-			ActorRef = GrabActor;
-
-			UStaticMeshComponent* MeshComponent = GrabActor->FindComponentByClass<UStaticMeshComponent>();
-
-			if (MeshComponent && OverlayMaterial)
-			{
-				MeshComponent->SetOverlayMaterial(OverlayMaterial);
-			}
-
-			// grab logic goes here TBD 
 		}
 	}
 	else
 	{
 		DeselectObject();
 	}
+	return nullptr;
 }
-
 
 
 // Called when the game starts

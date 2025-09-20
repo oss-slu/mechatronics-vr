@@ -22,6 +22,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GrabRayCaster")
 	float CastRange = 500.0f;
 
+	/** Sweep sphere radius  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GrabRayCaster")
+	float CapsuleRadius = 25.0f;
+
+	/** Time it takes to suck object to hand  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GrabRayCaster")
+	float SuckTime = 0.2f;	// needs to match delay node in VRPawn blueprint
+
 	/** If this is ray caster for left hand*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="GrabRayCaster")
 	bool IsLeft = false;
@@ -37,14 +45,19 @@ public:
 	/** Reference to overlay material  */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GrabCast", meta = (AllowPrivateAccess = "true"))
 	UMaterialInterface* OverlayMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Script/Engine.Material'/Game/M_GrabbableOutline.M_GrabbableOutline'"));
-	
-	/** Ray cast from each hand and check for grabables */
-	UFUNCTION(BlueprintCallable, Category = "GrabCast")
-	void CheckReachForGrabComponent();
 
-	/** Actions for deselcting object */
+	
+	/** Ray cast from each hand and check for grabables */	// now uses sphere for more tolerance
+	UFUNCTION(BlueprintCallable, Category = "GrabCast")
+	UGrabComponent* CheckReachForGrabComponent();
+
+	/** Actions for deselecting object */
 	UFUNCTION(BlueprintCallable, Category = "GrabCast")
 	void DeselectObject();
+
+	/** Force selected object to motion controller location */
+	UFUNCTION(BlueprintCallable, Category = "GrabCast")
+	void SuckObjectToSource();		// has known bug (see .cpp)
 
 protected:
 	// Called when the game starts
