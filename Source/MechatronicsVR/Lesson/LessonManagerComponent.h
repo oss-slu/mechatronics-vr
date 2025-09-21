@@ -7,10 +7,11 @@
 #include "LessonTypes.h"
 #include "LessonDataAsset.h"
 #include "LessonStep.h"
+#include "LessonUIManagerComponent.h"
 #include "LessonManagerComponent.generated.h"
 
 // Forward declarations
-class ALessonUIManager;
+class ULessonUIManagerComponent;
 class ALessonValidator;
 class UAssembleStep;
 class UFocusStep;
@@ -19,11 +20,11 @@ class AAssemblyActor;
 class APartActor;
 class UMechatronicsGameInstance;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLessonStarted, ULessonDataAsset*, LessonData);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLessonCompleted, ULessonDataAsset*, LessonData);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStepChanged, ULessonStep*, OldStep, ULessonStep*, NewStep);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStepCompleted, ULessonStep*, CompletedStep, int32, StepIndex);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLessonProgress, int32, CurrentStep, int32, TotalSteps);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManagerLessonStarted, ULessonDataAsset*, LessonData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManagerLessonCompleted, ULessonDataAsset*, LessonData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnManagerStepChanged, ULessonStep*, OldStep, ULessonStep*, NewStep);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnManagerStepCompleted, ULessonStep*, CompletedStep, int32, StepIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnManagerLessonProgress, int32, CurrentStep, int32, TotalSteps);
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -55,8 +56,8 @@ public:
 	bool bIsLessonCompleted;
 
 	// === EXTERNAL REFERENCES ===
- //    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|references")
-	// TObjectPtr<ALessonUIManager> UIManager;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
+	TObjectPtr<ULessonUIManagerComponent> UIManager;
  //
 	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
 	// TObjectPtr<ALessonValidator> StepValidator;
@@ -81,19 +82,19 @@ public:
 	// === EVENTS ===
     
 	UPROPERTY(BlueprintAssignable, Category = "Lesson Events")
-	FOnLessonStarted OnLessonStarted;
+	FOnManagerLessonStarted OnLessonStarted;
 
 	UPROPERTY(BlueprintAssignable, Category = "Lesson Events")
-	FOnLessonCompleted OnLessonCompleted;
+	FOnManagerLessonCompleted OnLessonCompleted;
 
 	UPROPERTY(BlueprintAssignable, Category = "Lesson Events")
-	FOnStepChanged OnStepChanged;
+	FOnManagerStepChanged OnStepChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Lesson Events")
-	FOnStepCompleted OnStepCompleted;
+	FOnManagerStepCompleted OnStepCompleted;
 
 	UPROPERTY(BlueprintAssignable, Category = "Lesson Events")
-	FOnLessonProgress OnLessonProgress;
+	FOnManagerLessonProgress OnLessonProgress;
 
 	// === PUBLIC API ===
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
@@ -101,6 +102,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
 	bool StartLesson();
+	void EndLesson();
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
 	bool AdvanceStep();
@@ -109,7 +111,7 @@ public:
 	bool GoToStep(int32 StepIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
-	bool CompleteCurrentStep();
+	void CompleteCurrentStep();
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
 	void ResetLesson();
@@ -139,15 +141,22 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Lesson Manager")
 	bool HasPreviousStep() const;
+	// === VALIDATION ===
+    
+	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
+	bool CheckStepCompletion();
 
+	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
+	void ValidateCurrentStep();
 
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+	void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction);
 
 	// === STEP MANAGEMENT ===
-        
-    ULessonStep* CreateStepFromData(const FLessonStepData& StepData);
+
+	static ULessonStep* CreateStepFromData(const FLessonStepData& StepData);
     bool ActivateStep(int32 StepIndex);
     void DeactivateCurrentStep();
     void UpdateStepReferences();
@@ -168,7 +177,7 @@ protected:
 
 	// === VALIDATION MANAGEMENT ===
     
-	void UpdateValidator();
+	
 
 	// === TIMER HANDLING ===
     
@@ -185,11 +194,9 @@ private:
     
 	bool bInitialized;
 	bool bWaitingForStepTransition;
-};
 
-public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+
 
 		
 };
