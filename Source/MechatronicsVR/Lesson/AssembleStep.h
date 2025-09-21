@@ -47,6 +47,8 @@ public:
 	void SetAssemblyActor(AAssemblyActor* InAssembly);
 	
 	virtual bool CheckCompletion_Implementation() const;
+	UFUNCTION()
+	void HandlePartsConnected(APartActor* PartA, APartActor* PartB);
 
 protected:
 	virtual void OnStarted() override;
@@ -67,7 +69,6 @@ private:
 	UFUNCTION()
 	void HandleAssemblyStateChanged(EAssemblyState NewState);
 
-	UFUNCTION()
-	void HandlePartsConnected(APartActor* PartA, APartActor* PartB);
+	
 	
 };

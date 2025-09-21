@@ -56,7 +56,7 @@ void ULessonStep::StartStep()
 	}
 }
 
-void ULessonStep::StopStep()
+void ULessonStep::CompleteStep()
 {
 	if (!bIsActive)
 	{
@@ -143,16 +143,7 @@ void ULessonStep::setNextStep(ULessonStep* InNextStep)
 	NextStep = InNextStep;
 }
 
-void ULessonStep::CompleteStep()
-{
-	if (bStepCompleted)
-	{
-		return;
-	}
-	bStepCompleted = true;
 
-	OnStepCompleted.Broadcast(this);
-}
 
 void ULessonStep::NotifyUpdated()
 {

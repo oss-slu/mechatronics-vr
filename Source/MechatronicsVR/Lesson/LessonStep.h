@@ -55,7 +55,7 @@ public:
 	virtual void StartStep();
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson|Step")
-	virtual void StopStep();
+	virtual void CompleteStep();
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson|Step")
 	virtual void ResetStep();
@@ -96,8 +96,7 @@ public:
 	FOnLessonStepReset OnStepReset;
 
 protected:
-	UFUNCTION(BlueprintCallable, Category = "Lesson|Step")
-	virtual void CompleteStep();
+	
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson|Step")
 	void NotifyUpdated();
