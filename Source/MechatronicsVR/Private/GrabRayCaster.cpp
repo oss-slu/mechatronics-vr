@@ -21,35 +21,49 @@ UGrabRayCaster::UGrabRayCaster()
 	// ...
 }
 
-// KNOWN BUG: Sometimes will pull object too far (past the hand)
+
 // Also, if the pulled objects collides with a physics object, the pull can be off (could interp location, but I would rather it be more physical)
-void UGrabRayCaster::SuckObjectToSource()
+void UGrabRayCaster::SuckObjectToSource() const
 {
 	UStaticMeshComponent* MeshComponent = ActorRef->FindComponentByClass<UStaticMeshComponent>();
 	if (UPrimitiveComponent* PrimitiveComp = MeshComponent)
 	{
-		if (FBodyInstance* BodyInst = PrimitiveComp->GetBodyInstance())
+		if (const FBodyInstance* BodyInst = PrimitiveComp->GetBodyInstance())
 		{
-			FVector CenterOfMassLocation = BodyInst->GetCOMPosition();
-			
-			FVector Velocity = (MotionControllerRef->GetComponentLocation() - CenterOfMassLocation) / SuckTime;
-
-			float Mass = PrimitiveComp->GetMass();
-			FVector Impulse = Velocity * Mass * 2;
-
-			// disable gravity for duration of suck
-			// I realize I could have used the word "pull" instead of "suck" but it's too late now
+			const FVector CenterOfMassLocation = BodyInst->GetCOMPosition();
+			const FVector TargetLocation = MotionControllerRef->GetComponentLocation();
+            
+			// Get current velocity
+			const FVector CurrentVelocity = PrimitiveComp->GetPhysicsLinearVelocity();
+            
+			// Calculate required velocity to reach target in SuckTime
+			const FVector RequiredVelocity = (TargetLocation - CenterOfMassLocation) / SuckTime;
+            
+			// Calculate the change in velocity needed
+			const FVector DeltaVelocity = RequiredVelocity - CurrentVelocity;
+            
+			// Correct impulse calculation: J = m * Δv
+			const float Mass = PrimitiveComp->GetMass();
+			const FVector Impulse = Mass * DeltaVelocity;
+            
+			// Disable gravity
 			PrimitiveComp->SetEnableGravity(false);
-			FTimerHandle TimerHandle;
-			ActorRef->GetWorldTimerManager().SetTimer(TimerHandle, [PrimitiveComp]()
-			{
-				PrimitiveComp->SetEnableGravity(true);
-			}, 0.2f, false);
-			
+            
+			// Apply the impulse
 			if (MeshComponent && MeshComponent->IsSimulatingPhysics())
 			{
 				MeshComponent->AddImpulse(Impulse);
 			}
+            
+			// Re-enable gravity after SuckTime
+			FTimerHandle TimerHandle;
+			ActorRef->GetWorldTimerManager().SetTimer(TimerHandle, [PrimitiveComp]()
+			{
+				if (IsValid(PrimitiveComp))
+				{
+					PrimitiveComp->SetEnableGravity(true);
+				}
+			}, SuckTime, false);  // Use SuckTime instead of 0.2f
 		}
 	}
 }

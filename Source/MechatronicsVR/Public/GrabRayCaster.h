@@ -57,7 +57,7 @@ public:
 
 	/** Force selected object to motion controller location */
 	UFUNCTION(BlueprintCallable, Category = "GrabCast")
-	void SuckObjectToSource();		// has known bug (see .cpp)
+	void SuckObjectToSource() const;		// has known bug (see .cpp)
 
 protected:
 	// Called when the game starts
