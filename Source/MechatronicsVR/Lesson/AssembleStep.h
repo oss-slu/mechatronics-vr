@@ -46,7 +46,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Assemble Step|Setup")
 	void SetAssemblyActor(AAssemblyActor* InAssembly);
 	
-	virtual bool CheckCompletion_Implementation() const;
+	virtual bool CheckCompletion_Implementation() const override;
 	UFUNCTION()
 	void HandlePartsConnected(APartActor* PartA, APartActor* PartB);
 

@@ -71,7 +71,7 @@ public:
 	
 	UFUNCTION(BlueprintNativeEvent, Category="Lesson|Step")
 	bool CheckCompletion() const;
-	virtual bool CheckCompletion_Implementation();
+	virtual bool CheckCompletion_Implementation() const;
 
 	UFUNCTION(BlueprintPure, Category="Lesson|Step")
 	bool IsActive() const {return bIsActive;}
