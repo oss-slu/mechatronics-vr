@@ -15,8 +15,20 @@ AMechatronicsGameMode::AMechatronicsGameMode()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
+	// Set VR Pawn Blueprint as default - REPLACE WITH YOUR ACTUAL PATH
+	static ConstructorHelpers::FClassFinder<APawn> VRPawnBPClass(TEXT("/Game/VRTemplate/Blueprints/VRPawn"));
+	if (VRPawnBPClass.Succeeded())
+	{
+		DefaultPawnClass = VRPawnBPClass.Class;
+		UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode: VR Pawn class set successfully"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("MechatronicsGameMode: Failed to find VR Pawn Blueprint at specified path"));
+	}
+
+
 	
-	DefaultPawnClass = nullptr;  // Will be set via VRPawnClass property
 	//create lesson system components
 	LessonManager = CreateDefaultSubobject<ULessonManagerComponent>(TEXT("LessonManager"));
 	UIManager = CreateDefaultSubobject<ULessonUIManagerComponent>(TEXT("UIManager"));
@@ -24,15 +36,6 @@ AMechatronicsGameMode::AMechatronicsGameMode()
 
 void AMechatronicsGameMode::BeginPlay()
 {
-	Super::BeginPlay();
-
-	// Set pawn class from editor property
-	if (VRPawnClass)
-	{
-		DefaultPawnClass = VRPawnClass;
-		UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode: VR Pawn class set from property"));
-	}
-
 	Super::BeginPlay();
 	// Initialize lesson system
 	InitializeLessonSystem();
@@ -53,27 +56,7 @@ void AMechatronicsGameMode::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("MechatronicsGameMode: No auto-start lesson configured"));
 	}
-
-	if (AssemblyActorClass)
-	{
-		for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
-		{
-			AAssemblyActor* PotentialAssembly = *It;
-			if  (PotentialAssembly && 
-				PotentialAssembly->IsA(AssemblyActorClass))
-			{
-				AssemblyActor = PotentialAssembly;
-				UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"), 
-					*GetName(), *AssemblyActor->GetName());
-				break;
-			}
-		}
-		if (!AssemblyActor)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("%s: Could not find instance of class %s"), 
-				*GetName(), *AssemblyActorClass->GetName());
-		}
-	}
+	
 }
 
 void AMechatronicsGameMode::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -115,6 +98,8 @@ void AMechatronicsGameMode::InitializeLessonSystem()
 	
 	
 }
+
+
 
 bool AMechatronicsGameMode::StartLesson(ULessonDataAsset* LessonData)
 {

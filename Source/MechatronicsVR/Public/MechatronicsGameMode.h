@@ -23,11 +23,20 @@ class MECHATRONICSVR_API AMechatronicsGameMode : public AGameModeBase
 public:
 	AMechatronicsGameMode();
 
+	// === VR CONFIGURATION ===
+    
+	/** VR Pawn class to use (can be set in editor) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Configuration")
+	TSubclassOf<APawn> VRPawnClass;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 public:
+
+
+	
 	// === LESSON SYSTEM COMPONENTS ===
 	/** Manages lesson progression and step validation */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lesson System")
@@ -82,7 +91,6 @@ protected:
     
 	/** Initialize lesson system components */
 	void InitializeLessonSystem();
-
 	
 
 

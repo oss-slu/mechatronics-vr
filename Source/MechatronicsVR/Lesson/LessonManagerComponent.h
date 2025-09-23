@@ -56,7 +56,7 @@ public:
 	bool bIsLessonCompleted;
 
 	// === EXTERNAL REFERENCES ===
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Lesson Manager|References")
 	TObjectPtr<ULessonUIManagerComponent> UIManager;
  //
 	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
