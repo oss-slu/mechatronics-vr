@@ -7,6 +7,7 @@
 #include "InteractionStep.h"
 #include "MechatronicsGameInstance.h"
 #include "AssemblyActor.h"
+#include "EngineUtils.h"
 #include "PartActor.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
@@ -45,6 +46,27 @@ void ULessonManagerComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (AssemblyActorClass)
+	{
+		for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
+		{
+			AAssemblyActor* PotentialAssembly = *It;
+			if  (PotentialAssembly && 
+				PotentialAssembly->IsA(AssemblyActorClass))
+			{
+				AssemblyActor = PotentialAssembly;
+				UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"), 
+					*GetName(), *AssemblyActor->GetName());
+				break;
+			}
+		}
+		if (!AssemblyActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s: Could not find instance of class %s"), 
+				*GetName(), *AssemblyActorClass->GetName());
+		}
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::BeginPlay - Initializing"));
 
 	FindExternalReferences();
@@ -61,6 +83,8 @@ void ULessonManagerComponent::BeginPlay()
 	}
 	bInitialized = true;
 	// ...
+	
+	
 	
 }
 

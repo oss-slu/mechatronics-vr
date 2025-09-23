@@ -63,7 +63,7 @@ public:
 	// TObjectPtr<ALessonValidator> StepValidator;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
-	TObjectPtr<AAssemblyActor> AssemblyActor;
+	TSubclassOf<AAssemblyActor> AssemblyActorClass;
 
 
 	// === SETTINGS ===
@@ -194,6 +194,9 @@ private:
     
 	bool bInitialized;
 	bool bWaitingForStepTransition;
+
+	UPROPERTY()
+	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
 
 
 
