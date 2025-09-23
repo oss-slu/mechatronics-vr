@@ -15,6 +15,18 @@ AMechatronicsGameMode::AMechatronicsGameMode()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
+	// Set Blueprint VR pawn as default
+	static ConstructorHelpers::FClassFinder<APawn> VRPawnBPClass(TEXT("/Game/VRTemplate/Blueprints/VRPawn.VRPawn"));
+	if (VRPawnBPClass.Class != nullptr)
+	{
+		DefaultPawnClass = VRPawnBPClass.Class;
+		UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode: VR Pawn class set"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("MechatronicsGameMode: Failed to find VR Pawn Blueprint"));
+	}
+
 	//create lesson system components
 	LessonManager = CreateDefaultSubobject<ULessonManagerComponent>(TEXT("LessonManager"));
 	UIManager = CreateDefaultSubobject<ULessonUIManagerComponent>(TEXT("UIManager"));
@@ -97,6 +109,9 @@ void AMechatronicsGameMode::InitializeLessonSystem()
 		UE_LOG(LogTemp, Error, TEXT("MechatronicsGameMode: UIManager is null"));
 		return;
 	}
+
+	LessonManager->SetUIManager(UIManager);
+	
 	bLessonSystemInitialized = true;
 	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode: Lesson system initialized successfully"));
 	

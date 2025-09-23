@@ -149,6 +149,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
 	void ValidateCurrentStep();
 
+	/** Set the UI manager for this lesson manager */
+	UFUNCTION(BlueprintCallable, Category = "Lesson System")
+	void SetUIManager(ULessonUIManagerComponent* InUIManager);
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;

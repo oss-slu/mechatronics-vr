@@ -482,6 +482,24 @@ void ULessonManagerComponent::ValidateCurrentStep()
 		CurrentStep->CheckCompletion();
 	}
 }
+
+void ULessonManagerComponent::SetUIManager(ULessonUIManagerComponent* InUIManager)
+{
+	UIManager = InUIManager;
+    
+	if (UIManager)
+	{
+		UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent: UI Manager reference set"));
+        
+		// Optionally bind to UI Manager events here
+		// UIManager->OnSomeEvent.AddDynamic(this, &ULessonManagerComponent::HandleSomeEvent);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent: UI Manager reference cleared"));
+	}
+}
+
 // === EXTERNAL REFERENCES ===
 
 void ULessonManagerComponent::FindExternalReferences()
