@@ -128,7 +128,7 @@ void ULessonStep::HandleTick()
 }
 
 
-bool ULessonStep::CheckCompletion_Implementation()
+bool ULessonStep::CheckCompletion_Implementation() const
 {
 	return false; // should be defined in subclasses
 }
