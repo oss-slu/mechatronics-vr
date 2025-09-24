@@ -49,6 +49,7 @@ public:
 	virtual bool CheckCompletion_Implementation() const override;
 	UFUNCTION()
 	void HandlePartsConnected(APartActor* PartA, APartActor* PartB);
+	bool IsTargetPart(APartActor* Part) const;
 
 protected:
 	virtual void OnStarted() override;

@@ -190,10 +190,43 @@ void UAssembleStep::HandleAssemblyStateChanged(EAssemblyState /*NewState*/)
 
 void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 {
-	EvaluateAndMaybeComplete();
+	// Handle base connection (one part is null, meaning base connection)
+	if (!PartA || !PartB)
+	{
+		// This is a base connection
+		APartActor* ConnectedPart = PartA ? PartA : PartB;
+        
+		if (ConnectedPart && IsTargetPart(ConnectedPart))
+		{
+			UE_LOG(LogTemp, Log, TEXT("AssembleStep: Part %s connected to base"), *ConnectedPart->GetName());
+			EvaluateAndMaybeComplete();
+		}
+		return;
+	}
+
+	// Handle part-to-part connection
+	const bool bPartAIsTarget = IsTargetPart(PartA);
+
+	if (const bool bPartBIsTarget = IsTargetPart(PartB); bPartAIsTarget || bPartBIsTarget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("AssembleStep: Parts %s and %s connected"), *PartA->GetName(), *PartB->GetName());
+		EvaluateAndMaybeComplete();
+	}
 }
-
-
+// Helper function to check if a single part is a target
+bool UAssembleStep::IsTargetPart(APartActor* Part) const
+{
+	if (!Part) return false;
+    
+	for (TSubclassOf<APartActor> TargetClass : TargetPartClasses)
+	{
+		if (Part->IsA(TargetClass))
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 
 

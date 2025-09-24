@@ -15,7 +15,7 @@ AMechatronicsGameMode::AMechatronicsGameMode()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Set VR Pawn Blueprint as default - REPLACE WITH YOUR ACTUAL PATH
+
 	static ConstructorHelpers::FClassFinder<APawn> VRPawnBPClass(TEXT("/Game/VRTemplate/Blueprints/VRPawn"));
 	if (VRPawnBPClass.Succeeded())
 	{
