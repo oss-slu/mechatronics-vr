@@ -34,6 +34,9 @@ struct FLessonStepData
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Step", Instanced, meta = (ShowOnlyInnerProperties))
 	TObjectPtr<ULessonStep> StepInstance;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Step")
+	TSubclassOf<ULessonStep> StepClass;
+
 	FLessonStepData()
 	{
 		StepInstance = nullptr;

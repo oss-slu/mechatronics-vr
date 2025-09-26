@@ -145,6 +145,7 @@ void ULessonStep::setNextStep(ULessonStep* InNextStep)
 
 
 
+
 void ULessonStep::NotifyUpdated()
 {
 	OnStepUpdated.Broadcast(this);

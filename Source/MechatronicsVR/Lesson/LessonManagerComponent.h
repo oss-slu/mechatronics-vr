@@ -65,6 +65,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
 	TSubclassOf<AAssemblyActor> AssemblyActorClass;
 
+	
+
 
 	// === SETTINGS ===
     
@@ -161,7 +163,9 @@ protected:
 	// === STEP MANAGEMENT ===
 
 	static ULessonStep* CreateStepFromData(const FLessonStepData& StepData);
-    bool ActivateStep(int32 StepIndex);
+	
+	void LinkStepsSequentially();
+	bool ActivateStep(int32 StepIndex);
     void DeactivateCurrentStep();
     void UpdateStepReferences();
 

@@ -193,10 +193,10 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 	// Handle base connection (one part is null, meaning base connection)
 	if (!PartA || !PartB)
 	{
-		// This is a base connection
+		// This is a base connection - one of the parts is the base
 		APartActor* ConnectedPart = PartA ? PartA : PartB;
         
-		if (ConnectedPart && IsTargetPart(ConnectedPart))
+		if (ConnectedPart)
 		{
 			UE_LOG(LogTemp, Log, TEXT("AssembleStep: Part %s connected to base"), *ConnectedPart->GetName());
 			EvaluateAndMaybeComplete();
@@ -204,14 +204,9 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 		return;
 	}
 
-	// Handle part-to-part connection
-	const bool bPartAIsTarget = IsTargetPart(PartA);
-
-	if (const bool bPartBIsTarget = IsTargetPart(PartB); bPartAIsTarget || bPartBIsTarget)
-	{
-		UE_LOG(LogTemp, Log, TEXT("AssembleStep: Parts %s and %s connected"), *PartA->GetName(), *PartB->GetName());
-		EvaluateAndMaybeComplete();
-	}
+	// Handle normal part-to-part connection
+	UE_LOG(LogTemp, Log, TEXT("AssembleStep: Parts %s and %s connected"), *PartA->GetName(), *PartB->GetName());
+	EvaluateAndMaybeComplete();
 }
 // Helper function to check if a single part is a target
 bool UAssembleStep::IsTargetPart(APartActor* Part) const

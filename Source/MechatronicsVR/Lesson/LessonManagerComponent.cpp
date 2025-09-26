@@ -160,10 +160,14 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 			Step->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
 		}
 	}
-    
+
+	LinkStepsSequentially();
+	
 	UE_LOG(LogTemp, Log, TEXT("InitializeLessonFromDataAsset - Using %d steps"), LessonSteps.Num());
     
 	return LessonSteps.Num() > 0;
+
+	
 }
 
 
@@ -175,12 +179,41 @@ ULessonStep* ULessonManagerComponent::CreateStepFromData(const FLessonStepData& 
 		return nullptr;
 	}
 
-	//just return the pre-configured instance directly
+	// Return the pre-configured instance directly
 	UE_LOG(LogTemp, Log, TEXT("CreateStepFromData - Using step: %s"), 
 		 *StepData.StepInstance->GetClass()->GetName());
 
 	return StepData.StepInstance;
 }
+
+void ULessonManagerComponent::LinkStepsSequentially()
+{
+	for (int32 i = 0; i < LessonSteps.Num(); i++)
+	{
+		ULessonStep* CurrentStepPtr = LessonSteps[i];
+		if (!CurrentStepPtr)
+		{
+			continue;
+		}
+        
+		// Set previous step
+		if (i > 0)
+		{
+			CurrentStepPtr->setPreviousStep(LessonSteps[i - 1]);
+		}
+        
+		// Set next step
+		if (i < LessonSteps.Num() - 1)
+		{
+			CurrentStepPtr->setNextStep(LessonSteps[i + 1]);
+		}
+	}
+    
+	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent: Successfully linked %d steps"), LessonSteps.Num());
+}
+
+
+
 
 // === LESSON CONTROL ===
 
@@ -396,9 +429,41 @@ void ULessonManagerComponent::UpdateStepReferences()
 	// Update references for specific step types
 	if (UAssembleStep* AssembleStep = Cast<UAssembleStep>(CurrentStep))
 	{
-		if (AssemblyActor)
+		if (AssemblyActorClass)
 		{
-			AssembleStep->SetAssemblyActor(AssemblyActor);
+			if (!AssembleStep->AssemblyActor)
+			{
+				for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
+				{
+					AAssemblyActor* PotentialAssembly = *It;
+					if (PotentialAssembly && 
+						PotentialAssembly->IsA(AssemblyActorClass))
+					{
+						AssembleStep->SetAssemblyActor(PotentialAssembly);
+						UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::UpdateStepReferences - Set AssemblyActor for AssembleStep: %s"), 
+							   *PotentialAssembly->GetName());
+						break;
+					}
+				}
+				if (!AssembleStep->AssemblyActor)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::UpdateStepReferences - Could not find instance of class %s for AssembleStep"), 
+						   *AssemblyActorClass->GetName());
+				}
+			}
+		}
+		else if (AssemblyActor)
+		{
+			if (!AssembleStep->AssemblyActor)
+			{
+				AssembleStep->SetAssemblyActor(AssemblyActor);
+				UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::UpdateStepReferences - Set AssemblyActor for AssembleStep: %s"), 
+					   *AssemblyActor->GetName());
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::UpdateStepReferences - No AssemblyActorClass or AssemblyActor set for AssembleStep"));	
 		}
 	}
 
