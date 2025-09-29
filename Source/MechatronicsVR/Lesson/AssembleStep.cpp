@@ -16,6 +16,7 @@ UAssembleStep::UAssembleStep()
 	bRequireTargetConnected = true;
 	bRequireFullyAssembled = false;
 	MinTargetsSatisfied = 0;
+	StepType = ELessonStepType::Assemble;
 	
 }
 

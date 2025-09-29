@@ -15,6 +15,7 @@ UFocusStep::UFocusStep()
 	MinFocusTimeSeconds = 1.5f;
 	bRequireLineOfSight = true;
 	bRequireContinuousFocus = true;
+	StepType = ELessonStepType::Focus;
 }
 
 void UFocusStep::SetTargetActor(AActor* InTarget)

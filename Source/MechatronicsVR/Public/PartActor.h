@@ -12,6 +12,7 @@ class USnapValidatorComponent;
 class USnapPointComponent;
 class AAssemblyActor;
 class UGrabComponent;
+class AssemblyStep;
 
 UCLASS()
 class MECHATRONICSVR_API APartActor : public AActor

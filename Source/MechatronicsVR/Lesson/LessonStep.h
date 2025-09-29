@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "LessonTypes.h"
 #include "LessonStep.generated.h"
 
 /**
@@ -37,6 +38,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
 	FString InstructionText;
 	
+	UPROPERTY(BlueprintReadOnly, Category = "Lesson|Step")
+	ELessonStepType StepType;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
 	TObjectPtr<ULessonStep> PreviousStep = nullptr;

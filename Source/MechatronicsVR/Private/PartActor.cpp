@@ -7,8 +7,12 @@
 #include "AssemblyComponent.h"
 #include "EngineUtils.h"
 #include "GrabComponent.h"
+#include "MechatronicsGameMode.h"
 #include "MotionControllerComponent.h"
 #include "SnapValidatorComponent.h"
+#include "../Lesson/LessonManagerComponent.h"
+#include "../Lesson/LessonStep.h"
+#include "../Lesson/AssembleStep.h"
 
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -125,7 +129,29 @@ void APartActor::UpdatePreviewState()
 
 USnapPointComponent* APartActor::FindBestPreviewTarget() const
 {
-    // Get all my snap points
+	//checks to see if there is currently any lesson, and if so, only shows the snapping point if the current step
+	//is an assembly step AND if the current part is the target
+	if (UWorld* World = GetWorld())
+	{
+		const AMechatronicsGameMode* GM = World->GetAuthGameMode<AMechatronicsGameMode>();
+		if (GM)
+		{
+			const ULessonManagerComponent* LM = GM->FindComponentByClass<ULessonManagerComponent>();
+			if (LM)
+			{
+				if (LM->CurrentStep && LM->CurrentStep->StepType == ELessonStepType::Assemble)
+				{
+					const UAssembleStep* AssembleStep = static_cast<const UAssembleStep*>(LM->CurrentStep);
+					if (AssembleStep && !AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
+					{
+						return nullptr;
+					}
+				}
+			}
+		}
+	}
+	
+    // Get all my snap points 
     TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
     
     // FIRST: Check if we have a specific actor we should assemble onto
