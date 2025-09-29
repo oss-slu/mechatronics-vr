@@ -43,7 +43,7 @@ void ULessonStep::StartStep()
 	bStepCompleted = false;
 
 	UE_LOG(LogTemp, Log, TEXT("ULessonStep::StartStep - Starting step: %s"), 
-		   *InstructionText.ToString());
+		   *InstructionText);
     
 	StartTicking();  // Add this
 	
@@ -86,7 +86,7 @@ void ULessonStep::TickStep(float DeltaTime)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("ULessonStep::EndStep - Ending step: %s"), 
-		   *InstructionText.ToString());
+		   *InstructionText);
     
 	StopTicking();  // Add this
     

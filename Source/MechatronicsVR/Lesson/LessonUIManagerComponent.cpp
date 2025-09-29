@@ -48,6 +48,47 @@ ULessonUIManagerComponent::ULessonUIManagerComponent()
 }
 
 
+void ULessonUIManagerComponent::DebugShowWidgetLocation()
+{
+	if (!InstructionWidgetComponent)
+	{
+		UE_LOG(LogTemp, Error, TEXT("DebugShowWidgetLocation: No widget component"));
+		return;
+	}
+    
+	FVector WidgetLocation = InstructionWidgetComponent->GetComponentLocation();
+    
+	// Draw debug sphere at widget location
+	DrawDebugSphere(
+		GetWorld(),
+		WidgetLocation,
+		50.0f,
+		12,
+		FColor::Green,
+		false,
+		5.0f,
+		0,
+		5.0f
+	);
+    
+	// Draw line from player to widget
+	if (APawn* PlayerPawn = GetWorld()->GetFirstPlayerController()->GetPawn())
+	{
+		DrawDebugLine(
+			GetWorld(),
+			PlayerPawn->GetActorLocation(),
+			WidgetLocation,
+			FColor::Yellow,
+			false,
+			5.0f,
+			0,
+			3.0f
+		);
+	}
+    
+	UE_LOG(LogTemp, Warning, TEXT("DebugShowWidgetLocation: Widget at %s"), *WidgetLocation.ToString());
+}
+
 // Called when the game starts
 void ULessonUIManagerComponent::BeginPlay()
 {
@@ -58,8 +99,32 @@ void ULessonUIManagerComponent::BeginPlay()
 	CreateUIWidgets();
 	RefreshWidgetReferences();
 
-	UE_LOG(LogTemp, Log, TEXT("LessonUIManagerComponent::BeginPlay - UI Initialized"));
-	
+	// UE_LOG(LogTemp, Log, TEXT("LessonUIManagerComponent::BeginPlay - UI Initialized"));
+	//
+	// if (InstructionWidget && InstructionWidgetComponent)
+	// {
+	// 	GetWorld()->GetTimerManager().SetTimer(DebugTestTimer, [this]()
+	// 	{
+	// 		UE_LOG(LogTemp, Error, TEXT("=== FORCING WIDGET VISIBLE FOR TEST ==="));
+ //        
+	// 		InstructionWidgetComponent->SetVisibility(true);
+	// 		InstructionWidgetComponent->SetRelativeLocation(FVector(200, 0, 0));  // Right in front
+ //        
+	// 		if (UTextBlock* TextBlock = Cast<UTextBlock>(InstructionWidget->GetWidgetFromName("InstructionText")))
+	// 		{
+	// 			TextBlock->SetText(FText::FromString("TEST - CAN YOU SEE ME?"));
+	// 			UE_LOG(LogTemp, Error, TEXT("Set test text"));
+	// 		}
+	// 		else
+	// 		{
+	// 			UE_LOG(LogTemp, Error, TEXT("Could not find TextBlock named 'InstructionText'"));
+	// 		}
+ //        
+	// 		DebugShowWidgetLocation();
+ //        
+	// 	}, 2.0f, false);
+	// }
+	//
 }
 
 void ULessonUIManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -324,7 +389,7 @@ void ULessonUIManagerComponent::ShowInstructionWithIcon(const FText& Instruction
 	UE_LOG(LogTemp, Log, TEXT("ShowInstructionWithIcon: Displayed instruction with icon"));
 }
 
-void ULessonUIManagerComponent::ShowInstructionForPart(const FText& InstructionText, APartActor* TargetPart)
+void ULessonUIManagerComponent::ShowInstructionForPart(const FString& InstructionText, APartActor* TargetPart)
 {
 	if (!TargetPart)
 	{
@@ -366,7 +431,7 @@ void ULessonUIManagerComponent::HideInstruction()
 	UE_LOG(LogTemp, Log, TEXT("HideInstruction: Hidden instruction widget"));
 }
 
-void ULessonUIManagerComponent::UpdateInstructionWidget(const FText& InstructionText) const
+void ULessonUIManagerComponent::UpdateInstructionWidget(const FString& InstructionText) const
 {
 	ShowInstruction(InstructionText);
 }
@@ -733,21 +798,33 @@ void ULessonUIManagerComponent::ShowErrorAnimation()
 
 // === ENHANCED INSTRUCTION FUNCTIONS ===
 
-void ULessonUIManagerComponent::ShowInstruction(const FText& InstructionText) const
+void ULessonUIManagerComponent::
+ShowInstruction(const FString& InstructionText) const
 {
 	if (InstructionWidget)
 	{
 		// Find the text block in your widget and set its text
 		if (UTextBlock* TextBlock = Cast<UTextBlock>(InstructionWidget->GetWidgetFromName("InstructionText")))
 		{
-			TextBlock->SetText(InstructionText);
+			TextBlock->SetText(FText::FromString(InstructionText));
 		}
         
 		InstructionWidget->SetVisibility(ESlateVisibility::Visible);
 	}
+	if (InstructionWidgetComponent)
+	{
+		InstructionWidgetComponent->SetVisibility(true);
+		InstructionWidgetComponent->SetHiddenInGame(false);
+		UE_LOG(LogTemp, Warning, TEXT("  - Set WidgetComponent visible"));
+		UE_LOG(LogTemp, Warning, TEXT("  - Location: %s"), *InstructionWidgetComponent->GetComponentLocation().ToString());
+		UE_LOG(LogTemp, Warning, TEXT("  - Is Visible: %s"), InstructionWidgetComponent->IsVisible() ? TEXT("YES") : TEXT("NO"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("  - InstructionWidgetComponent is NULL"));
+	}
 }
-
-void ULessonUIManagerComponent::ShowInstructionAtLocation(const FText& InstructionText, const FVector& WorldLocation) const
+void ULessonUIManagerComponent::ShowInstructionAtLocation(const FString& InstructionText, const FVector& WorldLocation) const
 {
 	// Position the widget at the specified location
 	PositionInstructionWidget(WorldLocation);

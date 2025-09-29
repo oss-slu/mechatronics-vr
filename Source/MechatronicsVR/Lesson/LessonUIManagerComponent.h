@@ -221,10 +221,10 @@ public:
     void ShowInstructionWithIcon(const FText& InstructionText, UTexture2D* Icon);
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")
-    void ShowInstructionAtLocation(const FText& InstructionText, const FVector& WorldLocation) const;
+    void ShowInstructionAtLocation(const FString& InstructionText, const FVector& WorldLocation) const;
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")
-    void ShowInstructionForPart(const FText& InstructionText, APartActor* TargetPart);
+    void ShowInstructionForPart(const FString& InstructionText, APartActor* TargetPart);
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")
     void HideInstruction();
@@ -266,7 +266,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI|Positioning")
     void ResetWidgetPositions();
-    void ShowInstruction(const FText& InstructionText) const;
+    void ShowInstruction(const FString& InstructionText) const;
 
     // === ADVANCED UI FUNCTIONS ===
     
@@ -321,6 +321,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Lesson UI")
     int32 GetHighlightedPartsCount() const { return HighlightedActors.Num(); }
 
+    void DebugShowWidgetLocation();
+
 protected:
     // === UNREAL OVERRIDES ===
     
@@ -336,7 +338,7 @@ protected:
 
     // === INSTRUCTION MANAGEMENT ===
     
-    void UpdateInstructionWidget(const FText& InstructionText) const;
+    void UpdateInstructionWidget(const FString& InstructionText) const;
     void UpdateProgressWidget(float ProgressPercentage);
     void AnimateInstructionIn();
     void AnimateInstructionOut();
@@ -382,6 +384,9 @@ private:
     bool bTickEnabled = false;
 
     // === ANIMATION TIMERS ===
+
+
+    FTimerHandle DebugTestTimer;
     
     FTimerHandle FadeInTimer;
     FTimerHandle FadeOutTimer;

@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(EditInlineNew, DefaultToInstanced)
 class MECHATRONICSVR_API ULessonStep : public UObject
 {
 	GENERATED_BODY()
@@ -35,7 +35,7 @@ public:
 	
 	// Base properties
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
-	FText InstructionText;
+	FString InstructionText;
 	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
