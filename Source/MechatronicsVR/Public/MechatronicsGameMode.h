@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "../Lesson/LessonManagerComponent.h"
+#include "../Lesson/LessonDataAsset.h"
 #include "../Lesson/LessonTypes.h"
 #include "MechatronicsGameMode.generated.h"
 
@@ -59,6 +61,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Configuration")
 	bool bAutoStartLesson = true;
 
+	// === LEVEL-SPECIFIC LESSON CONFIGURATION ===
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level Lesson")
+	TObjectPtr<ULessonDataAsset> LevelLessonData;
+
+
+
 	// === PUBLIC API ===
     
 	/** Start a specific lesson */
@@ -101,5 +109,5 @@ private:
 
 	/** Track if lesson system has been initialized */
 	bool bLessonSystemInitialized = false;
-	
+	FTimerHandle LessonStartTimerHandle;
 };
