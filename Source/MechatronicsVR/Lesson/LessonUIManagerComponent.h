@@ -13,6 +13,7 @@
 #include "Sound/SoundBase.h"
 #include "LessonUIManagerComponent.generated.h"
 
+class ALessonUIActor;
 class APartActor;
 class ULessonStep;
 
@@ -67,6 +68,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Widgets")
     TSubclassOf<UUserWidget> LessonHUDClass;
 
+    // === LESSON UI ACTOR ===
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Actor")
+    TSubclassOf<ALessonUIActor> LessonUIActorClass;
+    
+    UPROPERTY(BlueprintReadOnly, Category = "UI Runtime")
+    TObjectPtr<ALessonUIActor> LessonUIActor;
     // === 3D POSITIONING SETTINGS ===
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Positioning")
@@ -332,7 +340,6 @@ protected:
 
     // === WIDGET MANAGEMENT ===
     
-    void CreateUIWidgets();
     void DestroyUIWidgets();
     void RefreshWidgetReferences();
 

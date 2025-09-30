@@ -14,6 +14,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/Engine.h"
+#include "LessonUIActor.h"
 
 // Sets default values for this component's properties
 ULessonUIManagerComponent::ULessonUIManagerComponent()
@@ -96,7 +97,6 @@ void ULessonUIManagerComponent::BeginPlay()
 
 	// ...
 	UE_LOG(LogTemp, Log, TEXT("LessonUIManagerComponent::BeginPlay - Initializing UI"));
-	CreateUIWidgets();
 	RefreshWidgetReferences();
 
 	// UE_LOG(LogTemp, Log, TEXT("LessonUIManagerComponent::BeginPlay - UI Initialized"));
@@ -147,103 +147,6 @@ void ULessonUIManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 
 
-void ULessonUIManagerComponent::CreateUIWidgets()
-{
-    if (!GetOwner())
-    {
-        UE_LOG(LogTemp, Error, TEXT("CreateUIWidgets: No owner actor"));
-        return;
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Creating 3D widget components"));
-    
-    // Create instruction widget component
-    if (InstructionWidgetClass)
-    {
-        InstructionWidgetComponent = NewObject<UWidgetComponent>(GetOwner());
-        if (InstructionWidgetComponent)
-        {
-            InstructionWidgetComponent->SetupAttachment(GetOwner()->GetRootComponent());
-            InstructionWidgetComponent->SetWidgetClass(InstructionWidgetClass);
-            InstructionWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-            InstructionWidgetComponent->SetDrawSize(InstructionWidgetSize);
-            InstructionWidgetComponent->SetRelativeLocation(InstructionWidgetOffset);
-            InstructionWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            InstructionWidgetComponent->RegisterComponent();
-            
-            // Set initial visibility
-            if (InstructionVisibility == ELessonUIVisibility::OnDemand)
-            {
-                InstructionWidgetComponent->SetVisibility(false);
-            }
-            
-            // Get the actual widget instance
-            InstructionWidget = InstructionWidgetComponent->GetUserWidgetObject();
-            
-            UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Created 3D instruction widget"));
-        }
-    }
-    
-    // Create progress widget component
-    if (ProgressWidgetClass)
-    {
-        ProgressWidgetComponent = NewObject<UWidgetComponent>(GetOwner());
-        if (ProgressWidgetComponent)
-        {
-            ProgressWidgetComponent->SetupAttachment(GetOwner()->GetRootComponent());
-            ProgressWidgetComponent->SetWidgetClass(ProgressWidgetClass);
-            ProgressWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-            ProgressWidgetComponent->SetDrawSize(ProgressWidgetSize);
-            ProgressWidgetComponent->SetRelativeLocation(ProgressWidgetOffset);
-            ProgressWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            ProgressWidgetComponent->RegisterComponent();
-            
-            // Set initial visibility
-            if (ProgressVisibility == ELessonUIVisibility::Always)
-            {
-                ProgressWidgetComponent->SetVisibility(true);
-            }
-            else if (ProgressVisibility == ELessonUIVisibility::OnDemand)
-            {
-                ProgressWidgetComponent->SetVisibility(false);
-            }
-            
-            // Get the actual widget instance
-            ProgressWidget = ProgressWidgetComponent->GetUserWidgetObject();
-            
-            UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Created 3D progress widget"));
-        }
-    }
-    
-    // Create lesson HUD component
-    if (LessonHUDClass)
-    {
-        LessonHUDComponent = NewObject<UWidgetComponent>(GetOwner());
-        if (LessonHUDComponent)
-        {
-            LessonHUDComponent->SetupAttachment(GetOwner()->GetRootComponent());
-            LessonHUDComponent->SetWidgetClass(LessonHUDClass);
-            LessonHUDComponent->SetWidgetSpace(EWidgetSpace::World);
-            LessonHUDComponent->SetDrawSize(LessonHUDSize);
-            LessonHUDComponent->SetRelativeLocation(LessonHUDOffset);
-            LessonHUDComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            LessonHUDComponent->RegisterComponent();
-            LessonHUDComponent->SetVisibility(true);
-            
-            // Get the actual widget instance
-            LessonHUD = LessonHUDComponent->GetUserWidgetObject();
-            
-            UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Created 3D lesson HUD"));
-        }
-    }
-    
-    // Enable ticking for follow/look-at behavior
-    if (bInstructionFollowsPlayer || bInstructionLooksAtPlayer || bProgressFollowsPlayer || bProgressLooksAtPlayer)
-    {
-        PrimaryComponentTick.bCanEverTick = true;
-        bTickEnabled = true;
-    }
-}
 
 void ULessonUIManagerComponent::DestroyUIWidgets()
 {
@@ -396,19 +299,22 @@ void ULessonUIManagerComponent::ShowInstructionForPart(const FString& Instructio
 		UE_LOG(LogTemp, Warning, TEXT("ShowInstructionForPart: Invalid target part"));
 		return;
 	}
-
-	//position widget near the part
-	PositionWidgetNearPart(TargetPart, FVector(150.0f, 0.0f, 100.0f));
-
-	//show the instruction
+    
+	UE_LOG(LogTemp, Warning, TEXT("ShowInstructionForPart: Part=%s"), *TargetPart->GetName());
+    
+	// This will spawn the actor if needed
 	ShowInstruction(InstructionText);
-
-	// optionally highlight the part
+    
+	// Position near the part
+	if (LessonUIActor)
+	{
+		LessonUIActor->PositionNearActor(TargetPart, FVector(150.0f, 0.0f, 100.0f));
+		UE_LOG(LogTemp, Warning, TEXT("ShowInstructionForPart: Positioned near part"));
+	}
+    
+	// Highlight the part
 	HighlightSinglePart(TargetPart, TargetPartColor);
-
-	UE_LOG(LogTemp, Log, TEXT("ShowInstructionForPart: Showing instruction for part %s"), *TargetPart->GetName());
 }
-
 void ULessonUIManagerComponent::HideInstruction()
 {
 	if (InstructionWidget)
@@ -798,31 +704,68 @@ void ULessonUIManagerComponent::ShowErrorAnimation()
 
 // === ENHANCED INSTRUCTION FUNCTIONS ===
 
-void ULessonUIManagerComponent::
-ShowInstruction(const FString& InstructionText) const
+void ULessonUIManagerComponent::ShowInstruction(const FString& InstructionText) const
 {
-	if (InstructionWidget)
-	{
-		// Find the text block in your widget and set its text
-		if (UTextBlock* TextBlock = Cast<UTextBlock>(InstructionWidget->GetWidgetFromName("InstructionText")))
-		{
-			TextBlock->SetText(FText::FromString(InstructionText));
-		}
+    UE_LOG(LogTemp, Warning, TEXT("=== ShowInstruction Called ==="));
+    UE_LOG(LogTemp, Warning, TEXT("  - Text: '%s'"), *InstructionText);
+    
+    // Spawn the actor if it doesn't exist
+    if (!LessonUIActor)
+    {
+        if (!LessonUIActorClass)
+        {
+            UE_LOG(LogTemp, Error, TEXT("ShowInstruction: LessonUIActorClass not set!"));
+            return;
+        }
         
-		InstructionWidget->SetVisibility(ESlateVisibility::Visible);
-	}
-	if (InstructionWidgetComponent)
-	{
-		InstructionWidgetComponent->SetVisibility(true);
-		InstructionWidgetComponent->SetHiddenInGame(false);
-		UE_LOG(LogTemp, Warning, TEXT("  - Set WidgetComponent visible"));
-		UE_LOG(LogTemp, Warning, TEXT("  - Location: %s"), *InstructionWidgetComponent->GetComponentLocation().ToString());
-		UE_LOG(LogTemp, Warning, TEXT("  - Is Visible: %s"), InstructionWidgetComponent->IsVisible() ? TEXT("YES") : TEXT("NO"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("  - InstructionWidgetComponent is NULL"));
-	}
+        if (!GetWorld())
+        {
+            UE_LOG(LogTemp, Error, TEXT("ShowInstruction: No world!"));
+            return;
+        }
+        
+        UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Spawning LessonUIActor"));
+        
+        // Spawn in front of player
+        FVector SpawnLocation = GetPlayerLocation() + (GetPlayerForwardVector() * 200.0f);
+        SpawnLocation.Z += 50.0f; // Slightly above eye level
+        
+        FRotator SpawnRotation = FRotator::ZeroRotator;
+        
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = GetOwner();
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        
+        // Need to cast away const since we're modifying the actor pointer
+        ULessonUIManagerComponent* MutableThis = const_cast<ULessonUIManagerComponent*>(this);
+        MutableThis->LessonUIActor = GetWorld()->SpawnActor<ALessonUIActor>(
+            LessonUIActorClass,
+            SpawnLocation,
+            SpawnRotation,
+            SpawnParams
+        );
+        
+        if (MutableThis->LessonUIActor)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Successfully spawned LessonUIActor at %s"), 
+                *SpawnLocation.ToString());
+
+        	LessonUIActor->SetActorScale3D(FVector(0.15f, 0.15f, 0.15f));
+        	UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Scaled actor to 15%%"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("ShowInstruction: Failed to spawn LessonUIActor"));
+            return;
+        }
+    }
+    
+    // Show the instruction
+    if (LessonUIActor)
+    {
+        LessonUIActor->ShowInstruction(InstructionText);
+        UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Displayed instruction on actor"));
+    }
 }
 void ULessonUIManagerComponent::ShowInstructionAtLocation(const FString& InstructionText, const FVector& WorldLocation) const
 {
