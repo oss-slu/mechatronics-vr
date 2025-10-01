@@ -135,13 +135,16 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 		if (StepData.StepInstance)
 		{
 			LessonSteps.Add(StepData.StepInstance);
-            
+        
+			// Clear any existing bindings first
+			StepData.StepInstance->OnStepCompleted.Clear();
+        
 			// Bind to step completion event
-			StepData.StepInstance->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("InitializeLessonFromDataAsset - Null step instance found"));
+			if (!StepData.StepInstance->OnStepCompleted.Contains(this, FName("HandleStepCompleted")))
+			{
+				StepData.StepInstance->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
+				UE_LOG(LogTemp, Log, TEXT("Bound HandleStepCompleted to step"));
+			}
 		}
 	}
 
@@ -474,7 +477,6 @@ void ULessonManagerComponent::HandleStepCompleted(ULessonStep* CompletedStep)
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::HandleStepCompleted - Step completed: %s"), 
 		   CompletedStep ? *CompletedStep->InstructionText : TEXT("Unknown"));
 
-	
 	if (CompletedStep == CurrentStep)
 	{
 		CompleteCurrentStep();
@@ -676,16 +678,14 @@ void ULessonManagerComponent::ShowStepInstructions()
 			UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Showing instruction for part: %s"), 
 				   *TargetParts[0]->GetName());
 			
-			// Highlight any additional target parts
-			if (TargetParts.Num() > 1)
-			{
+			
 				for (int32 i = 1; i < TargetParts.Num(); i++)
 				{
 					UIManager->HighlightSinglePart(TargetParts[i], UIManager->TargetPartColor);
 					UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Highlighted additional part: %s"), 
 						   *TargetParts[i]->GetName());
 				}
-			}
+			
 		}
 		else
 		{

@@ -488,11 +488,18 @@ void APartActor::OnPartGrabbed()
 	UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed - PreviewMaterial: %s"), 
 		PreviewMaterial ? TEXT("Valid") : TEXT("NULL"));
     
-	// Print to screen for easy debugging
-	if (GEngine)
+	
+
+	// Clear lesson highlight when grabbed
+	if (UGameplayStatics::GetGameMode(GetWorld()))
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, 
-			FString::Printf(TEXT("GRABBED: %s"), *GetName()));
+		if (AMechatronicsGameMode* GameMode = Cast<AMechatronicsGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
+		{
+			if (GameMode->GetUIManager())
+			{
+				GameMode->GetUIManager()->ClearHighlight(this);
+			}
+		}
 	}
     
 	// Update preview state
