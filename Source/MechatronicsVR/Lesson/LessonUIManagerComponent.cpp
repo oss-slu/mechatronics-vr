@@ -560,9 +560,16 @@ void ULessonUIManagerComponent::UpdatePulsingHighlights(float DeltaTime)
 	
 	for (auto& Elem : HighlightMaterials)
 	{
+
+		// Skip if this part is currently being grab-highlighted
+		if (GrabHighlightedActors.Contains(Elem.Key))
+		{
+			continue;
+		}
+		// Update intensity based on pulse values
 		if (Elem.Value)
 		{
-			float CurrentIntensity = FMath::Lerp(PulseMinIntensity, PulseMaxIntensity, PulseValue);
+			const float CurrentIntensity = FMath::Lerp(PulseMinIntensity, PulseMaxIntensity, PulseValue);
 			Elem.Value->SetScalarParameterValue("HighlightIntensity", CurrentIntensity);
 		}
 	}
@@ -937,6 +944,24 @@ UImage* ULessonUIManagerComponent::FindImageInWidget(UUserWidget* Widget, const 
 	return Cast<UImage>(Widget->GetWidgetFromName(*ImageName));
 }
 
+void ULessonUIManagerComponent::PauseHighlightForPart(APartActor* Part)
+{
+	if (!Part) return;
+    
+	if (!GrabHighlightedActors.Contains(Part))
+	{
+		GrabHighlightedActors.Add(Part);
+		UE_LOG(LogTemp, Log, TEXT("PauseHighlightForPart: Paused pulsing for %s"), *Part->GetName());
+	}
+}
+
+void ULessonUIManagerComponent::ResumeHighlightForPart(APartActor* Part)
+{
+	if (!Part) return;
+    
+	GrabHighlightedActors.Remove(Part);
+	UE_LOG(LogTemp, Log, TEXT("ResumeHighlightForPart: Resumed pulsing for %s"), *Part->GetName());
+}
 // === QUERY FUNCTIONS ===
 
 bool ULessonUIManagerComponent::IsUIVisible() const

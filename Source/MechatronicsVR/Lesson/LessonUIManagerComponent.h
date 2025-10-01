@@ -410,4 +410,18 @@ private:
     FTimerHandle FadeInTimer;
     FTimerHandle FadeOutTimer;
     FTimerHandle PulseTimer_Handle;
+
+    // Track parts that are currently being highlighted by grab raycaster
+    UPROPERTY()
+    TArray<TObjectPtr<AActor>> GrabHighlightedActors;
+    
+public:
+    /** Called by external systems (like GrabRayCaster) to temporarily pause pulsing */
+    UFUNCTION(BlueprintCallable, Category = "Lesson UI")
+    void PauseHighlightForPart(APartActor* Part);
+    
+    /** Called when external highlight is removed */
+    UFUNCTION(BlueprintCallable, Category = "Lesson UI")
+    void ResumeHighlightForPart(APartActor* Part);
+
 };

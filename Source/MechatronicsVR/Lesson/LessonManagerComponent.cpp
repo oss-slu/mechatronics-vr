@@ -93,16 +93,17 @@ void ULessonManagerComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	if (!bIsLessonActive || bIsLessonCompleted || bWaitingForStepTransition)
 		return;
 
-	//check current step completion
-	if (CurrentStep && CheckStepCompletion())
+	// Only poll if the current step wants to be polled each tick
+	if (CurrentStep && CurrentStep->bWantsTickWhileActive)
 	{
-		if (bAutoAdvanceSteps)
+		if (CheckStepCompletion())
 		{
-			CompleteCurrentStep();
+			if (bAutoAdvanceSteps)
+			{
+				CompleteCurrentStep();
+			}
 		}
 	}
-	
-	// ...
 }
 // === LESSON INITIALIZATION ===
 
@@ -154,9 +155,18 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 		{
 			// Give steps world context
 			Step->SetWorldContext(this);
-        
+                
+			UE_LOG(LogTemp, Error, TEXT("InitializeLessonFromDataAsset: About to bind to step: %s"), 
+				*Step->GetClass()->GetName());
+                
+			// Clear any existing bindings first
+			Step->OnStepCompleted.Clear();
+                
 			// Bind to step completion event
 			Step->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
+                
+			UE_LOG(LogTemp, Error, TEXT("  - Binding complete. IsBound: %s"), 
+				Step->OnStepCompleted.IsBound() ? TEXT("YES") : TEXT("NO"));
 		}
 	}
 
@@ -308,7 +318,6 @@ void ULessonManagerComponent::CompleteCurrentStep()
 		return;
 	}
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::CompleteCurrentStep - Completing step %d"), CurrentStepIndex);
-	CurrentStep->CompleteStep();
 	OnStepCompleted.Broadcast(CurrentStep, CurrentStepIndex);
 
 	//check if this was the last step
@@ -601,6 +610,8 @@ void ULessonManagerComponent::ConnectToExistingSystems()
     
 	// TODO: Connect to other systems when available
 }
+
+
 
 // === UI MANAGEMENT ===
 void ULessonManagerComponent::UpdateUI()

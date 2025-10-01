@@ -12,6 +12,7 @@ UAssembleStep::UAssembleStep()
 	bWantsTickWhileActive = false;
 	bAlsoPollEachTick = false;
 
+	
 	bRequireAllTargetsPresent = true;
 	bRequireTargetConnected = true;
 	bRequireFullyAssembled = false;
@@ -86,7 +87,14 @@ void UAssembleStep::UnbindAssemblyEvents()
 }
 
 void UAssembleStep::EvaluateAndMaybeComplete()
+
+
 {
+
+	UE_LOG(LogTemp, Error, TEXT("=== EvaluateAndMaybeComplete ==="));
+	UE_LOG(LogTemp, Error, TEXT("  - bIsActive: %s"), bIsActive ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
+	UE_LOG(LogTemp, Error, TEXT("  - bStepCompleted: %s"), bStepCompleted ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
+    
 	if (bAlsoPollEachTick)
 	{
 		NotifyUpdated();
@@ -191,21 +199,35 @@ void UAssembleStep::HandleAssemblyStateChanged(EAssemblyState /*NewState*/)
 
 void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 {
+	UE_LOG(LogTemp, Error, TEXT("=== HandlePartsConnected Called ==="));
+	UE_LOG(LogTemp, Error, TEXT("  - PartA: %s"), PartA ? *PartA->GetName() : TEXT("NULL (BASE)"));
+	UE_LOG(LogTemp, Error, TEXT("  - PartB: %s"), PartB ? *PartB->GetName() : TEXT("NULL"));
+    
 	// Handle base connection (one part is null, meaning base connection)
 	if (!PartA || !PartB)
 	{
-		// This is a base connection - one of the parts is the base
+		UE_LOG(LogTemp, Error, TEXT("  - Detected BASE CONNECTION"));
+        
 		APartActor* ConnectedPart = PartA ? PartA : PartB;
         
 		if (ConnectedPart)
 		{
-			UE_LOG(LogTemp, Log, TEXT("AssembleStep: Part %s connected to base"), *ConnectedPart->GetName());
+			UE_LOG(LogTemp, Error, TEXT("  - ConnectedPart: %s"), *ConnectedPart->GetName());
+			UE_LOG(LogTemp, Error, TEXT("  - Calling EvaluateAndMaybeComplete()"));
+            
 			EvaluateAndMaybeComplete();
+            
+			UE_LOG(LogTemp, Error, TEXT("  - Returned from EvaluateAndMaybeComplete()"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("  - ERROR: Both parts are NULL!"));
 		}
 		return;
 	}
 
 	// Handle normal part-to-part connection
+	UE_LOG(LogTemp, Error, TEXT("  - Detected PART-TO-PART CONNECTION"));
 	UE_LOG(LogTemp, Log, TEXT("AssembleStep: Parts %s and %s connected"), *PartA->GetName(), *PartB->GetName());
 	EvaluateAndMaybeComplete();
 }
