@@ -129,13 +129,23 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Visibility")
     bool bShowStepNumbers = true;
 
-    // === HIGHLIGHT CONFIGURATION ===
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
-    EHighlightType DefaultHighlightType = EHighlightType::Outline;
+    // === HIGHLIGHTING CONFIGURATION ===
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
-    TObjectPtr<UMaterialInterface> HighlightMaterial;
+    bool bPulseHighlights = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
+    float PulseMinIntensity = 0.5f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
+    float PulseMaxIntensity = 2.0f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
+    EHighlightType DefaultHighlightType = EHighlightType::Pulse;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UMaterialInterface> HighlightMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Script/Engine.Material'/Game/Materials/M_Highlight.M_Highlight'"));
+    
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
     TObjectPtr<UMaterialInterface> TargetPartMaterial;
@@ -151,6 +161,8 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
     float PulseSpeed = 2.0f;
+
+
 
     // === ANIMATION SETTINGS ===
     

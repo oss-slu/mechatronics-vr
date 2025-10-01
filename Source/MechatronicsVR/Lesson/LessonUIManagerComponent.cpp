@@ -440,15 +440,17 @@ void ULessonUIManagerComponent::HighlightPartsWithType(const TArray<APartActor*>
 		}
 	}
 
+	if (bPulseHighlights && HighlightedActors.Num() > 0)
+	{
+		PrimaryComponentTick.bCanEverTick = true;
+		SetComponentTickEnabled(true);
+	}
+
 	//play sound if enabled
 	if (HighlightSound && PartsToHighlight.Num() > 0)
 	{
 		PlayUISound(HighlightSound);
 	}
-
-	//broadcast event
-	OnPartsHighlighted.Broadcast(PartsToHighlight);
-	UE_LOG(LogTemp, Log, TEXT("HighlightPartsWithType: Highlighted %d parts"), HighlightedActors.Num());
 }
 
 void ULessonUIManagerComponent::HighlightSinglePart(APartActor* PartToHighlight, const FLinearColor& Color)
@@ -459,7 +461,7 @@ void ULessonUIManagerComponent::HighlightSinglePart(APartActor* PartToHighlight,
 		return;
 	}
 
-	ApplyHighlightToActor(PartToHighlight, Color, DefaultHighlightType);
+	ApplyHighlightToActor(PartToHighlight, Color, EHighlightType::Pulse);
 
 	if (!HighlightedActors.Contains(PartToHighlight))
 	{
@@ -497,7 +499,6 @@ void ULessonUIManagerComponent::ApplyHighlightToActor(AActor* Actor, const FLine
 {
 	if (!Actor) return;
 
-	//TODO: replace with part interface implementation from game instance
 	APartActor* Part = Cast<APartActor>(Actor);
 	if (!Part || !Part->Mesh) return;
 
@@ -505,10 +506,9 @@ void ULessonUIManagerComponent::ApplyHighlightToActor(AActor* Actor, const FLine
 	{
 	case EHighlightType::Outline:
 		{
-			// Use custom depth for outline effect (requires post-process volume setup)
-			//TODO: Ensure post-process volume is configured to use custom depth
+			// Use custom depth for outline effect
 			Part->Mesh->SetRenderCustomDepth(true);
-			Part->Mesh->CustomDepthStencilValue = 1; // Ensure this matches your post-process settings
+			Part->Mesh->CustomDepthStencilValue = 1;
 			break;
 		}
 
@@ -516,45 +516,57 @@ void ULessonUIManagerComponent::ApplyHighlightToActor(AActor* Actor, const FLine
 	case EHighlightType::Material:
 	case EHighlightType::Pulse:
 		{
-			//create and apply dynamic material
-			UMaterialInstanceDynamic* DynMaterial = nullptr;
-
+			// Use OVERLAY MATERIAL like GrabRayCaster does
+			// Do EXACTLY what GrabRayCaster does, but with a DYNAMIC instance for pulsing
 			if (HighlightMaterial)
 			{
-				DynMaterial = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
+				UE_LOG(LogTemp, Error, TEXT("ApplyHighlightToActor: Creating dynamic material from template"));
+        
+				// Create dynamic instance from the static template
+				UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
+        
+				if (DynMaterial)
+				{
+					// Set initial parameters
+					DynMaterial->SetVectorParameterValue("HighlightColor", Color);
+					DynMaterial->SetScalarParameterValue("HighlightIntensity", HighlightIntensity);
+            
+					// Apply as overlay
+					Part->Mesh->SetOverlayMaterial(DynMaterial);
+            
+					// Store the DYNAMIC instance for pulsing
+					HighlightMaterials.Add(Actor, DynMaterial);
+            
+					UE_LOG(LogTemp, Error, TEXT("ApplyHighlightToActor: Applied dynamic overlay material"));
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("ApplyHighlightToActor: Failed to create dynamic material"));
+				}
 			}
 			else
 			{
-				//create from existing material
-				if (Part->Mesh->GetMaterial(0))
-				{
-					DynMaterial = UMaterialInstanceDynamic::Create(Part->Mesh->GetMaterial(0), this);
-				}
-			}
-
-			if (DynMaterial)
-			{
-				DynMaterial->SetVectorParameterValue("HighlightColor", Color);
-				DynMaterial->SetScalarParameterValue("HighlightIntensity", HighlightIntensity);
-
-				if (HighlightType == EHighlightType::Glow)
-				{
-					DynMaterial->SetScalarParameterValue("GlowIntensity", HighlightIntensity);
-				}
-				// Store original materials
-				for (int32 i = 0; i < Part->Mesh->GetNumMaterials(); i++)
-				{
-					OriginalMaterials.Add(Part->Mesh->GetMaterial(i));
-					Part->Mesh->SetMaterial(i, DynMaterial);
-				}
-                
-				HighlightMaterials.Add(Actor, DynMaterial);
+				UE_LOG(LogTemp, Warning, TEXT("ApplyHighlightToActor: No HighlightMaterial set!"));
 			}
 			break;
 		}
 	}
 }
 
+void ULessonUIManagerComponent::UpdatePulsingHighlights(float DeltaTime)
+{
+	PulseTimer += DeltaTime;
+	float PulseValue = (FMath::Sin(PulseTimer * PulseSpeed) + 1.0f) / 2.0f; // Normalize to 0-1
+	
+	for (auto& Elem : HighlightMaterials)
+	{
+		if (Elem.Value)
+		{
+			float CurrentIntensity = FMath::Lerp(PulseMinIntensity, PulseMaxIntensity, PulseValue);
+			Elem.Value->SetScalarParameterValue("HighlightIntensity", CurrentIntensity);
+		}
+	}
+}
 void ULessonUIManagerComponent::RemoveHighlightFromActor(AActor* Actor)
 {
 	if (!Actor) return;
@@ -565,19 +577,13 @@ void ULessonUIManagerComponent::RemoveHighlightFromActor(AActor* Actor)
 	// Remove outline
 	Part->Mesh->SetRenderCustomDepth(false);
 
-	// Restore original materials if changed
-	if (HighlightMaterials.Contains(Actor))
-	{
-		for (int32 i = 0; i < OriginalMaterials.Num(); i++)
-		{
-			if (i < Part->Mesh->GetNumMaterials())
-			{
-				Part->Mesh->SetMaterial(i, OriginalMaterials[i]);
-			}
-		}
-		OriginalMaterials.Empty();
-		HighlightMaterials.Remove(Actor);
-	}
+	// Remove overlay material (like GrabRayCaster does)
+	Part->Mesh->SetOverlayMaterial(nullptr);
+	
+	// Clean up from our tracking
+	HighlightMaterials.Remove(Actor);
+	
+	UE_LOG(LogTemp, Log, TEXT("RemoveHighlightFromActor: Removed highlight from %s"), *Part->GetName());
 }
 
 
@@ -588,18 +594,7 @@ void ULessonUIManagerComponent::CreateHighlightMaterial(const FLinearColor& Colo
 	//TODO: im not sure if this is needed but oh well its here for now
 }
 
-void ULessonUIManagerComponent::UpdatePulsingHighlights(float DeltaTime)
-{
-	PulseTimer += DeltaTime;
-	float PulseValue = (FMath::Sin(PulseTimer * PulseSpeed) + 1.0f) / 2.0f; // Normalize to 0-1
-	for (auto& Elem : HighlightMaterials)
-	{
-		if (Elem.Value)
-		{
-			Elem.Value->SetScalarParameterValue("HighlightIntensity", FMath::Lerp(0.5f, HighlightIntensity, PulseValue));
-		}
-	}
-}
+
 
 void ULessonUIManagerComponent::PulseHighlights()
 {
@@ -788,7 +783,7 @@ void ULessonUIManagerComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	UpdateLookAtBehavior(DeltaTime);
     
 	// Update pulsing highlights
-	if (HighlightedActors.Num() > 0)
+	if (bPulseHighlights && HighlightedActors.Num() > 0)
 	{
 		UpdatePulsingHighlights(DeltaTime);
 	}
