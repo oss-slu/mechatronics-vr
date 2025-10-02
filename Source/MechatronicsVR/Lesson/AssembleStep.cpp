@@ -86,12 +86,12 @@ void UAssembleStep::UnbindAssemblyEvents()
 	AssemblyActor->OnPartsConnected.RemoveDynamic(this, &UAssembleStep::HandlePartsConnected);
 }
 
-void UAssembleStep::EvaluateAndMaybeComplete()
+void UAssembleStep::EvaluateConnectionStatus()
 
 
 {
 
-	UE_LOG(LogTemp, Error, TEXT("=== EvaluateAndMaybeComplete ==="));
+	UE_LOG(LogTemp, Error, TEXT("=== EvaluateConnectionStatus ==="));
 	UE_LOG(LogTemp, Error, TEXT("  - bIsActive: %s"), bIsActive ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
 	UE_LOG(LogTemp, Error, TEXT("  - bStepCompleted: %s"), bStepCompleted ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
     
@@ -194,7 +194,7 @@ bool UAssembleStep::AreTargetsConnected(const TMap<TSubclassOf<APartActor>, TArr
 
 void UAssembleStep::HandleAssemblyStateChanged(EAssemblyState /*NewState*/)
 {
-	EvaluateAndMaybeComplete();
+	EvaluateConnectionStatus();
 }
 
 void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
@@ -213,11 +213,11 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 		if (ConnectedPart)
 		{
 			UE_LOG(LogTemp, Error, TEXT("  - ConnectedPart: %s"), *ConnectedPart->GetName());
-			UE_LOG(LogTemp, Error, TEXT("  - Calling EvaluateAndMaybeComplete()"));
+			UE_LOG(LogTemp, Error, TEXT("  - Calling EvaluateConnectionStatus()"));
             
-			EvaluateAndMaybeComplete();
+			EvaluateConnectionStatus();
             
-			UE_LOG(LogTemp, Error, TEXT("  - Returned from EvaluateAndMaybeComplete()"));
+			UE_LOG(LogTemp, Error, TEXT("  - Returned from EvaluateConnectionStatus()"));
 		}
 		else
 		{
@@ -229,7 +229,7 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 	// Handle normal part-to-part connection
 	UE_LOG(LogTemp, Error, TEXT("  - Detected PART-TO-PART CONNECTION"));
 	UE_LOG(LogTemp, Log, TEXT("AssembleStep: Parts %s and %s connected"), *PartA->GetName(), *PartB->GetName());
-	EvaluateAndMaybeComplete();
+	EvaluateConnectionStatus();
 }
 // Helper function to check if a single part is a target
 bool UAssembleStep::IsTargetPart(APartActor* Part) const

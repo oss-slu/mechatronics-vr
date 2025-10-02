@@ -67,7 +67,7 @@ private:
 	void BindAssemblyEvents();
 	void UnbindAssemblyEvents();
 
-	void EvaluateAndMaybeComplete();
+	void EvaluateConnectionStatus();
 
 	bool AreTargetsPresent(TMap<TSubclassOf<APartActor>, TArray<APartActor*>> &OutFound) const;
 
