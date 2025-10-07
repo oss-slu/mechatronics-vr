@@ -21,10 +21,10 @@ public:
 	// LESSON METADATA
 	ULessonDataAsset();
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson Info")
-	FText LessonTitle;
+	FString LessonTitle;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson Info", meta = (MultiLine = true))
-	FText LessonDescription;
+	FString LessonDescription;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson Info")
 	FName AssociatedLevelName;

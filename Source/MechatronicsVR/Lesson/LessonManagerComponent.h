@@ -56,14 +56,16 @@ public:
 	bool bIsLessonCompleted;
 
 	// === EXTERNAL REFERENCES ===
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Lesson Manager|References")
 	TObjectPtr<ULessonUIManagerComponent> UIManager;
  //
 	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
 	// TObjectPtr<ALessonValidator> StepValidator;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|References")
-	TObjectPtr<AAssemblyActor> AssemblyActor;
+	TSubclassOf<AAssemblyActor> AssemblyActorClass;
+
+	
 
 
 	// === SETTINGS ===
@@ -149,6 +151,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
 	void ValidateCurrentStep();
 
+	/** Set the UI manager for this lesson manager */
+	UFUNCTION(BlueprintCallable, Category = "Lesson System")
+	void SetUIManager(ULessonUIManagerComponent* InUIManager);
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -157,7 +163,9 @@ protected:
 	// === STEP MANAGEMENT ===
 
 	static ULessonStep* CreateStepFromData(const FLessonStepData& StepData);
-    bool ActivateStep(int32 StepIndex);
+	
+	void LinkStepsSequentially();
+	bool ActivateStep(int32 StepIndex);
     void DeactivateCurrentStep();
     void UpdateStepReferences();
 
@@ -194,6 +202,10 @@ private:
     
 	bool bInitialized;
 	bool bWaitingForStepTransition;
+
+	UPROPERTY()
+	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
+	
 
 
 

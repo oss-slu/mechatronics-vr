@@ -21,9 +21,10 @@ class MECHATRONICSVR_API UAssembleStep : public ULessonStep
 public:
 	UAssembleStep();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Assemble Step|Setup",
-			  meta=(AllowedClasses="/Script/MechatronicsVR.AssemblyActor", DisplayThumbnail="true"))
-	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assemble Step|References")
+	TSubclassOf<AAssemblyActor> AssemblyActorClass;
+	
 
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Category = "Assemble Step|Targets")
 	TArray<TSubclassOf<APartActor>> TargetPartClasses;
@@ -40,27 +41,33 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assemble Step|Criteria")
 	int32 MinTargetsSatisfied = 0;
 
+	UPROPERTY()
+	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assemble Step|Perf")
 	bool bAlsoPollEachTick = false;
 
 	UFUNCTION(BlueprintCallable, Category = "Assemble Step|Setup")
 	void SetAssemblyActor(AAssemblyActor* InAssembly);
 	
-	virtual bool CheckCompletion_Implementation() const;
+	virtual bool CheckCompletion_Implementation() const override;
 	UFUNCTION()
 	void HandlePartsConnected(APartActor* PartA, APartActor* PartB);
+	bool IsTargetPart(APartActor* Part) const;
 
 protected:
 	virtual void OnStarted() override;
 	virtual void OnStopped() override;
 	virtual void OnReset() override;
+	
 
 private:
 
+	
 	void BindAssemblyEvents();
 	void UnbindAssemblyEvents();
 
-	void EvaluateAndMaybeComplete();
+	void EvaluateConnectionStatus();
 
 	bool AreTargetsPresent(TMap<TSubclassOf<APartActor>, TArray<APartActor*>> &OutFound) const;
 

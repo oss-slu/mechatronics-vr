@@ -12,6 +12,7 @@ class USnapValidatorComponent;
 class USnapPointComponent;
 class AAssemblyActor;
 class UGrabComponent;
+class AssemblyStep;
 
 UCLASS()
 class MECHATRONICSVR_API APartActor : public AActor
@@ -30,6 +31,7 @@ public:
 	/** Currently previewing snap with this target snap point */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
 	TObjectPtr<USnapPointComponent> CurrentTargetSnapPoint = nullptr;
+	bool bIsSnapped = false;
 
 	/** Check if we should show preview based on grab state and nearby snap points */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")

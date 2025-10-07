@@ -13,6 +13,7 @@
 #include "Sound/SoundBase.h"
 #include "LessonUIManagerComponent.generated.h"
 
+class ALessonUIActor;
 class APartActor;
 class ULessonStep;
 
@@ -67,6 +68,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Widgets")
     TSubclassOf<UUserWidget> LessonHUDClass;
 
+    // === LESSON UI ACTOR ===
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Actor")
+    TSubclassOf<ALessonUIActor> LessonUIActorClass;
+    
+    UPROPERTY(BlueprintReadOnly, Category = "UI Runtime")
+    TObjectPtr<ALessonUIActor> LessonUIActor;
     // === 3D POSITIONING SETTINGS ===
     
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Positioning")
@@ -121,13 +129,23 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Visibility")
     bool bShowStepNumbers = true;
 
-    // === HIGHLIGHT CONFIGURATION ===
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
-    EHighlightType DefaultHighlightType = EHighlightType::Outline;
+    // === HIGHLIGHTING CONFIGURATION ===
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
-    TObjectPtr<UMaterialInterface> HighlightMaterial;
+    bool bPulseHighlights = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
+    float PulseMinIntensity = 0.5f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
+    float PulseMaxIntensity = 2.0f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
+    EHighlightType DefaultHighlightType = EHighlightType::Pulse;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UMaterialInterface> HighlightMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Script/Engine.Material'/Game/Materials/M_Highlight.M_Highlight'"));
+    
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
     TObjectPtr<UMaterialInterface> TargetPartMaterial;
@@ -143,6 +161,8 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Configuration|Highlighting")
     float PulseSpeed = 2.0f;
+
+
 
     // === ANIMATION SETTINGS ===
     
@@ -221,10 +241,10 @@ public:
     void ShowInstructionWithIcon(const FText& InstructionText, UTexture2D* Icon);
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")
-    void ShowInstructionAtLocation(const FText& InstructionText, const FVector& WorldLocation) const;
+    void ShowInstructionAtLocation(const FString& InstructionText, const FVector& WorldLocation) const;
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")
-    void ShowInstructionForPart(const FText& InstructionText, APartActor* TargetPart);
+    void ShowInstructionForPart(const FString& InstructionText, APartActor* TargetPart);
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")
     void HideInstruction();
@@ -266,7 +286,7 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI|Positioning")
     void ResetWidgetPositions();
-    void ShowInstruction(const FText& InstructionText) const;
+    void ShowInstruction(const FString& InstructionText) const;
 
     // === ADVANCED UI FUNCTIONS ===
     
@@ -321,6 +341,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Lesson UI")
     int32 GetHighlightedPartsCount() const { return HighlightedActors.Num(); }
 
+    void DebugShowWidgetLocation();
+
 protected:
     // === UNREAL OVERRIDES ===
     
@@ -330,13 +352,12 @@ protected:
 
     // === WIDGET MANAGEMENT ===
     
-    void CreateUIWidgets();
     void DestroyUIWidgets();
     void RefreshWidgetReferences();
 
     // === INSTRUCTION MANAGEMENT ===
     
-    void UpdateInstructionWidget(const FText& InstructionText) const;
+    void UpdateInstructionWidget(const FString& InstructionText) const;
     void UpdateProgressWidget(float ProgressPercentage);
     void AnimateInstructionIn();
     void AnimateInstructionOut();
@@ -382,8 +403,25 @@ private:
     bool bTickEnabled = false;
 
     // === ANIMATION TIMERS ===
+
+
+    FTimerHandle DebugTestTimer;
     
     FTimerHandle FadeInTimer;
     FTimerHandle FadeOutTimer;
     FTimerHandle PulseTimer_Handle;
+
+    // Track parts that are currently being highlighted by grab raycaster
+    UPROPERTY()
+    TArray<TObjectPtr<AActor>> GrabHighlightedActors;
+    
+public:
+    /** Called by external systems (like GrabRayCaster) to temporarily pause pulsing */
+    UFUNCTION(BlueprintCallable, Category = "Lesson UI")
+    void PauseHighlightForPart(APartActor* Part);
+    
+    /** Called when external highlight is removed */
+    UFUNCTION(BlueprintCallable, Category = "Lesson UI")
+    void ResumeHighlightForPart(APartActor* Part);
+
 };
