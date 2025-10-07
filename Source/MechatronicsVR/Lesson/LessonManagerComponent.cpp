@@ -149,26 +149,7 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 		}
 	}
 
-	for (ULessonStep* Step : LessonSteps)
-	{
-		if (Step)
-		{
-			// Give steps world context
-			Step->SetWorldContext(this);
-                
-			UE_LOG(LogTemp, Error, TEXT("InitializeLessonFromDataAsset: About to bind to step: %s"), 
-				*Step->GetClass()->GetName());
-                
-			// Clear any existing bindings first
-			Step->OnStepCompleted.Clear();
-                
-			// Bind to step completion event
-			Step->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
-                
-			UE_LOG(LogTemp, Error, TEXT("  - Binding complete. IsBound: %s"), 
-				Step->OnStepCompleted.IsBound() ? TEXT("YES") : TEXT("NO"));
-		}
-	}
+	
 
 	LinkStepsSequentially();
 	
@@ -346,7 +327,7 @@ void ULessonManagerComponent::CompleteCurrentStep()
 		);
 	}
 
-	UpdateUI();
+
 }
 
 
@@ -673,10 +654,15 @@ void ULessonManagerComponent::ShowStepInstructions()
 				{
 					if (PartActor->IsA(TargetClass))
 					{
-						TargetParts.Add(PartActor);
-						UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Found target part: %s"), 
-							   *PartActor->GetName());
-						break;
+
+						if (!PartActor->bIsSnapped)  // ← Check the actual state
+						{
+							TargetParts.Add(PartActor);
+							UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Found target part: %s"), 
+								   *PartActor->GetName());
+							break;
+						}
+						
 					}
 				}
 			}
@@ -685,22 +671,20 @@ void ULessonManagerComponent::ShowStepInstructions()
 		// Show instruction for the first target part (positions widget and highlights)
 		if (TargetParts.Num() > 0)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("ShowStepInstructions: Calling ShowInstructionForPart"));
 			UIManager->ShowInstructionForPart(CurrentStep->InstructionText, TargetParts[0]);
-			UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Showing instruction for part: %s"), 
-				   *TargetParts[0]->GetName());
-			
-			
-				for (int32 i = 1; i < TargetParts.Num(); i++)
-				{
-					UIManager->HighlightSinglePart(TargetParts[i], UIManager->TargetPartColor);
-					UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Highlighted additional part: %s"), 
-						   *TargetParts[i]->GetName());
-				}
-			
+            
+			// Highlight any additional unconnected target parts
+			for (int32 i = 1; i < TargetParts.Num(); i++)
+			{
+				UIManager->HighlightSinglePart(TargetParts[i], UIManager->TargetPartColor);
+				UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Highlighted additional part: %s"), 
+					  *TargetParts[i]->GetName());
+			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("ShowStepInstructions: No target parts found - showing generic instruction"));
+			UE_LOG(LogTemp, Warning, TEXT("ShowStepInstructions: No unconnected target parts found - showing generic instruction"));
 			UIManager->ShowInstruction(CurrentStep->InstructionText);
 		}
 	}

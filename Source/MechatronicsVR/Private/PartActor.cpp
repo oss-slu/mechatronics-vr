@@ -272,7 +272,8 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 		HideSnapPreview();
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
-		return true;
+		bIsSnapped = true;
+		return bIsSnapped;
 	}
 }
 		
