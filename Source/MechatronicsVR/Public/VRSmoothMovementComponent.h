@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Camera/CameraComponent.h"
+#include "MotionControllerComponent.h"
 #include "VRSmoothMovementComponent.generated.h"
 
 
@@ -19,26 +21,26 @@ public:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 public:
-	/** Movement speed value */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement")
-	float MovementSpeed = 300.0f;
+	/** Called every frame */
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Movement")
-	bool bSmoothMovementEnabled = false;
-	
-	/** Actions for deselecting object */
-	//UFUNCTION(BlueprintCallable, Category = "Movement")
-	//void MoveForward(float Value);
+	/** Call this from input bindings with the thumbstick axis values */
+	UFUNCTION(BlueprintCallable, Category = "VR Movement")
+	void MoveWithThumbstickInput(float AxisX, float AxisY);
 
-	/** Actions for deselecting object */
-	//UFUNCTION(BlueprintCallable, Category = "GrabCast")
-	//void MoveRight(float Value);
+	/** Enable or disable smooth movement */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Movement")
+	bool bSmoothMovementEnabled = true;
+
+	/** Movement speed in units/second */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VR Movement")
+	float MoveSpeed = 300.0f;
 	
 private:
-	//FVector PendingInput;
-	//class UCameraComponent* Camera;
-		
+	UCameraComponent* Camera = nullptr;
+	UMotionControllerComponent* MotionController = nullptr;
+	FVector PendingInput = FVector::ZeroVector;
+	FVector PreviousPosition = FVector::ZeroVector;
 };

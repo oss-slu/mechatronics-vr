@@ -2,37 +2,76 @@
 
 
 #include "VRSmoothMovementComponent.h"
-#include "GameFramework//Actor.h"
-#include "Camera/CameraComponent.h"
+#include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
-#include "Components/InputComponent.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
 
-// Sets default values for this component's properties
 UVRSmoothMovementComponent::UVRSmoothMovementComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
+    PrimaryComponentTick.bCanEverTick = true;
 }
 
-
-// Called when the game starts
 void UVRSmoothMovementComponent::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
 
-	// ...
-	
+    // Get camera component from owner
+    Camera = GetOwner()->FindComponentByClass<UCameraComponent>();
+
+    // Try to get the motion controller (left or right)
+    TArray<UMotionControllerComponent*> Controllers;
+    GetOwner()->GetComponents<UMotionControllerComponent>(Controllers);
+    if (Controllers.Num() > 0)
+    {
+        // Optionally choose left or right here. Defaulting to first found.
+        MotionController = Controllers[0];
+    }
+
+    PreviousPosition = GetOwner()->GetActorLocation();
 }
 
+void UVRSmoothMovementComponent::MoveWithThumbstickInput(float AxisX, float AxisY)
+{
+    if (!bSmoothMovementEnabled || !Camera) return;
 
-// Called every frame
+    if (FMath::IsNearlyZero(AxisX) && FMath::IsNearlyZero(AxisY)) return;
+
+    // Get camera forward/right vectors (ignoring pitch)
+    FVector Forward = Camera->GetForwardVector();
+    Forward.Z = 0.f;
+    Forward.Normalize();
+
+    FVector Right = Camera->GetRightVector();
+    Right.Z = 0.f;
+    Right.Normalize();
+    
+    PendingInput = (Forward * AxisY) + (Right * AxisX);
+    if (!PendingInput.IsNearlyZero())
+    {
+        PendingInput.Normalize();
+    }
+}
+
 void UVRSmoothMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ...
+    if (bSmoothMovementEnabled && !PendingInput.IsNearlyZero())
+    {
+        FVector DesiredMovement = PendingInput * MoveSpeed * DeltaTime;
+        FVector CurrentLocation = GetOwner()->GetActorLocation();
+        FVector CurrentMovement = CurrentLocation - PreviousPosition;
+
+        // Smooth interpolation
+        FVector SmoothedMovement = FMath::VInterpTo(CurrentMovement, DesiredMovement, DeltaTime, 10.f);
+
+        // Move the actor
+        GetOwner()->AddActorWorldOffset(SmoothedMovement, true);
+
+        PreviousPosition = GetOwner()->GetActorLocation();
+    }
+
+    // Reset input for next frame
+    PendingInput = FVector::ZeroVector;
 }
-
