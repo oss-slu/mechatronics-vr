@@ -37,6 +37,8 @@ void UVRSmoothMovementComponent::MoveWithThumbstickInput(float AxisX, float Axis
 
     if (FMath::IsNearlyZero(AxisX) && FMath::IsNearlyZero(AxisY)) return;
 
+    UE_LOG(LogTemp, Warning, TEXT("Thumbstick Vector: X=%f, Y=%f"), AxisX, AxisY);
+
     // Get camera forward/right vectors (ignoring pitch)
     FVector Forward = Camera->GetForwardVector();
     Forward.Z = 0.f;
