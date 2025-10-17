@@ -953,7 +953,7 @@ namespace OculusXRHMD
 		return PerformanceMetrics;
 	}
 
-	void FOculusXRHMD::OnBeginRendering_GameThread()
+	void FOculusXRHMD::OnBeginRendering_GameThread(FSceneViewFamily& SceneViewFamily)
 	{
 		CheckInGameThread();
 		// We need to make sure we keep the Wait/Begin/End triplet in sync, so here we signal that we
@@ -1908,7 +1908,7 @@ namespace OculusXRHMD
 		// user's own value).
 	}
 
-	void FOculusXRHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& RHICmdList, class FRHITexture* BackBuffer, class FRHITexture* SrcTexture, FVector2D WindowSize) const
+	void FOculusXRHMD::RenderTexture_RenderThread(FRDGBuilder& GraphBuilder, FRDGTextureRef BackBuffer, FRDGTextureRef SrcTexture, FVector2f WindowSize) const
 	{
 		CheckInRenderThread();
 		check(CustomPresent);
@@ -1919,7 +1919,7 @@ namespace OculusXRHMD
 
 		if (SpectatorScreenController)
 		{
-			SpectatorScreenController->RenderSpectatorScreen_RenderThread(RHICmdList, BackBuffer, SrcTexture, WindowSize);
+			SpectatorScreenController->RenderSpectatorScreen_RenderThread(GraphBuilder, BackBuffer, SrcTexture, nullptr, WindowSize);
 		}
 	}
 
@@ -1940,7 +1940,7 @@ namespace OculusXRHMD
 		return CenterPoint;
 	}
 
-	FIntRect FOculusXRHMD::GetFullFlatEyeRect_RenderThread(FTextureRHIRef EyeTexture) const
+	FIntRect FOculusXRHMD::GetFullFlatEyeRect_RenderThread(const FRHITextureDesc& EyeTexture) const
 	{
 		CheckInRenderThread();
 
@@ -2541,7 +2541,7 @@ namespace OculusXRHMD
 		}
 	}
 
-	IStereoLayers::FLayerDesc FOculusXRHMD::GetDebugCanvasLayerDesc(FTextureRHIRef Texture)
+	IStereoLayers::FLayerDesc FOculusXRHMD::GetDebugCanvasLayerDesc(UTextureRenderTarget2D* Texture)
 	{
 		IStereoLayers::FLayerDesc StereoLayerDesc;
 
@@ -2559,7 +2559,7 @@ namespace OculusXRHMD
 
 		StereoLayerDesc.QuadSize = FVector2D(180.f, 180.f);
 		StereoLayerDesc.PositionType = IStereoLayers::ELayerType::FaceLocked;
-		StereoLayerDesc.LayerSize = Texture->GetTexture2D()->GetSizeXY();
+		StereoLayerDesc.LayerSize = StereoLayerDesc.LayerSize = FIntPoint(Texture->SizeX, Texture->SizeY);
 		StereoLayerDesc.Flags = IStereoLayers::ELayerFlags::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
 		StereoLayerDesc.Flags |= IStereoLayers::ELayerFlags::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO;
 		return StereoLayerDesc;
@@ -2597,7 +2597,7 @@ namespace OculusXRHMD
 
 			if (SpectatorScreenController != nullptr)
 			{
-				SpectatorScreenController->BeginRenderViewFamily();
+				SpectatorScreenController->BeginRenderViewFamily(InViewFamily);
 			}
 		}
 
@@ -2645,7 +2645,7 @@ namespace OculusXRHMD
 		CheckInRenderThread();
 	}
 
-	void FOculusXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
+	void FOculusXRHMD::OnBeginRendering_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily)
 	{
 		CheckInRenderThread();
 
@@ -2666,7 +2666,7 @@ namespace OculusXRHMD
 		if (SpectatorScreenController && (NativeXrApi != ovrpXrApi_OpenXR || FApp::HasVRFocus()))
 		{
 			SpectatorScreenController->UpdateSpectatorScreenMode_RenderThread();
-			Frame_RenderThread->Flags.bSpectatorScreenActive = SpectatorScreenController->GetSpectatorScreenMode() != ESpectatorScreenMode::Disabled;
+			Frame_RenderThread->Flags.bSpectatorScreenActive = !InGameThread();
 		}
 
 		// Update mirror texture
@@ -2721,7 +2721,7 @@ namespace OculusXRHMD
 			}
 
 			OculusXR::RenderEnvironmentDepthMinMaxTexture_RenderThread(RendererModule, EnvironmentDepthMinMaxTexture,
-				EnvironmentDepthSwapchain[DepthFrameDesc.SwapchainIndex], RHICmdList);
+				EnvironmentDepthSwapchain[DepthFrameDesc.SwapchainIndex], GraphBuilder.RHICmdList);
 
 			PrevEnvironmentDepthMinMaxSwapchainIndex = DepthFrameDesc.SwapchainIndex;
 		}
@@ -3800,7 +3800,11 @@ namespace OculusXRHMD
 	ESpectatorScreenMode FOculusXRHMD::GetSpectatorScreenMode_RenderThread() const
 	{
 		CheckInRenderThread();
-		return SpectatorScreenController ? SpectatorScreenController->GetSpectatorScreenMode() : ESpectatorScreenMode::Disabled;
+		if (IsInGameThread())
+		{
+			return ESpectatorScreenMode::SingleEyeCroppedToFill;
+		}
+		return ESpectatorScreenMode::Disabled;
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -3808,7 +3812,7 @@ namespace OculusXRHMD
 	{
 		if (val < 0.000001f)
 		{
-			FCStringAnsi::Strcpy(buff, size, "N/A   ");
+			FCStringAnsi::Strncpy(buff, "N/A   ", size);
 		}
 		else
 		{

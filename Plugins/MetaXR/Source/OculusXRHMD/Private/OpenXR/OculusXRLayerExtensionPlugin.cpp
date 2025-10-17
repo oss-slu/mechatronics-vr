@@ -122,7 +122,7 @@ namespace OculusXR
 		}
 	}
 
-	void FLayerExtensionPlugin::OnBeginRendering_GameThread(XrSession InSession)
+	void FLayerExtensionPlugin::OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers)
 	{
 		check(IsInGameThread());
 
@@ -200,7 +200,7 @@ namespace OculusXR
 		return Next;
 	}
 
-	const void* FLayerExtensionPlugin::OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags)
+	const void* FLayerExtensionPlugin::OnEndProjectionLayer_RHIThread(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags)
 	{
 		check(IsInRenderingThread() || IsInRHIThread());
 		const void* Next = InNext;
@@ -303,7 +303,7 @@ namespace OculusXR
 		}
 	}
 
-	void FLayerExtensionPlugin::UpdateCompositionLayers(XrSession InSession, TArray<XrCompositionLayerBaseHeader*>& Headers)
+	void FLayerExtensionPlugin::UpdateCompositionLayers_RHIThread(XrSession InSession, TArray<XrCompositionLayerBaseHeader*>& Headers)
 	{
 		check(IsInRenderingThread() || IsInRHIThread());
 

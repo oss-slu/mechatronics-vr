@@ -1,7 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
 using UnrealBuildTool;
-
+using System.Threading.Tasks;
 public class MRUtilityKit : ModuleRules
 {
     public MRUtilityKit(ReadOnlyTargetRules Target) : base(Target)
@@ -45,7 +45,8 @@ public class MRUtilityKit : ModuleRules
                 "ProceduralMeshComponent",
                 "HeadMountedDisplay",
                 "MRUtilityKitShared",
-                "OpenXR",
+				"GameplayTasks",
+				"OpenXR",
                 "OpenXRHMD",
             });
 
