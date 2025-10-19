@@ -129,8 +129,25 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Detection")
 	TArray<TObjectPtr<APartActor>> NearbyParts;
 
-	
-	
+	// MOTORORIZED PROPERTIES
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor")
+	bool bIsMotorized = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0.0", ClampMax="1.0"), Category="Motor")
+	float MotorSpeed = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motor", meta=(ClampMin="0.0"))
+	float MaxRPM = 300.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Motor")
+	FVector MotorAxis = FVector::UpVector;
+
+	UFUNCTION(BlueprintCallable,Category="Motor")
+	void SetMotorSpeed(float Speed);
+
+	UFUNCTION(BlueprintPure,Category="Motor")
+	float GetCurrentRPM() const {return MotorSpeed * MaxRPM;}
 
 protected:
 
