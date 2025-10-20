@@ -7,6 +7,7 @@
 #include "InteractionStep.h"
 #include "MechatronicsGameInstance.h"
 #include "AssemblyActor.h"
+#include "EngineUtils.h"
 #include "PartActor.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
@@ -45,6 +46,27 @@ void ULessonManagerComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (AssemblyActorClass)
+	{
+		for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
+		{
+			AAssemblyActor* PotentialAssembly = *It;
+			if  (PotentialAssembly && 
+				PotentialAssembly->IsA(AssemblyActorClass))
+			{
+				AssemblyActor = PotentialAssembly;
+				UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"), 
+					*GetName(), *AssemblyActor->GetName());
+				break;
+			}
+		}
+		if (!AssemblyActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s: Could not find instance of class %s"), 
+				*GetName(), *AssemblyActorClass->GetName());
+		}
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::BeginPlay - Initializing"));
 
 	FindExternalReferences();
@@ -52,15 +74,13 @@ void ULessonManagerComponent::BeginPlay()
 	ConnectToExistingSystems();
 
 	// try to get lesson data from game instance
-	if (UMechatronicsGameInstance* GameInstance = Cast<UMechatronicsGameInstance>(GetWorld()->GetGameInstance()))
-	{
-		if (ULessonDataAsset* ActiveLesson = GameInstance->GetActiveLessonData())
-		{
-			InitializeLessonFromDataAsset(ActiveLesson);
-		}
-	}
+	// Lesson data is provided by GameMode, not GameInstance
+	// The GameMode will call InitializeLessonFromDataAsset() directly when ready
+	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent: Waiting for GameMode to initialize lesson"));
 	bInitialized = true;
 	// ...
+	
+	
 	
 }
 
@@ -73,16 +93,17 @@ void ULessonManagerComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	if (!bIsLessonActive || bIsLessonCompleted || bWaitingForStepTransition)
 		return;
 
-	//check current step completion
-	if (CurrentStep && CheckStepCompletion())
+	// Only poll if the current step wants to be polled each tick
+	if (CurrentStep && CurrentStep->bWantsTickWhileActive)
 	{
-		if (bAutoAdvanceSteps)
+		if (CheckStepCompletion())
 		{
-			CompleteCurrentStep();
+			if (bAutoAdvanceSteps)
+			{
+				CompleteCurrentStep();
+			}
 		}
 	}
-	
-	// ...
 }
 // === LESSON INITIALIZATION ===
 
@@ -99,7 +120,7 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::InitializeLessonFromDataAsset - Initializing lesson: %s"), 
-		 *LessonData->LessonTitle.ToString());
+		 *LessonData->LessonTitle);
     
 	// Store lesson data
 	CurrentLessonData = LessonData;
@@ -115,31 +136,28 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 		if (StepData.StepInstance)
 		{
 			LessonSteps.Add(StepData.StepInstance);
-            
+        
+			// Clear any existing bindings first
+			StepData.StepInstance->OnStepCompleted.Clear();
+        
 			// Bind to step completion event
-			StepData.StepInstance->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("InitializeLessonFromDataAsset - Null step instance found"));
+			if (!StepData.StepInstance->OnStepCompleted.Contains(this, FName("HandleStepCompleted")))
+			{
+				StepData.StepInstance->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
+				UE_LOG(LogTemp, Log, TEXT("Bound HandleStepCompleted to step"));
+			}
 		}
 	}
 
-	for (ULessonStep* Step : LessonSteps)
-	{
-		if (Step)
-		{
-			// Give steps world context
-			Step->SetWorldContext(this);
-        
-			// Bind to step completion event
-			Step->OnStepCompleted.AddDynamic(this, &ULessonManagerComponent::HandleStepCompleted);
-		}
-	}
-    
+	
+
+	LinkStepsSequentially();
+	
 	UE_LOG(LogTemp, Log, TEXT("InitializeLessonFromDataAsset - Using %d steps"), LessonSteps.Num());
     
 	return LessonSteps.Num() > 0;
+
+	
 }
 
 
@@ -151,12 +169,41 @@ ULessonStep* ULessonManagerComponent::CreateStepFromData(const FLessonStepData& 
 		return nullptr;
 	}
 
-	//just return the pre-configured instance directly
+	// Return the pre-configured instance directly
 	UE_LOG(LogTemp, Log, TEXT("CreateStepFromData - Using step: %s"), 
 		 *StepData.StepInstance->GetClass()->GetName());
 
 	return StepData.StepInstance;
 }
+
+void ULessonManagerComponent::LinkStepsSequentially()
+{
+	for (int32 i = 0; i < LessonSteps.Num(); i++)
+	{
+		ULessonStep* CurrentStepPtr = LessonSteps[i];
+		if (!CurrentStepPtr)
+		{
+			continue;
+		}
+        
+		// Set previous step
+		if (i > 0)
+		{
+			CurrentStepPtr->setPreviousStep(LessonSteps[i - 1]);
+		}
+        
+		// Set next step
+		if (i < LessonSteps.Num() - 1)
+		{
+			CurrentStepPtr->setNextStep(LessonSteps[i + 1]);
+		}
+	}
+    
+	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent: Successfully linked %d steps"), LessonSteps.Num());
+}
+
+
+
 
 // === LESSON CONTROL ===
 
@@ -169,7 +216,7 @@ bool ULessonManagerComponent::StartLesson()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::StartLesson - Starting lesson: %s"), 
-		 *CurrentLessonData->LessonTitle.ToString());
+		 *CurrentLessonData->LessonTitle);
 
 	bIsLessonActive = true;
 	bIsLessonCompleted = false;
@@ -252,7 +299,6 @@ void ULessonManagerComponent::CompleteCurrentStep()
 		return;
 	}
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::CompleteCurrentStep - Completing step %d"), CurrentStepIndex);
-	CurrentStep->CompleteStep();
 	OnStepCompleted.Broadcast(CurrentStep, CurrentStepIndex);
 
 	//check if this was the last step
@@ -281,7 +327,7 @@ void ULessonManagerComponent::CompleteCurrentStep()
 		);
 	}
 
-	UpdateUI();
+
 }
 
 
@@ -337,7 +383,7 @@ bool ULessonManagerComponent::ActivateStep(int32 StepIndex)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::ActivateStep - Activating step %d: %s"), 
-		   StepIndex, *CurrentStep->InstructionText.ToString());
+		   StepIndex, *CurrentStep->InstructionText);
     
 	// Update step references with current world objects
 	UpdateStepReferences();
@@ -372,9 +418,41 @@ void ULessonManagerComponent::UpdateStepReferences()
 	// Update references for specific step types
 	if (UAssembleStep* AssembleStep = Cast<UAssembleStep>(CurrentStep))
 	{
-		if (AssemblyActor)
+		if (AssemblyActorClass)
 		{
-			AssembleStep->SetAssemblyActor(AssemblyActor);
+			if (!AssembleStep->AssemblyActor)
+			{
+				for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
+				{
+					AAssemblyActor* PotentialAssembly = *It;
+					if (PotentialAssembly && 
+						PotentialAssembly->IsA(AssemblyActorClass))
+					{
+						AssembleStep->SetAssemblyActor(PotentialAssembly);
+						UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::UpdateStepReferences - Set AssemblyActor for AssembleStep: %s"), 
+							   *PotentialAssembly->GetName());
+						break;
+					}
+				}
+				if (!AssembleStep->AssemblyActor)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::UpdateStepReferences - Could not find instance of class %s for AssembleStep"), 
+						   *AssemblyActorClass->GetName());
+				}
+			}
+		}
+		else if (AssemblyActor)
+		{
+			if (!AssembleStep->AssemblyActor)
+			{
+				AssembleStep->SetAssemblyActor(AssemblyActor);
+				UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::UpdateStepReferences - Set AssemblyActor for AssembleStep: %s"), 
+					   *AssemblyActor->GetName());
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::UpdateStepReferences - No AssemblyActorClass or AssemblyActor set for AssembleStep"));	
 		}
 	}
 
@@ -387,9 +465,8 @@ void ULessonManagerComponent::UpdateStepReferences()
 void ULessonManagerComponent::HandleStepCompleted(ULessonStep* CompletedStep)
 {
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::HandleStepCompleted - Step completed: %s"), 
-		   CompletedStep ? *CompletedStep->InstructionText.ToString() : TEXT("Unknown"));
+		   CompletedStep ? *CompletedStep->InstructionText : TEXT("Unknown"));
 
-	
 	if (CompletedStep == CurrentStep)
 	{
 		CompleteCurrentStep();
@@ -458,6 +535,24 @@ void ULessonManagerComponent::ValidateCurrentStep()
 		CurrentStep->CheckCompletion();
 	}
 }
+
+void ULessonManagerComponent::SetUIManager(ULessonUIManagerComponent* InUIManager)
+{
+	UIManager = InUIManager;
+    
+	if (UIManager)
+	{
+		UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent: UI Manager reference set"));
+        
+		// Optionally bind to UI Manager events here
+		// UIManager->OnSomeEvent.AddDynamic(this, &ULessonManagerComponent::HandleSomeEvent);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent: UI Manager reference cleared"));
+	}
+}
+
 // === EXTERNAL REFERENCES ===
 
 void ULessonManagerComponent::FindExternalReferences()
@@ -497,6 +592,8 @@ void ULessonManagerComponent::ConnectToExistingSystems()
 	// TODO: Connect to other systems when available
 }
 
+
+
 // === UI MANAGEMENT ===
 void ULessonManagerComponent::UpdateUI()
 {
@@ -512,21 +609,141 @@ void ULessonManagerComponent::UpdateUI()
 
 void ULessonManagerComponent::ShowStepInstructions()
 {
-	if (CurrentStep)
+	if (!CurrentStep)
 	{
-		if (UIManager)
+		UE_LOG(LogTemp, Warning, TEXT("ShowStepInstructions: No current step"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Showing instructions for step"));
+
+	if (!UIManager)
+	{
+		// No UI manager - just log
+		UE_LOG(LogTemp, Log, TEXT("LESSON INSTRUCTION: %s"), 
+			   *CurrentStep->InstructionText);
+		return;
+	}
+
+	// Handle AssembleStep specifically - show instruction for each target part
+	if (UAssembleStep* AssembleStep = Cast<UAssembleStep>(CurrentStep))
+	{
+		UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Handling AssembleStep"));
+		
+		if (!AssemblyActor)
 		{
-			// UIManager->ShowInstruction(CurrentStep->InstructionText);
-			// TODO: Implement when UIManager is available
-			UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions - Would show: %s"), 
-				   *CurrentStep->InstructionText.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("ShowStepInstructions: No AssemblyActor to find parts in"));
+			// Still show generic instruction
+			UIManager->ShowInstruction(CurrentStep->InstructionText);
+			return;
+		}
+
+		// Find all parts in the level that match the target classes
+		TArray<APartActor*> TargetParts;
+		
+		// Get all PartActors in the level
+		TArray<AActor*> FoundActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APartActor::StaticClass(), FoundActors);
+		
+		for (AActor* Actor : FoundActors)
+		{
+			if (APartActor* PartActor = Cast<APartActor>(Actor))
+			{
+				// Check if this part matches any of our target classes
+				for (TSubclassOf<APartActor> TargetClass : AssembleStep->TargetPartClasses)
+				{
+					if (PartActor->IsA(TargetClass))
+					{
+
+						if (!PartActor->bIsSnapped)  // ← Check the actual state
+						{
+							TargetParts.Add(PartActor);
+							UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Found target part: %s"), 
+								   *PartActor->GetName());
+							break;
+						}
+						
+					}
+				}
+			}
+		}
+
+		// Show instruction for the first target part (positions widget and highlights)
+		if (TargetParts.Num() > 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ShowStepInstructions: Calling ShowInstructionForPart"));
+			UIManager->ShowInstructionForPart(CurrentStep->InstructionText, TargetParts[0]);
+            
+			// Highlight any additional unconnected target parts
+			for (int32 i = 1; i < TargetParts.Num(); i++)
+			{
+				UIManager->HighlightSinglePart(TargetParts[i], UIManager->TargetPartColor);
+				UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Highlighted additional part: %s"), 
+					  *TargetParts[i]->GetName());
+			}
 		}
 		else
 		{
-			// For now, just log the instruction
-			UE_LOG(LogTemp, Log, TEXT("LESSON INSTRUCTION: %s"), 
-				   *CurrentStep->InstructionText.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("ShowStepInstructions: No unconnected target parts found - showing generic instruction"));
+			UIManager->ShowInstruction(CurrentStep->InstructionText);
 		}
+	}
+	// Handle FocusStep - position widget near target
+	else if (UFocusStep* FocusStep = Cast<UFocusStep>(CurrentStep))
+	{
+		UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Handling FocusStep"));
+		
+		if (FocusStep->TargetActor)
+		{
+			// If target is a part, use ShowInstructionForPart
+			if (APartActor* PartActor = Cast<APartActor>(FocusStep->TargetActor))
+			{
+				UIManager->ShowInstructionForPart(CurrentStep->InstructionText, PartActor);
+			}
+			else
+			{
+				// Otherwise just position near the actor
+				UIManager->ShowInstruction(CurrentStep->InstructionText);
+				UIManager->PositionWidgetNearActor(FocusStep->TargetActor, FVector(150.0f, 0.0f, 100.0f));
+			}
+			
+			UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Positioned widget near %s"), 
+				   *FocusStep->TargetActor->GetName());
+		}
+		else
+		{
+			UIManager->ShowInstruction(CurrentStep->InstructionText);
+		}
+	}
+	// Handle InteractionStep - position widget near target
+	else if (UInteractionStep* InteractionStep = Cast<UInteractionStep>(CurrentStep))
+	{
+		UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Handling InteractionStep"));
+		
+		if (InteractionStep->TargetActor)
+		{
+			// If target is a part, use ShowInstructionForPart
+			if (APartActor* PartActor = Cast<APartActor>(InteractionStep->TargetActor))
+			{
+				UIManager->ShowInstructionForPart(CurrentStep->InstructionText, PartActor);
+				UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Showing instruction for interaction target part"));
+			}
+			else
+			{
+				// Otherwise just position near the actor
+				UIManager->ShowInstruction(CurrentStep->InstructionText);
+				UIManager->PositionWidgetNearActor(InteractionStep->TargetActor, FVector(150.0f, 0.0f, 100.0f));
+			}
+		}
+		else
+		{
+			UIManager->ShowInstruction(CurrentStep->InstructionText);
+		}
+	}
+	// Generic step - just show instruction
+	else
+	{
+		UIManager->ShowInstruction(CurrentStep->InstructionText);
 	}
 }
 

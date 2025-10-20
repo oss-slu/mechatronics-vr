@@ -45,7 +45,7 @@ public:
 	UFUNCTION(BlueprintPure, Category="Focus Step|Status")
 	bool IsCurrentlyFocused() const { return bIsFocusedThisFrame; }
 
-	virtual bool CheckCompletion_Implementation() const;
+	virtual bool CheckCompletion_Implementation() const override;
 
 protected:
 	virtual void OnStarted() override;

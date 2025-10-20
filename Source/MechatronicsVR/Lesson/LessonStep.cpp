@@ -43,7 +43,7 @@ void ULessonStep::StartStep()
 	bStepCompleted = false;
 
 	UE_LOG(LogTemp, Log, TEXT("ULessonStep::StartStep - Starting step: %s"), 
-		   *InstructionText.ToString());
+		   *InstructionText);
     
 	StartTicking();  // Add this
 	
@@ -58,13 +58,36 @@ void ULessonStep::StartStep()
 
 void ULessonStep::CompleteStep()
 {
+	UE_LOG(LogTemp, Error, TEXT("=== LessonStep::CompleteStep ==="));
+	UE_LOG(LogTemp, Error, TEXT("  - this pointer: %p"), this);
+	UE_LOG(LogTemp, Error, TEXT("  - Class: %s"), *GetClass()->GetName());
+    
 	if (!bIsActive)
 	{
+		UE_LOG(LogTemp, Error, TEXT("  - NOT ACTIVE, returning"));
 		return;
 	}
 
+	UE_LOG(LogTemp, Error, TEXT("  - Calling OnStopped()"));
 	OnStopped();
+    
 	bIsActive = false;
+	bStepCompleted = true;
+    
+	UE_LOG(LogTemp, Error, TEXT("  - Delegate info:"));
+	UE_LOG(LogTemp, Error, TEXT("    - IsBound: %s"), OnStepCompleted.IsBound() ? TEXT("YES") : TEXT("NO"));
+	UE_LOG(LogTemp, Error, TEXT("    - Delegate address: %p"), &OnStepCompleted);
+    
+	// Check if we can get invocation list (it's internal, but we can try)
+	UE_LOG(LogTemp, Error, TEXT("  - About to call Broadcast()"));
+    
+	// Try calling IsBoundToObject to see if it's bound to LessonManager
+	UE_LOG(LogTemp, Error, TEXT("  - Checking bindings..."));
+    
+	OnStepCompleted.Broadcast(this);
+    
+	UE_LOG(LogTemp, Error, TEXT("  - Broadcast() returned"));
+	UE_LOG(LogTemp, Error, TEXT("  - If you don't see HandleStepCompleted, the binding is broken"));
 }
 
 void ULessonStep::ResetStep()
@@ -86,7 +109,7 @@ void ULessonStep::TickStep(float DeltaTime)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("ULessonStep::EndStep - Ending step: %s"), 
-		   *InstructionText.ToString());
+		   *InstructionText);
     
 	StopTicking();  // Add this
     
@@ -128,7 +151,7 @@ void ULessonStep::HandleTick()
 }
 
 
-bool ULessonStep::CheckCompletion_Implementation()
+bool ULessonStep::CheckCompletion_Implementation() const
 {
 	return false; // should be defined in subclasses
 }
@@ -142,6 +165,7 @@ void ULessonStep::setNextStep(ULessonStep* InNextStep)
 {
 	NextStep = InNextStep;
 }
+
 
 
 
