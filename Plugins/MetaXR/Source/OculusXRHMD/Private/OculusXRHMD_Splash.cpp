@@ -32,7 +32,7 @@ namespace OculusXRHMD
 			LayerDesc.QuadSize = FVector2D(0.01f, 0.01f);
 			LayerDesc.Priority = 0;
 			LayerDesc.PositionType = IStereoLayers::TrackerLocked;
-			LayerDesc.TextureObj = nullptr;
+			LayerDesc.Texture = nullptr;
 			UELayer = MakeShareable(new FLayer(NextLayerId++));
 			UELayer->SetDesc(LayerDesc);
 		}
@@ -431,7 +431,7 @@ namespace OculusXRHMD
 		OculusDesc.bIsDynamic = Splash.bIsDynamic || Splash.bIsExternal;
 		OculusDesc.TextureOffset = Splash.UVRect.Min;
 		OculusDesc.TextureScale = Splash.UVRect.Max;
-		OculusDesc.LoadedTexture = Splash.TextureObj->GetResource()->GetTextureReference();
+		OculusDesc.LoadedTexture = Splash.Texture;
 
 		AddSplash(OculusDesc);
 	}
@@ -471,9 +471,7 @@ namespace OculusXRHMD
 		LayerDesc.UVRect = FBox2D(OculusDesc.TextureOffset, OculusDesc.TextureOffset + OculusDesc.TextureScale);
 		LayerDesc.Priority = INT32_MAX - (int32)(OculusDesc.TransformInMeters.GetTranslation().X * 1000.f);
 		LayerDesc.PositionType = IStereoLayers::TrackerLocked;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		LayerDesc.Texture = OculusDesc.LoadedTexture;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		LayerDesc.Flags = IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO | (OculusDesc.bNoAlphaChannel ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0) | (OculusDesc.bIsDynamic ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0);
 
 		return LayerDesc;
@@ -527,7 +525,7 @@ namespace OculusXRHMD
 			}
 			//@DBG END
 
-			if (SplashLayer.Desc.LoadedTexture.IsValid())
+			if (SplashLayer.Desc.LoadedTexture)
 			{
 				SplashLayer.Layer = MakeShareable(new FLayer(NextLayerId++));
 				SplashLayer.Layer->SetDesc(StereoLayerDescFromOculusSplashDesc(SplashLayer.Desc));

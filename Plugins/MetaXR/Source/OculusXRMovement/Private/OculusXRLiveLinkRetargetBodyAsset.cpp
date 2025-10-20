@@ -64,7 +64,7 @@ void UOculusXRLiveLinkRetargetBodyAsset::Initialize()
 	}
 
 	LastBoneContainerSerialNumber = 0;
-	LastSkeletonBoneRemapping.Init(FCompactPoseBoneIndex(INDEX_NONE), static_cast<uint8>(EOculusXRBoneID::COUNT));
+	Algo::ForEach(LastSkeletonBoneRemapping, [](FCompactPoseBoneIndex& BoneIndex) { BoneIndex = FCompactPoseBoneIndex(INDEX_NONE); });
 }
 
 void UOculusXRLiveLinkRetargetBodyAsset::BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose)

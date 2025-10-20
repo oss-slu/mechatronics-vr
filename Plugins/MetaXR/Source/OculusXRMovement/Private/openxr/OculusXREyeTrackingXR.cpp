@@ -66,7 +66,7 @@ namespace XRMovement
 		OpenXRHMD = nullptr;
 	}
 
-	void FEyeTrackingXR::OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers)
+	void FEyeTrackingXR::OnBeginRendering_GameThread(XrSession InSession)
 	{
 		Update_GameThread(InSession);
 	}

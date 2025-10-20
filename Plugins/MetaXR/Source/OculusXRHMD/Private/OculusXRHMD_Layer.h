@@ -64,9 +64,7 @@ namespace OculusXRHMD
 
 		bool ShapeNeedsTextures(ovrpShape shape);
 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FTextureRHIRef GetTexture() { return Desc.LeftTexture; }
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		FTextureRHIRef GetTexture() { return Desc.Texture; }
 
 		TSharedPtr<FLayer, ESPMode::ThreadSafe> Clone() const;
 

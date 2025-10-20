@@ -6,7 +6,7 @@
 #include <sstream>
 
 #include "JsonObjectConverter.h"
-//#include "MaterialHLSLGenerator.h"
+#include "MaterialHLSLGenerator.h"
 #include "Algo/MaxElement.h"
 
 #if PLATFORM_WINDOWS
