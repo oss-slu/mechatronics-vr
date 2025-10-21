@@ -26,9 +26,16 @@ APartActor::APartActor()
 	// Set root as mesh so physics can drive movement
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	RootComponent = Mesh;
-	Mesh->SetSimulatePhysics(true);
-	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	Mesh->SetCollisionObjectType(ECC_PhysicsBody);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		Mesh->SetSimulatePhysics(true);
+		Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Mesh->SetCollisionObjectType(ECC_PhysicsBody);
+		Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+		Mesh->BodyInstance.bOverrideMass = true;
+		Mesh->SetMassOverrideInKg(NAME_None, 1.0f, true);
+	}
 
 
 	// Create preview mesh component
@@ -52,11 +59,7 @@ APartActor::APartActor()
     
 	// Configure for VR Template grabbing
 	
-	Mesh->SetCollisionResponseToAllChannels(ECR_Block);
-	// Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore); // Don't block player movement
-    
-	// Set mass for realistic feel (adjust per part)
-	Mesh->SetMassOverrideInKg(NAME_None, 1.0f, true);
+	
     
 	// Attach assembly component
 	Assembly = CreateDefaultSubobject<UAssemblyComponent>(TEXT("Assembly"));
@@ -76,6 +79,12 @@ APartActor::APartActor()
 
 	PrimaryActorTick.bCanEverTick = true;
 
+}
+
+
+void APartActor::SetMotorized()
+{
+	bIsMotorized = !bIsMotorized;
 }
 
 USnapPointComponent* APartActor::GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const
@@ -514,11 +523,7 @@ void APartActor::OnPartReleased()
 	UE_LOG(LogTemp, Warning, TEXT("🚀 RELEASED: %s"), *GetName());
     
 	// Print to screen for easy debugging
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, 
-			FString::Printf(TEXT("RELEASED: %s"), *GetName()));
-	}
+	
 	TrySnapToPreview();
 	// HideSnapPreview();
 	CurrentTargetSnapPoint = nullptr;

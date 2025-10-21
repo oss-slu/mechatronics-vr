@@ -52,10 +52,20 @@ void UGrabRayCaster::SuckObjectToSource() const
 			PrimitiveComp->SetEnableGravity(false);
             
 			// Apply the impulse
-			if (MeshComponent && MeshComponent->IsSimulatingPhysics())
-			{
-				MeshComponent->AddImpulse(Impulse);
-			}
+			if (MeshComponent)
+            {
+                if (MeshComponent->IsSimulatingPhysics())
+                {
+                    MeshComponent->AddImpulse(Impulse);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("SuckObjectToSource: Enabling physics and applying impulse"));
+                    MeshComponent->SetSimulatePhysics(true);
+                    MeshComponent->WakeRigidBody();
+                    MeshComponent->AddImpulse(Impulse);
+                }
+            }
             
 			// Re-enable gravity after SuckTime
 			FTimerHandle TimerHandle;

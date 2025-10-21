@@ -15,16 +15,17 @@ USnapPointComponent::USnapPointComponent()
 	//create snap detection sphere
 	SnapDetectionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("SnapDetectionSphere"));
 	SnapDetectionSphere->SetupAttachment(this);
-	SnapDetectionSphere->SetSphereRadius(SnapDetectionRadius);
-	SnapDetectionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	SnapDetectionSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
-	SnapDetectionSphere->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap); // For other parts
-
-	
-	
-	// Bind overlap events
-	SnapDetectionSphere->OnComponentBeginOverlap.AddDynamic(this, &USnapPointComponent::OnSnapDetectionBeginOverlap);
-	SnapDetectionSphere->OnComponentEndOverlap.AddDynamic(this, &USnapPointComponent::OnSnapDetectionEndOverlap);
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		SnapDetectionSphere->SetSphereRadius(SnapDetectionRadius);
+		SnapDetectionSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		SnapDetectionSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
+		SnapDetectionSphere->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+        
+		// Bind overlap events
+		SnapDetectionSphere->OnComponentBeginOverlap.AddDynamic(this, &USnapPointComponent::OnSnapDetectionBeginOverlap);
+		SnapDetectionSphere->OnComponentEndOverlap.AddDynamic(this, &USnapPointComponent::OnSnapDetectionEndOverlap);
+	}
 	// ...
 }
 bool USnapPointComponent::CanAcceptSnapID(FName OtherSnapID) const

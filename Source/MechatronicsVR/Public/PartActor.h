@@ -22,6 +22,7 @@ class MECHATRONICSVR_API APartActor : public AActor
 public:
 	
 	APartActor();
+	void SetMotorized();
 	USnapPointComponent* GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const;
 
 	/** Visual mesh of the part */
