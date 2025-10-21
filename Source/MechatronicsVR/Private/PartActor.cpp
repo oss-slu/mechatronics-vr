@@ -76,8 +76,15 @@ APartActor::APartActor()
 	PreviewOpacity = 0.3f;
 	PreviewColor = FLinearColor::Green;
 	bShowingPreview = false;
-    
 
+	PrimaryActorTick.bCanEverTick = true;
+
+}
+
+
+void APartActor::SetMotorized()
+{
+	bIsMotorized = !bIsMotorized;
 }
 
 USnapPointComponent* APartActor::GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const
@@ -529,6 +536,23 @@ const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
 	return Assembly->GetSnapPoints();
 }
 
+void APartActor::SetMotorSpeed(float Speed)
+{
+	const float ClampedSpeed = FMath::Clamp(Speed, 0.0f, 1.0f);
+	if (!FMath::IsNearlyEqual(ClampedSpeed,MotorSpeed))
+	{
+		MotorSpeed = ClampedSpeed;
+		const float RPM = MotorSpeed * MaxRPM;
+		UE_LOG(LogTemp, Log, TEXT("Motor speed set to %.2f (%.2f RPM) on %s"),
+			MotorSpeed ,RPM ,*GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Failed to change motor speed from %.2f to %.2f on %s"),
+			MotorSpeed, ClampedSpeed, *GetName());
+	}
+}
+
 
 // void APartActor::ClearSnapHighlight(APartActor* OtherPart)
 // {
@@ -615,6 +639,12 @@ void APartActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (!(bIsMotorized && MotorSpeed > KINDA_SMALL_NUMBER && Mesh)) return;
+
+	const float RPM = MotorSpeed * MaxRPM;
+	const float DegreesPerSecond = RPM * 6.0f;
+	const FVector Axis = MotorAxis.GetSafeNormal();
 	
-	
+	const FQuat DeltaRot(Axis, FMath::DegreesToRadians(DegreesPerSecond * DeltaTime));
+	Mesh->AddLocalRotation(DeltaRot);
 }
