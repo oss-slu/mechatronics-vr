@@ -215,10 +215,6 @@ bool OculusPluginWrapper::InitializeOculusPluginWrapper(OculusPluginWrapper* wra
 		OCULUS_BIND_ENTRY_POINT(AutoThreadScheduling),
 		OCULUS_BIND_ENTRY_POINT(GetGPUFrameTime),
 		OCULUS_BIND_ENTRY_POINT(GetViewportStencil),
-		OCULUS_BIND_ENTRY_POINT(SetDeveloperTelemetryConsent),
-		OCULUS_BIND_ENTRY_POINT(SendEvent),
-		OCULUS_BIND_ENTRY_POINT(SendEvent2),
-		OCULUS_BIND_ENTRY_POINT(AddCustomMetadata),
 		OCULUS_BIND_ENTRY_POINT(SetDeveloperMode),
 		OCULUS_BIND_ENTRY_POINT(GetCurrentTrackingTransformPose),
 		OCULUS_BIND_ENTRY_POINT(GetTrackingTransformRawPose),
@@ -249,22 +245,12 @@ bool OculusPluginWrapper::InitializeOculusPluginWrapper(OculusPluginWrapper* wra
 		OCULUS_BIND_ENTRY_POINT(GetLocalDimmingSupported),
 		OCULUS_BIND_ENTRY_POINT(SetLocalDimming),
 		OCULUS_BIND_ENTRY_POINT(GetCurrentInteractionProfile),
+		OCULUS_BIND_ENTRY_POINT(GetCurrentInteractionProfileName),
+		OCULUS_BIND_ENTRY_POINT(GetCurrentDetachedInteractionProfile),
 		OCULUS_BIND_ENTRY_POINT(GetLayerRecommendedResolution),
 		OCULUS_BIND_ENTRY_POINT(IsLayerShapeSupported),
 		OCULUS_BIND_ENTRY_POINT(SetEyeBufferSharpenType),
 		OCULUS_BIND_ENTRY_POINT(GetOpenXRInstanceProcAddrFunc),
-
-		OCULUS_BIND_ENTRY_POINT(SaveUnifiedConsent),
-		OCULUS_BIND_ENTRY_POINT(SaveUnifiedConsentWithOlderVersion),
-		OCULUS_BIND_ENTRY_POINT(GetUnifiedConsent),
-		OCULUS_BIND_ENTRY_POINT(GetConsentTitle),
-		OCULUS_BIND_ENTRY_POINT(GetConsentMarkdownText),
-		OCULUS_BIND_ENTRY_POINT(GetConsentNotificationMarkdownText),
-		OCULUS_BIND_ENTRY_POINT(ShouldShowTelemetryConsentWindow),
-		OCULUS_BIND_ENTRY_POINT(ShouldShowTelemetryNotification),
-		OCULUS_BIND_ENTRY_POINT(SetNotificationShown),
-		OCULUS_BIND_ENTRY_POINT(GetConsentSettingsChangeText),
-		OCULUS_BIND_ENTRY_POINT(IsConsentSettingsChangeEnabled),
 
 		OCULUS_BIND_ENTRY_POINT(InitializeEnvironmentDepth),
 		OCULUS_BIND_ENTRY_POINT(DestroyEnvironmentDepth),
@@ -355,17 +341,6 @@ bool OculusPluginWrapper::InitializeOculusPluginWrapper(OculusPluginWrapper* wra
 		OCULUS_BIND_ENTRY_POINT(GetFaceVisemesState),
 		OCULUS_BIND_ENTRY_POINT(SetFaceTrackingVisemesEnabled),
 
-		// QPL
-		OCULUS_BIND_ENTRY_POINT(QplMarkerStart),
-		OCULUS_BIND_ENTRY_POINT(QplMarkerEnd),
-		OCULUS_BIND_ENTRY_POINT(QplMarkerPoint),
-		OCULUS_BIND_ENTRY_POINT(QplMarkerPointCached),
-		OCULUS_BIND_ENTRY_POINT(QplMarkerAnnotation),
-		OCULUS_BIND_ENTRY_POINT(QplCreateMarkerHandle),
-		OCULUS_BIND_ENTRY_POINT(QplDestroyMarkerHandle),
-		OCULUS_BIND_ENTRY_POINT(OnEditorShutdown),
-		OCULUS_BIND_ENTRY_POINT(QplSetConsent),
-
 		// OVR_Plugin_Insight.h
 		OCULUS_BIND_ENTRY_POINT(InitializeInsightPassthrough),
 		OCULUS_BIND_ENTRY_POINT(ShutdownInsightPassthrough),
@@ -438,6 +413,8 @@ bool OculusPluginWrapper::InitializeOculusPluginWrapper(OculusPluginWrapper* wra
 
 		OCULUS_BIND_ENTRY_POINT(SetControllerDrivenHandPoses),
 		OCULUS_BIND_ENTRY_POINT(SetControllerDrivenHandPosesAreNatural),
+		OCULUS_BIND_ENTRY_POINT(SetSimultaneousHandsAndControllersEnabled),
+		OCULUS_BIND_ENTRY_POINT(IsMultimodalHandsControllersSupported),
 	};
 
 #undef OCULUS_BIND_ENTRY_POINT

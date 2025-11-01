@@ -251,6 +251,10 @@ namespace OculusXRScene
 	EOculusXRAnchorResult::Type FOculusXRSceneFunctionsOVR::GetBoundaryVisibility(EOculusXRBoundaryVisibility& OutVisibility)
 	{
 		ovrpBoundaryVisibility visibility = {};
+		if (!FOculusXRHMDModule::GetPluginWrapper().GetInitialized())
+		{
+			return EOculusXRAnchorResult::Failure_NotInitialized;
+		}
 		auto result = FOculusXRHMDModule::GetPluginWrapper().GetBoundaryVisibility(&visibility);
 		auto castedResult = OculusXRAnchors::GetResultFromOVRResult(result);
 

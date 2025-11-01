@@ -166,7 +166,7 @@ public:
 	 * @param GenerateCollision  Whether to generate collision geometry or not
 	 * @param ProceduralMaterial Material to use on the procedural generated mesh.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit", meta = (AutoCreateRefTerm = "PlaneUVAdjustments", DeprecatedFunction, DeprecationMessage = "Use GenerateProceduralMesh instead."))
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit", meta = (AutoCreateRefTerm = "PlaneUVAdjustments", DeprecatedFunction, DeprecationMessage = "Use AMRUKAnchorActorSpawner instead."))
 	void AttachProceduralMesh(TArray<FMRUKPlaneUV> PlaneUVAdjustments, const TArray<FString>& CutHoleLabels, bool GenerateCollision = true, UMaterialInterface* ProceduralMaterial = nullptr);
 
 	/**

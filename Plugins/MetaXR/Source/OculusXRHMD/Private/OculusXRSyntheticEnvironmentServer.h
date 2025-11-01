@@ -24,6 +24,7 @@ public:
 	};
 
 	OCULUSXRHMD_API static TArray<ServerInfo>& GetSynthEnvRooms();
+	OCULUSXRHMD_API static void PopulateSynthEnvRooms();
 
 private:
 	static void LaunchLocalSharingServer();

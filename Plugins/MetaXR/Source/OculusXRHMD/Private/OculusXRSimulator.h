@@ -28,7 +28,7 @@ public:
 	FString GetPackagePath() const;
 	bool IsSimulatorInstalled();
 	TArray<FString> GetInstalledVersions() const;
-	void FetchAvailableVersions();
+	void FetchAvailableVersions(bool bCheckSkippedVersion);
 	void InstallLatestVersion();
 	bool IsLatestVersionInstalled();
 
@@ -40,13 +40,13 @@ private:
 		double UrlValidity;
 	};
 
-	void SpawnNotificationToUpdateIfAvailable();
+	void SpawnNotificationToUpdateIfAvailable(bool bCheckSkippedVersion);
 	FMetaXRSimulator();
 	~FMetaXRSimulator() = default;
 	FString GetSimulatorJsonPath();
-	void InstallSimulator(const FString& URL, const FString& Version, const TFunction<void()>& OnSuccess);
+	void InstallSimulator(const FString& URL, const FString& Version, TFunction<void()> OnSuccess);
 	static FString GetPluginVersion();
-	void UnzipSimulator(const FString& Path, const FString& TargetPath, const TSharedPtr<SNotificationItem>& Notification, const TFunction<void()>& OnSuccess);
+	void UnzipSimulator(const FString& Path, const FString& TargetPath, const TSharedPtr<SNotificationItem>& Notification, TFunction<void()> OnSuccess);
 
 	const FString InstallationPath;
 

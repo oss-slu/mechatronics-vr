@@ -64,6 +64,10 @@ void UOculusXRLiveLinkRetargetBodyAsset::Initialize()
 	}
 
 	LastBoneContainerSerialNumber = 0;
+
+#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+	LastSkeletonBoneRemapping.Reset(static_cast<uint8>(EOculusXRBoneID::COUNT));
+#endif
 	Algo::ForEach(LastSkeletonBoneRemapping, [](FCompactPoseBoneIndex& BoneIndex) { BoneIndex = FCompactPoseBoneIndex(INDEX_NONE); });
 }
 
@@ -83,7 +87,7 @@ void UOculusXRLiveLinkRetargetBodyAsset::BuildPoseFromAnimationData(float DeltaT
 
 	FCSPose<FCompactPose> MeshPoses;
 	MeshPoses.InitPose(OutPose);
-	for (uint8 BoneId = 0; BoneId < static_cast<uint8>(EOculusXRBoneID::COUNT); ++BoneId)
+	for (uint8 BoneId = 0; BoneId < static_cast<uint8>(LastSkeletonBoneRemapping.Num()); ++BoneId)
 	{
 		if (const FCompactPoseBoneIndex& BoneIndex = LastSkeletonBoneRemapping[BoneId]; BoneIndex != INDEX_NONE)
 		{
@@ -134,7 +138,7 @@ void UOculusXRLiveLinkRetargetBodyAsset::OnBoneContainerChanged(const FBoneConta
 {
 	LastBoneContainerSerialNumber = 0;
 
-	for (uint8 BoneId = 0; BoneId < static_cast<uint8>(EOculusXRBoneID::COUNT); ++BoneId)
+	for (uint8 BoneId = 0; BoneId < static_cast<uint8>(LastSkeletonBoneRemapping.Num()); ++BoneId)
 	{
 		const auto& BoneName = BoneNames[BoneId];
 		if (BoneName.IsNone())
