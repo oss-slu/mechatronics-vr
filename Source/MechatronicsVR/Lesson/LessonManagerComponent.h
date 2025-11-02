@@ -205,6 +205,7 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
+	
 
 
 

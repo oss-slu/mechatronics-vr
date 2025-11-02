@@ -13,8 +13,8 @@ class UFocusStep;
 
 ULessonDataAsset::ULessonDataAsset()
 {
-	LessonTitle = FText::FromString("New Lesson");
-	LessonDescription = FText::FromString("Describe the lesson here.");
+	LessonTitle = "New Lesson";
+	LessonDescription ="Describe the lesson here.";
 	AssociatedLevelName = NAME_None;
 
 	ExpectedPartCount = 0;

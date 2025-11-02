@@ -12,6 +12,7 @@ class USnapValidatorComponent;
 class USnapPointComponent;
 class AAssemblyActor;
 class UGrabComponent;
+class AssemblyStep;
 
 UCLASS()
 class MECHATRONICSVR_API APartActor : public AActor
@@ -21,6 +22,7 @@ class MECHATRONICSVR_API APartActor : public AActor
 public:
 	
 	APartActor();
+	void SetMotorized();
 	USnapPointComponent* GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const;
 
 	/** Visual mesh of the part */
@@ -30,6 +32,7 @@ public:
 	/** Currently previewing snap with this target snap point */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
 	TObjectPtr<USnapPointComponent> CurrentTargetSnapPoint = nullptr;
+	bool bIsSnapped = false;
 
 	/** Check if we should show preview based on grab state and nearby snap points */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
@@ -127,8 +130,25 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Detection")
 	TArray<TObjectPtr<APartActor>> NearbyParts;
 
-	
-	
+	// MOTORORIZED PROPERTIES
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor")
+	bool bIsMotorized = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="0.0", ClampMax="1.0"), Category="Motor")
+	float MotorSpeed = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motor", meta=(ClampMin="0.0"))
+	float MaxRPM = 300.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Motor")
+	FVector MotorAxis = FVector::UpVector;
+
+	UFUNCTION(BlueprintCallable,Category="Motor")
+	void SetMotorSpeed(float Speed);
+
+	UFUNCTION(BlueprintPure,Category="Motor")
+	float GetCurrentRPM() const {return MotorSpeed * MaxRPM;}
 
 protected:
 

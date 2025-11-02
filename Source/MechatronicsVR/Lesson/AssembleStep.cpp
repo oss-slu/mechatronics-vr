@@ -12,10 +12,12 @@ UAssembleStep::UAssembleStep()
 	bWantsTickWhileActive = false;
 	bAlsoPollEachTick = false;
 
+	
 	bRequireAllTargetsPresent = true;
 	bRequireTargetConnected = true;
 	bRequireFullyAssembled = false;
 	MinTargetsSatisfied = 0;
+	StepType = ELessonStepType::Assemble;
 	
 }
 
@@ -84,8 +86,15 @@ void UAssembleStep::UnbindAssemblyEvents()
 	AssemblyActor->OnPartsConnected.RemoveDynamic(this, &UAssembleStep::HandlePartsConnected);
 }
 
-void UAssembleStep::EvaluateAndMaybeComplete()
+void UAssembleStep::EvaluateConnectionStatus()
+
+
 {
+
+	UE_LOG(LogTemp, Error, TEXT("=== EvaluateConnectionStatus ==="));
+	UE_LOG(LogTemp, Error, TEXT("  - bIsActive: %s"), bIsActive ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
+	UE_LOG(LogTemp, Error, TEXT("  - bStepCompleted: %s"), bStepCompleted ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
+    
 	if (bAlsoPollEachTick)
 	{
 		NotifyUpdated();
@@ -185,28 +194,42 @@ bool UAssembleStep::AreTargetsConnected(const TMap<TSubclassOf<APartActor>, TArr
 
 void UAssembleStep::HandleAssemblyStateChanged(EAssemblyState /*NewState*/)
 {
-	EvaluateAndMaybeComplete();
+	EvaluateConnectionStatus();
 }
 
 void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 {
+	UE_LOG(LogTemp, Error, TEXT("=== HandlePartsConnected Called ==="));
+	UE_LOG(LogTemp, Error, TEXT("  - PartA: %s"), PartA ? *PartA->GetName() : TEXT("NULL (BASE)"));
+	UE_LOG(LogTemp, Error, TEXT("  - PartB: %s"), PartB ? *PartB->GetName() : TEXT("NULL"));
+    
 	// Handle base connection (one part is null, meaning base connection)
 	if (!PartA || !PartB)
 	{
-		// This is a base connection - one of the parts is the base
+		UE_LOG(LogTemp, Error, TEXT("  - Detected BASE CONNECTION"));
+        
 		APartActor* ConnectedPart = PartA ? PartA : PartB;
         
 		if (ConnectedPart)
 		{
-			UE_LOG(LogTemp, Log, TEXT("AssembleStep: Part %s connected to base"), *ConnectedPart->GetName());
-			EvaluateAndMaybeComplete();
+			UE_LOG(LogTemp, Error, TEXT("  - ConnectedPart: %s"), *ConnectedPart->GetName());
+			UE_LOG(LogTemp, Error, TEXT("  - Calling EvaluateConnectionStatus()"));
+            
+			EvaluateConnectionStatus();
+            
+			UE_LOG(LogTemp, Error, TEXT("  - Returned from EvaluateConnectionStatus()"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("  - ERROR: Both parts are NULL!"));
 		}
 		return;
 	}
 
 	// Handle normal part-to-part connection
+	UE_LOG(LogTemp, Error, TEXT("  - Detected PART-TO-PART CONNECTION"));
 	UE_LOG(LogTemp, Log, TEXT("AssembleStep: Parts %s and %s connected"), *PartA->GetName(), *PartB->GetName());
-	EvaluateAndMaybeComplete();
+	EvaluateConnectionStatus();
 }
 // Helper function to check if a single part is a target
 bool UAssembleStep::IsTargetPart(APartActor* Part) const

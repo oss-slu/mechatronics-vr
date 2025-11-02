@@ -16,6 +16,7 @@ UInteractionStep::UInteractionStep()
 	MinFocusTime = 1.0f;
 	bContinuous = true;
 	MaxDistance = 0.0f;
+	StepType = ELessonStepType::Interaction;
 }
 
 void UInteractionStep::SetTargetActor(AActor* InTarget)

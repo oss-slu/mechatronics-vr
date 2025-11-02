@@ -46,12 +46,13 @@ void AMechatronicsGameMode::BeginPlay()
 		UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode: Auto-starting lesson"));
         
 		// Small delay to ensure everything is fully loaded
-		FTimerHandle TimerHandle;
-		GetWorldTimerManager().SetTimer(TimerHandle, [this]()
+		
+		GetWorldTimerManager().SetTimer(LessonStartTimerHandle, [this]()
 		{
 			StartLesson(AutoStartLessonData);
 		}, 0.5f, false);
 	}
+	
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("MechatronicsGameMode: No auto-start lesson configured"));
@@ -115,7 +116,18 @@ bool AMechatronicsGameMode::StartLesson(ULessonDataAsset* LessonData)
 		return false;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode::StartLesson - Starting lesson: %s"), *LessonData->LessonTitle.ToString());
+	if (!LessonData->IsLessonValid())
+	{
+		TArray<FString> Errors = LessonData->GetValidationErrors();
+		UE_LOG(LogTemp, Error, TEXT("MechatronicsGameMode::StartLesson - Lesson data is invalid:"));
+		for (const FString& Error : Errors)
+		{
+			UE_LOG(LogTemp, Error, TEXT("  - %s"), *Error);
+		}
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode::StartLesson - Starting lesson: %s"), *LessonData->LessonTitle);
 
 	// Initialize lesson in LessonManager - it will find the assembly itself
 

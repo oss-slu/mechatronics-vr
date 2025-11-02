@@ -4,12 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
+#include "LessonTypes.h"
 #include "LessonStep.generated.h"
 
 /**
  * 
  */
-UCLASS()
+UCLASS(EditInlineNew, DefaultToInstanced)
 class MECHATRONICSVR_API ULessonStep : public UObject
 {
 	GENERATED_BODY()
@@ -35,8 +36,10 @@ public:
 	
 	// Base properties
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
-	FText InstructionText;
+	FString InstructionText;
 	
+	UPROPERTY(BlueprintReadOnly, Category = "Lesson|Step")
+	ELessonStepType StepType;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson|Step")
 	TObjectPtr<ULessonStep> PreviousStep = nullptr;

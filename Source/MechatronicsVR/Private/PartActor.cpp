@@ -7,8 +7,12 @@
 #include "AssemblyComponent.h"
 #include "EngineUtils.h"
 #include "GrabComponent.h"
+#include "MechatronicsGameMode.h"
 #include "MotionControllerComponent.h"
 #include "SnapValidatorComponent.h"
+#include "../Lesson/LessonManagerComponent.h"
+#include "../Lesson/LessonStep.h"
+#include "../Lesson/AssembleStep.h"
 
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -22,9 +26,16 @@ APartActor::APartActor()
 	// Set root as mesh so physics can drive movement
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	RootComponent = Mesh;
-	Mesh->SetSimulatePhysics(true);
-	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	Mesh->SetCollisionObjectType(ECC_PhysicsBody);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		Mesh->SetSimulatePhysics(true);
+		Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Mesh->SetCollisionObjectType(ECC_PhysicsBody);
+		Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+		Mesh->BodyInstance.bOverrideMass = true;
+		Mesh->SetMassOverrideInKg(NAME_None, 1.0f, true);
+	}
 
 
 	// Create preview mesh component
@@ -48,11 +59,7 @@ APartActor::APartActor()
     
 	// Configure for VR Template grabbing
 	
-	Mesh->SetCollisionResponseToAllChannels(ECR_Block);
-	// Mesh->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore); // Don't block player movement
-    
-	// Set mass for realistic feel (adjust per part)
-	Mesh->SetMassOverrideInKg(NAME_None, 1.0f, true);
+	
     
 	// Attach assembly component
 	Assembly = CreateDefaultSubobject<UAssemblyComponent>(TEXT("Assembly"));
@@ -69,8 +76,15 @@ APartActor::APartActor()
 	PreviewOpacity = 0.3f;
 	PreviewColor = FLinearColor::Green;
 	bShowingPreview = false;
-    
 
+	PrimaryActorTick.bCanEverTick = true;
+
+}
+
+
+void APartActor::SetMotorized()
+{
+	bIsMotorized = !bIsMotorized;
 }
 
 USnapPointComponent* APartActor::GetBestSnapPointFor(USnapPointComponent* TargetSnapPoint) const
@@ -125,7 +139,29 @@ void APartActor::UpdatePreviewState()
 
 USnapPointComponent* APartActor::FindBestPreviewTarget() const
 {
-    // Get all my snap points
+	//checks to see if there is currently any lesson, and if so, only shows the snapping point if the current step
+	//is an assembly step AND if the current part is the target
+	if (UWorld* World = GetWorld())
+	{
+		const AMechatronicsGameMode* GM = World->GetAuthGameMode<AMechatronicsGameMode>();
+		if (GM)
+		{
+			const ULessonManagerComponent* LM = GM->FindComponentByClass<ULessonManagerComponent>();
+			if (LM)
+			{
+				if (LM->CurrentStep && LM->CurrentStep->StepType == ELessonStepType::Assemble)
+				{
+					const UAssembleStep* AssembleStep = static_cast<const UAssembleStep*>(LM->CurrentStep);
+					if (AssembleStep && !AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
+					{
+						return nullptr;
+					}
+				}
+			}
+		}
+	}
+	
+    // Get all my snap points 
     TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
     
     // FIRST: Check if we have a specific actor we should assemble onto
@@ -246,7 +282,8 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 		HideSnapPreview();
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
-		return true;
+		bIsSnapped = true;
+		return bIsSnapped;
 	}
 }
 		
@@ -462,11 +499,18 @@ void APartActor::OnPartGrabbed()
 	UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed - PreviewMaterial: %s"), 
 		PreviewMaterial ? TEXT("Valid") : TEXT("NULL"));
     
-	// Print to screen for easy debugging
-	if (GEngine)
+	
+
+	// Clear lesson highlight when grabbed
+	if (UGameplayStatics::GetGameMode(GetWorld()))
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, 
-			FString::Printf(TEXT("GRABBED: %s"), *GetName()));
+		if (AMechatronicsGameMode* GameMode = Cast<AMechatronicsGameMode>(UGameplayStatics::GetGameMode(GetWorld())))
+		{
+			if (GameMode->GetUIManager())
+			{
+				GameMode->GetUIManager()->ClearHighlight(this);
+			}
+		}
 	}
     
 	// Update preview state
@@ -479,11 +523,7 @@ void APartActor::OnPartReleased()
 	UE_LOG(LogTemp, Warning, TEXT("🚀 RELEASED: %s"), *GetName());
     
 	// Print to screen for easy debugging
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, 
-			FString::Printf(TEXT("RELEASED: %s"), *GetName()));
-	}
+	
 	TrySnapToPreview();
 	// HideSnapPreview();
 	CurrentTargetSnapPoint = nullptr;
@@ -494,6 +534,23 @@ void APartActor::OnPartReleased()
 const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
 {
 	return Assembly->GetSnapPoints();
+}
+
+void APartActor::SetMotorSpeed(float Speed)
+{
+	const float ClampedSpeed = FMath::Clamp(Speed, 0.0f, 1.0f);
+	if (!FMath::IsNearlyEqual(ClampedSpeed,MotorSpeed))
+	{
+		MotorSpeed = ClampedSpeed;
+		const float RPM = MotorSpeed * MaxRPM;
+		UE_LOG(LogTemp, Log, TEXT("Motor speed set to %.2f (%.2f RPM) on %s"),
+			MotorSpeed ,RPM ,*GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Failed to change motor speed from %.2f to %.2f on %s"),
+			MotorSpeed, ClampedSpeed, *GetName());
+	}
 }
 
 
@@ -582,6 +639,12 @@ void APartActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (!(bIsMotorized && MotorSpeed > KINDA_SMALL_NUMBER && Mesh)) return;
+
+	const float RPM = MotorSpeed * MaxRPM;
+	const float DegreesPerSecond = RPM * 6.0f;
+	const FVector Axis = MotorAxis.GetSafeNormal();
 	
-	
+	const FQuat DeltaRot(Axis, FMath::DegreesToRadians(DegreesPerSecond * DeltaTime));
+	Mesh->AddLocalRotation(DeltaRot);
 }

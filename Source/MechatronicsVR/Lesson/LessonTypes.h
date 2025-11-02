@@ -31,7 +31,7 @@ struct FLessonStepData
 	GENERATED_BODY()
 
 	// The step instance - configured directly in the data asset editor
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Step", Instanced, meta = (ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Step", Instanced)
 	TObjectPtr<ULessonStep> StepInstance;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Step")

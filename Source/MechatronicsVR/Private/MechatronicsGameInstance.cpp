@@ -20,38 +20,12 @@ void UMechatronicsGameInstance::Init()
 {
 	Super::Init();
 
-	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameInstance:Init() Initializing Lesson System"));
-
-	// Validate available lessons
-	ValidateAvailableLessons();
-
-	    
-	// Load saved progress if enabled
-	if (bPersistProgress)
-	{
-		LoadLessonProgress();
-	}
-
-	// If we have lessons available, load the first one
-	if (AvailableLessons.Num() > 0 && !ActiveLessonData)
-	{
-		if (IsValidLessonIndex(CurrentLessonIndex))
-		{
-			LoadLessonInternal(CurrentLessonIndex);
-			bInitialized = true;
-		}
-		else
-		{
-			CurrentLessonIndex = 0;
-			LoadLessonInternal(CurrentLessonIndex);
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MechatronicsGameInstance: No lessons available to load."));
-	}
-
+	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameInstance: Initialized"));
 	
+	// Note: Lesson data is managed per-level by GameMode, not by GameInstance
+	//  GameInstance only tracks cross-level progress if needed
+	
+	bInitialized = true;
 }
 
 // === LESSON LOADING ===
@@ -133,7 +107,7 @@ bool UMechatronicsGameInstance::LoadLessonInternal(int32 LessonIndex)
 		return false;
 	}
 	UE_LOG(LogTemp, Log, TEXT("LoadLessonInternal: Loading lesson '%s' (Index: %d)"), 
-		  *NewLessonData->LessonTitle.ToString(), LessonIndex);
+		  *NewLessonData->LessonTitle, LessonIndex);
 
 	// store previous data for comparison
 	ULessonDataAsset* PreviousLessonData = ActiveLessonData;
@@ -168,7 +142,7 @@ bool UMechatronicsGameInstance::LoadLessonInternal(int32 LessonIndex)
 
 	
 	UE_LOG(LogTemp, Log, TEXT("LoadLessonInternal: Successfully loaded lesson '%s'"), 
-		   *NewLessonData->LessonTitle.ToString());
+		   *NewLessonData->LessonTitle);
     
 	return true;
 	
@@ -204,7 +178,7 @@ void UMechatronicsGameInstance::CompleteCurrentLesson()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("CompleteCurrentLesson: Completing lesson '%s'"), 
-		   *ActiveLessonData->LessonTitle.ToString());
+		   *ActiveLessonData->LessonTitle);
 
 	//Broadcast completion event
 	OnLessonCompleted.Broadcast(ActiveLessonData);
@@ -298,33 +272,10 @@ ULessonDataAsset* UMechatronicsGameInstance::FindLessonByName(const FName Lesson
 
 void UMechatronicsGameInstance::ValidateAvailableLessons()
 {
-	UE_LOG(LogTemp, Log, TEXT("ValidateAvailableLessons: Validating %d lessons"), AvailableLessons.Num());
-
-	for (int32 i = AvailableLessons.Num() - 1; i >= 0; i--)
-	{
-		TObjectPtr<ULessonDataAsset>& LessonPtr = AvailableLessons[i];
-		if (!LessonPtr)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ValidateAvailableLessons: Removing null lesson at index %d"), i);
-			AvailableLessons.RemoveAt(i);
-			continue;
-		}
-
-		if (!LessonPtr->IsLessonValid())
-		{
-			TArray<FString> ValidationErrors = LessonPtr->GetValidationErrors();
-			UE_LOG(LogTemp, Warning, TEXT("ValidateAvailableLessons: Removing invalid lesson '%s' at index %d. Errors:"), 
-				   *LessonPtr->GetName(), i);
-			for (const FString& Error : ValidationErrors)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("  - %s"), *Error);
-			}
-		}
-	}
-	UE_LOG(LogTemp, Log, TEXT("ValidateAvailableLessons: Validation complete. %d valid lessons remain"), 
-		AvailableLessons.Num());
+	// Simplified - validation happens at GameMode level per-level
+	// This is only for tracking available lessons, not loading them
+	UE_LOG(LogTemp, Log, TEXT("ValidateAvailableLessons: %d lessons in registry"), AvailableLessons.Num());
 }
-
 
 
 // === SAVE/LOAD (Basic Implementation) ===
