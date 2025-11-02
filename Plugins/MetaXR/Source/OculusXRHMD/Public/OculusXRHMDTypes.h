@@ -9,6 +9,7 @@
 #include "RHIResources.h"
 #include "Engine/Texture2D.h"
 #include "UObject/SoftObjectPath.h"
+#include "Misc/EngineVersionComparison.h"
 #include "OculusXRHMDTypes.generated.h"
 
 static const TCHAR* VAR_PixelDensityMin = TEXT("r.Oculus.DynamicResolution.PixelDensityMin");
@@ -274,8 +275,14 @@ struct FOculusXRSplashDesc
 	bool bNoAlphaChannel;
 
 	// Runtime data
+
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 	UTexture* LoadingTexture;
 	FTextureRHIRef LoadedTexture;
+#else
+	TWeakObjectPtr<UTexture> LoadingTexture;
+	TWeakObjectPtr<UTexture> LoadedTexture;
+#endif
 	bool bIsDynamic;
 
 	FOculusXRSplashDesc()

@@ -85,7 +85,7 @@ void AMRUKGuardianSpawner::SpawnGuardians(AMRUKRoom* Room)
 	// because of the first step and will therefore be ignored by this code automatically.
 	for (const auto& Anchor : Room->AllAnchors)
 	{
-		if (!Anchor || Anchor == Room->FloorAnchor || Anchor == Room->CeilingAnchor || Room->IsWallAnchor(Anchor))
+		if (!Anchor || (Room->FloorAnchor == Anchor) || (Room->CeilingAnchor == Anchor) || Room->IsWallAnchor(Anchor))
 		{
 			continue;
 		}

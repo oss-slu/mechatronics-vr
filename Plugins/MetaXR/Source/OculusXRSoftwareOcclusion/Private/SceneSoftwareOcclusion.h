@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #ifdef WITH_OCULUS_BRANCH
 
-#include "CoreMinimal.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "ICustomOcclusion.h"
 

@@ -2,12 +2,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusXRFunctionLibrary.h"
+
+#include "Logging/MessageLog.h"
 #include "OculusXRFunctionLibraryOpenXR.h"
 #include "OculusXRFunctionLibraryOVR.h"
-#include "OculusXRHMDPrivate.h"
 #include "OculusXRHMD.h"
+#include "OculusXRHMDRuntimeSettings.h"
+#include "OculusXRHMDPrivate.h"
 #include "OpenXR/OculusXROpenXRUtilities.h"
-#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "OculusFunctionLibrary"
 
@@ -257,6 +259,19 @@ void UOculusXRFunctionLibrary::GetPerformanceMetrics(FOculusXRPerformanceMetrics
 #endif
 }
 
+
+EOculusXRXrApi UOculusXRFunctionLibrary::GetXrApi()
+{
+	EOculusXRXrApi XrApi = EOculusXRXrApi::OVRPluginOpenXR;
+#if OCULUS_HMD_SUPPORTED_PLATFORMS
+	const UOculusXRHMDRuntimeSettings* HMDSettings = GetDefault<UOculusXRHMDRuntimeSettings>();
+	if (HMDSettings != nullptr)
+	{
+		XrApi = HMDSettings->XrApi;
+	}
+#endif
+	return XrApi;
+}
 
 EOculusXRFoveatedRenderingMethod UOculusXRFunctionLibrary::GetFoveatedRenderingMethod()
 {

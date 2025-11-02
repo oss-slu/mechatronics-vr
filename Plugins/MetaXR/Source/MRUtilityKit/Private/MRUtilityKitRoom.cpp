@@ -105,6 +105,22 @@ namespace
 			bRet = true;
 		return bRet;
 	}
+
+	double CalculatePolygonArea(const TArray<FVector2D>& points)
+	{
+		double Area = 0.0f;
+
+		// Calculate Area using the Shoelace formula
+		for (size_t j = 0; j < points.Num(); ++j)
+		{
+			const auto& p1 = points[j];
+			const auto& p2 = points[(j + 1) % points.Num()];
+			Area += (p1.X * p2.Y - p2.X * p1.Y);
+		}
+
+		// Take the absolute value and divide by 2
+		return FMath::Abs(Area) * 0.5f;
+	}
 } // namespace
 
 AMRUKRoom::AMRUKRoom(const FObjectInitializer& ObjectInitializer)
@@ -160,7 +176,7 @@ void AMRUKRoom::AddAnchorToRoom(AMRUKAnchor* Anchor)
 		CeilingAnchor = Anchor;
 		RoomLayout.CeilingUuid = Anchor->AnchorUUID;
 	}
-	if (Anchor->HasLabel(FMRUKLabels::WallFace) || Anchor->HasLabel(FMRUKLabels::InvisibleWallFace))
+	if (Anchor->HasLabel(FMRUKLabels::WallFace) || Anchor->HasLabel(FMRUKLabels::InvisibleWallFace) || Anchor->HasLabel(FMRUKLabels::InnerWallFace) || Anchor->HasLabel(FMRUKLabels::OtherRoomFace))
 	{
 		WallAnchors.Push(Anchor);
 		RoomLayout.WallsUuid.Push(Anchor->AnchorUUID);
@@ -216,9 +232,8 @@ void AMRUKRoom::ComputeRoomBounds()
 {
 	RoomBounds.Init();
 
-	for (auto& Anchor : { FloorAnchor, CeilingAnchor })
-	{
-		if (Anchor)
+	const auto L = [this](AMRUKAnchor* Anchor) {
+		if (IsValid(Anchor))
 		{
 			auto Transform = Anchor->GetTransform();
 			for (const auto& Vertex : Anchor->PlaneBoundary2D)
@@ -227,7 +242,10 @@ void AMRUKRoom::ComputeRoomBounds()
 				RoomBounds += Pos;
 			}
 		}
-	}
+	};
+
+	L(FloorAnchor);
+	L(CeilingAnchor);
 }
 
 void AMRUKRoom::ComputeAnchorHierarchy()
@@ -283,11 +301,8 @@ void AMRUKRoom::ComputeAnchorHierarchy()
 	}
 
 	// Find volumes on the floor
-	if (FloorAnchor)
 	{
 		const auto& FloorTransform = FloorAnchor->GetTransform();
-		const auto FloorNormal = FloorTransform.GetUnitAxis(EAxis::X);
-		ensureMsgf(FVector::Coincident(FloorNormal, FVector::DownVector), TEXT("Floor normal should be pointing downwards"));
 		auto FloorHeight = FloorTransform.GetLocation().Z;
 		for (const auto& ChildAnchor : AllAnchors)
 		{
@@ -414,39 +429,24 @@ void AMRUKRoom::ComputeRoomEdges()
 		return;
 	}
 
+	RoomEdges.Empty();
 	const auto& FloorBoundary = FloorAnchor->PlaneBoundary2D;
 	const auto& FloorTransform = FloorAnchor->GetActorTransform();
 
-#if UE_VERSION_OLDER_THAN(5, 5, 0)
-	RoomEdges.SetNum(FloorBoundary.Num(), true);
-#else
-	RoomEdges.SetNum(FloorBoundary.Num(), EAllowShrinking::Yes);
-#endif
-	for (int i = 0; i < RoomEdges.Num(); ++i)
+	for (int i = 0; i < FloorBoundary.Num(); ++i)
 	{
 		const auto& BoundaryPoint = FloorBoundary[i];
 		FVector Edge = FVector(0.0, BoundaryPoint.X, BoundaryPoint.Y);
 		Edge = FloorTransform.TransformPosition(Edge);
 		Edge.Z = 0.0;
-		RoomEdges[i] = Edge;
+		RoomEdges.Push(Edge);
 	}
 }
 
 bool AMRUKRoom::IsPositionInRoom(const FVector& Position, bool TestVerticalBounds)
 {
-	if (!FloorAnchor)
-	{
-		return false;
-	}
-
-	if (!(TestVerticalBounds ? RoomBounds.IsInside(Position) : RoomBounds.IsInsideXY(Position)))
-	{
-		return false;
-	}
-
-	const auto Transform = FloorAnchor->GetTransform();
-	const FVector LocalPos = Transform.InverseTransformPositionNoScale(Position);
-	return FloorAnchor->IsPositionInBoundary(FVector2D(LocalPos.Y, LocalPos.Z));
+	const float WorldToMeters = GetWorld()->GetWorldSettings()->WorldToMeters;
+	return MRUKShared::GetInstance()->IsPositionInRoom(ToMrukShared(AnchorUUID), PositionToMrukShared(Position, WorldToMeters), TestVerticalBounds);
 }
 
 bool AMRUKRoom::GenerateRandomPositionInRoom(FVector& OutPosition, float MinDistanceToSurface, bool AvoidVolumes)
@@ -467,39 +467,29 @@ bool AMRUKRoom::GenerateRandomPositionInRoomFromStream(FVector& OutPosition, con
 		return false;
 	}
 	FVector Position;
-	constexpr int MaxIterations = 1000;
+	constexpr int MaxIterations = 2000;
 	// Bail after MaxIteration tries to avoid infinite loop in case MinDistanceToSurface is too large
 	// and we can't find a position which does not intersect with the walls and volumes
 	for (int i = 0; i < MaxIterations; ++i)
 	{
-		if (MinDistanceToSurface > 0.0f)
+		Position.X = RandomStream.FRandRange(RoomBounds.Min.X + MinDistanceToSurface, RoomBounds.Max.X - MinDistanceToSurface);
+		Position.Y = RandomStream.FRandRange(RoomBounds.Min.Y + MinDistanceToSurface, RoomBounds.Max.Y - MinDistanceToSurface);
+		Position.Z = RandomStream.FRandRange(RoomBounds.Min.Z + MinDistanceToSurface, RoomBounds.Max.Z - MinDistanceToSurface);
+		if (!IsPositionInRoom(Position))
 		{
-			// If MinDistanceToSurface is large then it can be more efficient to randomly generate points within
-			// the shrunken bounds of the room
-			Position.X = RandomStream.FRandRange(RoomBounds.Min.X + MinDistanceToSurface, RoomBounds.Max.X - MinDistanceToSurface);
-			Position.Y = RandomStream.FRandRange(RoomBounds.Min.Y + MinDistanceToSurface, RoomBounds.Max.Y - MinDistanceToSurface);
-			Position.Z = RandomStream.FRandRange(RoomBounds.Min.Z + MinDistanceToSurface, RoomBounds.Max.Z - MinDistanceToSurface);
-			if (!IsPositionInRoom(Position))
-			{
-				// Reject points that are outside the room
-				continue;
-			}
-			FVector SurfacePos;
-			double SurfaceDistance;
-			FMRUKLabelFilter Filter;
-			Filter.IncludedLabels = { FMRUKLabels::WallFace };
-			if (TryGetClosestSurfacePosition(Position, SurfacePos, SurfaceDistance, Filter, MinDistanceToSurface))
-			{
-				// Reject points that are too close to the walls
-				continue;
-			}
+			// Reject points that are outside the room
+			continue;
 		}
-		else
+		FVector SurfacePos;
+		double SurfaceDistance;
+		FMRUKLabelFilter Filter;
+		Filter.IncludedLabels = { FMRUKLabels::WallFace };
+		if (MinDistanceToSurface > 0.0f && TryGetClosestSurfacePosition(Position, SurfacePos, SurfaceDistance, Filter, MinDistanceToSurface))
 		{
-			Position = FloorAnchor->GenerateRandomPositionOnPlaneFromStream(RandomStream);
-			Position = FloorAnchor->GetTransform().TransformPosition(Position);
-			Position.Z = RandomStream.FRandRange(RoomBounds.Min.Z + MinDistanceToSurface, RoomBounds.Max.Z - MinDistanceToSurface);
+			// Reject points that are too close to the walls
+			continue;
 		}
+
 		if (AvoidVolumes && IsPositionInSceneVolume(Position, true, MinDistanceToSurface))
 		{
 			// Reject points inside volumes if avoid volumes has been enabled
@@ -644,14 +634,14 @@ AMRUKAnchor* AMRUKRoom::Raycast(const FVector& Origin, const FVector& Direction,
 
 	MRUKShared::MrukHit Hit{};
 
-	if (MRUKShared::GetInstance()->AnchorStoreRaycastRoom(ToMrukShared(AnchorUUID), FromUnrealToOpenXr(Origin, WorldToMeters), FromUnrealToOpenXr(Direction), MaxDist / WorldToMeters, ToMrukShared(LabelFilter), &Hit))
+	if (MRUKShared::GetInstance()->RaycastRoom(ToMrukShared(AnchorUUID), PositionToMrukShared(Origin, WorldToMeters), UnitVectorToMrukShared(Direction), MaxDist / WorldToMeters, ToMrukShared(LabelFilter), &Hit))
 	{
-		AMRUKAnchor* Anchor = FindAnchorByUuid(ToOculusXR(Hit.sceneAnchorUuid));
+		AMRUKAnchor* Anchor = FindAnchorByUuid(ToUnreal(Hit.sceneAnchorUuid));
 		if (Anchor)
 		{
 			OutHit.HitDistance = Hit.hitDistance * WorldToMeters;
-			OutHit.HitNormal = -FromOpenXrToUnreal(Hit.hitNormal);
-			OutHit.HitPosition = FromOpenXrToUnreal(Hit.hitPosition, WorldToMeters);
+			OutHit.HitNormal = -UnitVectorToUnreal(Hit.hitNormal);
+			OutHit.HitPosition = PositionToUnreal(Hit.hitPosition, WorldToMeters);
 			return Anchor;
 		}
 	}
@@ -667,21 +657,21 @@ bool AMRUKRoom::RaycastAll(const FVector& Origin, const FVector& Direction, floa
 	MRUKShared::MrukHit Hits[MaxHitCount];
 	uint32_t HitCount = MaxHitCount;
 
-	if (MRUKShared::GetInstance()->AnchorStoreRaycastRoomAll(ToMrukShared(AnchorUUID), FromUnrealToOpenXr(Origin, WorldToMeters), FromUnrealToOpenXr(Direction), MaxDist / WorldToMeters, ToMrukShared(LabelFilter), Hits, &HitCount))
+	if (MRUKShared::GetInstance()->RaycastRoomAll(ToMrukShared(AnchorUUID), PositionToMrukShared(Origin, WorldToMeters), UnitVectorToMrukShared(Direction), MaxDist / WorldToMeters, ToMrukShared(LabelFilter), Hits, &HitCount))
 	{
 		OutHits.Reserve(HitCount);
 		OutAnchors.Reserve(HitCount);
 		for (uint32_t i = 0; i < HitCount; ++i)
 		{
 			const MRUKShared::MrukHit& Hit = Hits[i];
-			AMRUKAnchor* Anchor = FindAnchorByUuid(ToOculusXR(Hit.sceneAnchorUuid));
+			AMRUKAnchor* Anchor = FindAnchorByUuid(ToUnreal(Hit.sceneAnchorUuid));
 			if (Anchor)
 			{
 				OutAnchors.Push(Anchor);
 				FMRUKHit OutHit;
 				OutHit.HitDistance = Hit.hitDistance * WorldToMeters;
-				OutHit.HitNormal = -FromOpenXrToUnreal(Hit.hitNormal);
-				OutHit.HitPosition = FromOpenXrToUnreal(Hit.hitPosition, WorldToMeters);
+				OutHit.HitNormal = -UnitVectorToUnreal(Hit.hitNormal);
+				OutHit.HitPosition = PositionToUnreal(Hit.hitPosition, WorldToMeters);
 				OutHits.Push(OutHit);
 			}
 		}
@@ -1195,20 +1185,27 @@ bool AMRUKRoom::GenerateProceduralSceneMesh(UMaterialInterface* Material)
 
 FVector AMRUKRoom::ComputeCentroid(double Z)
 {
-	if (!FloorAnchor || !CeilingAnchor)
+	if (!FloorAnchor)
 	{
 		return FVector::ZeroVector;
 	}
 
 	Z = FMath::Clamp(Z, 0.0, 1.0);
 
+	double TotalArea = 0.0f;
+	FVector2D FloorCentroid = FVector2D::ZeroVector;
 	const FVector2D CentroidLS = UMRUKBPLibrary::ComputeCentroid(FloorAnchor->PlaneBoundary2D);
 	const FVector CentroidWS = FloorAnchor->GetActorTransform().TransformPosition(FVector(0.0, CentroidLS.X, CentroidLS.Y));
-
-	const FVector Dir = (CeilingAnchor->GetActorLocation() - FloorAnchor->GetActorLocation());
-	const double Dist = Dir.Length();
-
-	return CentroidWS + Dir.GetSafeNormal() * FMath::Lerp(0.0, Dist, Z);
+	const FVector PlaneNormal = FloorAnchor->GetActorTransform().TransformVector(FVector::UpVector);
+	const float Area = CalculatePolygonArea(FloorAnchor->PlaneBoundary2D);
+	// Multiply the area by the dot product of up vector (0,0,1) and the plane normal
+	FloorCentroid += FVector2D(CentroidWS.X, CentroidWS.Y) * Area * PlaneNormal.Z;
+	TotalArea += Area * PlaneNormal.Z;
+	if (TotalArea > 0.0f)
+	{
+		FloorCentroid /= TotalArea;
+	}
+	return FVector(FloorCentroid.X, FloorCentroid.Y, FMath::Lerp(RoomBounds.Min.Z, RoomBounds.Max.Z, Z));
 }
 
 void AMRUKRoom::AttachProceduralMeshToWalls(const TArray<FMRUKTexCoordModes>& WallTextureCoordinateModes, const TArray<FString>& CutHoleLabels, UMaterialInterface* ProceduralMaterial)
@@ -1410,29 +1407,6 @@ TArray<AActor*> AMRUKRoom::SpawnInteriorFromStream(const TMap<FString, FMRUKSpaw
 bool AMRUKRoom::IsWallAnchor(AMRUKAnchor* Anchor) const
 {
 	return WallAnchors.Contains(Anchor);
-}
-
-void AMRUKRoom::UpdateWorldLock(APawn* Pawn, const FVector& HeadWorldPosition) const
-{
-	const auto& Anchor = FloorAnchor;
-	if (!Anchor)
-	{
-		return;
-	}
-
-	FTransform AnchorTransform;
-	FOculusXRAnchorLocationFlags AnchorFlags{};
-	if (Anchor->SpaceHandle && UOculusXRAnchorBPFunctionLibrary::TryGetAnchorTransformByHandle(Anchor->SpaceHandle, AnchorTransform, AnchorFlags, EOculusXRAnchorSpace::Tracking))
-	{
-		const FTransform& Transform = Anchor->GetActorTransform();
-		const FTransform Adjustment = AnchorTransform.Inverse() * Transform;
-
-		// Only use the Yaw component of the rotation, we don't want to introduce any errors with
-		// pitch or roll.
-		const double Yaw = Adjustment.Rotator().Yaw;
-
-		Pawn->SetActorLocationAndRotation(Adjustment.GetLocation(), FRotator(0.0, Yaw, 0.0));
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

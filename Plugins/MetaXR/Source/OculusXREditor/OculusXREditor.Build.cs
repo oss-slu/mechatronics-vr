@@ -27,6 +27,7 @@ public class OculusXREditor : ModuleRules
                 "OculusXRHMD",
                 "OculusXRMovement",
                 "OculusXRPassthrough",
+                "OculusXRTelemetry",
                 "OVRPluginXR",
                 "OculusXRProjectSetupTool",
                 "HTTP",
@@ -44,6 +45,7 @@ public class OculusXREditor : ModuleRules
                     // Relative to Engine\Plugins\Runtime\Oculus\OculusVR\Source
                     "OculusXREditor/Private",
                     "OculusXRHMD/Private",
+                    "OculusXRTelemetry/Private",
                     "OculusXRProjectSetupTool/Private"
                 });
 

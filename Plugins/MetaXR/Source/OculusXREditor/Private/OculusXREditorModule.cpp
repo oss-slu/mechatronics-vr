@@ -27,12 +27,14 @@
 #include "OculusXRHMDModule.h"
 #include "OculusXRPrivacyNotification.h"
 #include "OculusXRSettingsToggle.h"
+#include "OculusXRTelemetryModule.h"
 #include "OculusXRTelemetryPrivacySettings.h"
 #include "OculusXRTelemetry.h"
 #include "OculusXRTelemetryEditorEvents.h"
 #include "OculusXRBuildAnalytics.h"
 #include "OculusXRPTLayerComponentDetailsCustomization.h"
 #include "OculusXRPassthroughLayerComponent.h"
+#include "OculusXROSVersionPropertyCustomization.h"
 #include "SExternalImageReference.h"
 #include "AndroidRuntimeSettings.h"
 #include "SHyperlinkLaunchURL.h"
@@ -43,7 +45,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "HAL/FileManager.h"
 #include "Widgets/Input/SHyperlink.h"
-
+#include "OculusXRSyntheticEnvironmentServer.h"
 #define LOCTEXT_NAMESPACE "OculusXREditor"
 
 const FName FOculusXREditorModule::OculusPlatToolTabName = FName("OculusXRPlaformTool");
@@ -60,6 +62,10 @@ void FOculusXREditorModule::StartupModule()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(UOculusXRPassthroughLayerComponent::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FOculusXRPTLayerComponentDetailsCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FOculusXROSVersion::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOculusXROSVersionCustomization::MakeInstance));
 
 	FOculusAssetDirectory::LoadForCook();
 
@@ -115,22 +121,12 @@ void FOculusXREditorModule::StartupModule()
 
 		PluginCommands->MapAction(
 			FOculusToolCommands::Get().CheckForUpdateXRSim,
-			FExecuteAction::CreateRaw(this, &FOculusXREditorModule::CheckForXRSimUpdate));
+			FExecuteAction::CreateRaw(this, &FOculusXREditorModule::CheckForXRSimUpdate, false));
 
 		PluginCommands->MapAction(
 			FOculusToolCommands::Get().UpdateXRSim,
 			FExecuteAction::CreateRaw(this, &FOculusXREditorModule::UpdateXRSimToLatest),
 			FCanExecuteAction::CreateRaw(this, &FOculusXREditorModule::CanUpdatedToLatest));
-
-		int32 numRooms = FOculusToolCommands::Get().RoomCommands.Num();
-		for (int ii = 0; ii < numRooms; ++ii)
-		{
-			PluginCommands->MapAction(
-				FOculusToolCommands::Get().RoomCommands[ii],
-				FExecuteAction::CreateLambda([this, ii]() {
-					FOculusXREditorModule::LaunchRoom(ii);
-				}));
-		}
 
 		PluginCommands->MapAction(
 			FOculusToolCommands::Get().StopServer,
@@ -174,12 +170,7 @@ void FOculusXREditorModule::StartupModule()
 			bProjectCreatedFromMRTemplate = ProjectStatus.Category == "MetaMRTemplate";
 		}
 		const auto& Annotated = StartEvent.AddAnnotation("created_from_mr_template", bProjectCreatedFromMRTemplate ? "true" : "false");
-
-		// OVRPlugin may not be initialized, we need to check if it is initialized before sending the event.
-		if (FOculusXRHMDModule::GetPluginWrapper().IsInitialized())
-		{
-			FOculusXRHMDModule::GetPluginWrapper().SendEvent2("editor_start", bProjectCreatedFromMRTemplate ? "created_from_mr_template" : "", "integration");
-		}
+		OculusXRTelemetry::SendEvent("editor_start", bProjectCreatedFromMRTemplate ? "created_from_mr_template" : "", "integration");
 
 		UEditorPerformanceSettings* EditorPerformanceSettings = GetMutableDefault<UEditorPerformanceSettings>();
 		if (EditorPerformanceSettings->bOverrideMaxViewportRenderingResolution)
@@ -194,7 +185,7 @@ void FOculusXREditorModule::StartupModule()
 		FPropertyChangedEvent DisabledMaxResolutionEvent(EditorPerformanceSettings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, MaxViewportRenderingResolution)), EPropertyChangeType::ValueSet);
 		EditorPerformanceSettings->PostEditChangeProperty(DisabledMaxResolutionEvent);
 
-		CheckForXRSimUpdate();
+		CheckForXRSimUpdate(true);
 	}
 }
 
@@ -288,9 +279,9 @@ void FOculusXREditorModule::ToggleOpenXRRuntime()
 	FOculusXRHMDModule::ToggleOpenXRRuntime();
 }
 
-void FOculusXREditorModule::CheckForXRSimUpdate()
+void FOculusXREditorModule::CheckForXRSimUpdate(bool bCheckSkippedVersion)
 {
-	FOculusXRHMDModule::CheckForXRSimUpdate();
+	FOculusXRHMDModule::CheckForXRSimUpdate(bCheckSkippedVersion);
 }
 
 void FOculusXREditorModule::UpdateXRSimToLatest()
@@ -391,11 +382,24 @@ TSharedRef<SWidget> FOculusXREditorModule::CreateXrSimToolbarEntryMenu(TSharedPt
 
 void FOculusXREditorModule::CreateSESSubMenus(FMenuBuilder& MenuBuilder)
 {
+
 	MenuBuilder.BeginSection("Synthetic Environment Server", LOCTEXT("Synthetic Environment Server", "Synthetic Environment Server"));
-	for (auto room : FOculusToolCommands::Get().RoomCommands)
+#if PLATFORM_WINDOWS
+	const auto& rooms = FMetaXRSES::GetSynthEnvRooms();
+	int32 numRooms = rooms.Num();
+
+	static const FString Launch("Launch ");
+	for (int i = 0; i < numRooms; ++i)
 	{
-		MenuBuilder.AddMenuEntry(room);
+		const FString Label = Launch + rooms[i].GuiName;
+		const FString Tooltip = Launch + rooms[i].GuiName + TEXT("_ToolTip");
+
+		FUIAction ItemAction(FExecuteAction::CreateLambda([this, i]() {
+			FOculusXREditorModule::LaunchRoom(i);
+		}));
+		MenuBuilder.AddMenuEntry(FText::FromString(Label), FText::FromString(Tooltip), FSlateIcon(), ItemAction);
 	}
+#endif
 	MenuBuilder.AddMenuEntry(FOculusToolCommands::Get().StopServer);
 	MenuBuilder.EndSection();
 }

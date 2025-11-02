@@ -595,7 +595,7 @@ namespace OculusXR
 				XrInteractionProfileState Profile;
 				Profile.type = XR_TYPE_INTERACTION_PROFILE_STATE;
 				Profile.next = nullptr;
-				const XrPath TopLevelUserPath = DeviceHand != EControllerHand::Left ? ControllerPaths.LeftHandPath : ControllerPaths.RightHandPath;
+				const XrPath TopLevelUserPath = DeviceHand == EControllerHand::Left ? ControllerPaths.LeftHandPath : ControllerPaths.RightHandPath;
 				XR_ENSURE(xrGetCurrentInteractionProfile(Session, TopLevelUserPath, &Profile));
 
 				const XrPath InteractionProfile = Profile.interactionProfile;

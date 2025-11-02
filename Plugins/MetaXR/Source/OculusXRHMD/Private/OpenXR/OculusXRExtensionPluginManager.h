@@ -41,7 +41,7 @@ namespace OculusXR
 #ifdef WITH_OCULUS_BRANCH
 		FEnvironmentDepthExtensionPlugin EnvironmentDepthExtensionPlugin;
 #endif
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH))
 		FSpaceWarpExtensionPlugin SpaceWarpExtensionPlugin;
 #endif // defined(WITH_OCULUS_BRANCH)
 		FMultiPlayerStateExtensionPlugin MultiPlayerStateExtensionPlugin;

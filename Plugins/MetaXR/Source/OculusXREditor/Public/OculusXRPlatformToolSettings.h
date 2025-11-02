@@ -87,6 +87,8 @@ class OCULUSXREDITOR_API UOculusXRPlatformToolSettings : public UObject
 public:
 	UOculusXRPlatformToolSettings();
 
+	virtual void PostInitProperties() override;
+
 	uint8 GetTargetPlatform()
 	{
 		return (uint8)OculusTargetPlatform;

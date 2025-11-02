@@ -25,7 +25,8 @@ public class OculusXRSoftwareOcclusion : ModuleRules
         // FSceneSoftwareOcclusion needs to access FScene, etc. of Renderer.
         PrivateIncludePaths.AddRange(
             new string[] {
-                    Path.Combine(EngineDir, "Source/Runtime/Renderer/Private")
+                    Path.Combine(EngineDir, "Source/Runtime/Renderer/Private"),
+                    Path.Combine(EngineDir, "Source/Runtime/Renderer/Internal")
             });
 
         PrivateDependencyModuleNames.AddRange(new string[]

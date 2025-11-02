@@ -16,7 +16,6 @@
 #endif
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
-#include "OculusXRTelemetry.h"
 #if PLATFORM_WINDOWS
 #include "OculusXRSimulator.h"
 #include "OculusXRSyntheticEnvironmentServer.h"
@@ -135,7 +134,6 @@ void FOculusXRHMDModule::ShutdownModule()
 
 	if (PluginWrapper.IsInitialized())
 	{
-		OculusXRTelemetry::FTelemetryBackend::OnEditorShutdown();
 		PluginWrapper.Shutdown2();
 		OculusPluginWrapper::DestroyOculusPluginWrapper(&PluginWrapper);
 	}
@@ -489,10 +487,10 @@ bool FOculusXRHMDModule::IsSimulatorInstalled()
 #endif
 }
 
-void FOculusXRHMDModule::CheckForXRSimUpdate()
+void FOculusXRHMDModule::CheckForXRSimUpdate(bool bCheckSkippedVersion)
 {
 #if PLATFORM_WINDOWS
-	FMetaXRSimulator::Get().FetchAvailableVersions();
+	FMetaXRSimulator::Get().FetchAvailableVersions(bCheckSkippedVersion);
 #endif
 }
 

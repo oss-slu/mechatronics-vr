@@ -9,6 +9,7 @@
 
 #include "OculusXRHMD_Settings.h"
 #include "OculusXRSimulator.h"
+#include "OculusXRSyntheticEnvironmentServer.h"
 
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
@@ -33,6 +34,13 @@ UOculusXRHMDRuntimeSettings::UOculusXRHMDRuntimeSettings(const FObjectInitialize
 
 	bFocusAware = DefaultSettings.Flags.bFocusAware;
 	bDynamicResolution = DefaultSettings.Flags.bPixelDensityAdaptive;
+
+	bHorizonOSVersionOverride = false;
+	MinOSVersion.Version = 0;
+	MinOSVersion.bLatest = true;
+	TargetOSVersion.Version = 0;
+	TargetOSVersion.bLatest = true;
+
 	XrApi = DefaultSettings.XrApi;
 	ColorSpace = DefaultSettings.ColorSpace;
 	ControllerPoseAlignment = DefaultSettings.ControllerPoseAlignment;
@@ -88,6 +96,9 @@ UOculusXRHMDRuntimeSettings::UOculusXRHMDRuntimeSettings(const FObjectInitialize
 	bDynamicResolution = false;
 	bCompositeDepthMobile = false;
 	bFocusAware = true;
+	bHorizonOSVersionOverride = false;
+	MinOSVersion.Version = 0;
+	TargetOSVersion.Version = 0;
 	XrApi = EOculusXRXrApi::OVRPluginOpenXR;
 	bLateLatching = false;
 	ColorSpace = EOculusXRColorSpace::P3;
@@ -204,6 +215,11 @@ void UOculusXRHMDRuntimeSettings::PostEditChangeProperty(struct FPropertyChanged
 		{
 			SystemSplashBackground = ESystemSplashBackgroundType::Contextual;
 			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, SystemSplashBackground)), GetDefaultConfigFilename());
+		}
+
+		if (PropertyChangedEvent.Property->GetName() == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, OculusXRSimulatorPreferredVersion))
+		{
+			FMetaXRSES::PopulateSynthEnvRooms();
 		}
 	}
 }

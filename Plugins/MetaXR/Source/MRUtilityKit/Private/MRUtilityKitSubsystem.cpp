@@ -36,18 +36,72 @@ AMRUKRoom* FindRoomByUuid(UMRUKSubsystem* Subsystem, const FOculusXRUUID& RoomUu
 	return nullptr;
 }
 
+static void UpdateRoomAnchorProperties(const MRUKShared::MrukRoomAnchor* RoomAnchor, AMRUKRoom* Room)
+{
+	const float WorldToMeters = Room->GetWorld() ? Room->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+
+	Room->AnchorUUID = ToUnreal(RoomAnchor->uuid);
+	Room->SpaceHandle = RoomAnchor->space;
+	Room->SetActorTransform(ToUnreal(RoomAnchor->pose, WorldToMeters));
+	Room->RoomMesh = NewObject<UMRUKRoomMesh>(Room);
+
+	const MRUKShared::MrukRoomMesh& RoomMesh = RoomAnchor->roomMesh;
+
+	// Set the vertex buffer of the room mesh
+	Room->RoomMesh->Vertices.SetNum(RoomMesh.verticesCount);
+	for (uint32_t i = 0; i < RoomMesh.verticesCount; ++i)
+	{
+		Room->RoomMesh->Vertices[i] = PositionToUnreal(RoomMesh.vertices[i], WorldToMeters);
+	}
+
+	// Set the faces of the room mesh
+	Room->RoomMesh->Faces.SetNum(RoomMesh.facesCount);
+	for (uint32_t i = 0; i < RoomMesh.facesCount; ++i)
+	{
+		const MRUKShared::MrukRoomFace& face = RoomMesh.faces[i];
+		FMRUKRoomFace& RoomFace = Room->RoomMesh->Faces[i];
+		RoomFace.Uuid = ToUnreal(face.uuid);
+		RoomFace.ParentUuid = ToUnreal(face.parentUuid);
+		RoomFace.SemanticClassification = ToUnreal(face.semanticLabel);
+		RoomFace.Indices.SetNum(face.indicesCount);
+		for (uint32_t j = 0; j < face.indicesCount; ++j)
+		{
+			RoomFace.Indices[j] = face.indices[j];
+		}
+	}
+}
+
+static void MrukSetTrackingSpacePose(MRUKShared::MrukPosef Pose)
+{
+	if (const APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GEngine, 0))
+	{
+		if (APawn* Pawn = PlayerController->GetPawn())
+		{
+			const float WorldToMeters = Pawn->GetWorld() ? Pawn->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+			auto Transform = ToUnreal(Pose, WorldToMeters);
+			Pawn->SetActorLocationAndRotation(Transform.GetLocation(), Transform.GetRotation());
+		}
+	}
+}
+
+static MRUKShared::MrukPosef MrukGetTrackingSpacePose()
+{
+	const FXRTrackingSystemBase* TS = static_cast<FXRTrackingSystemBase*>(GEngine->XRSystem.Get());
+	const auto TrackingToWorld = TS->GetTrackingToWorldTransform();
+	return ToMrukShared(TrackingToWorld, TS->GetWorldToMetersScale());
+}
+
 static void MrukOnPreRoomAnchorAdded(const MRUKShared::MrukRoomAnchor* RoomAnchor, void* UserContext)
 {
 	auto* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = Subsystem->SpawnRoom();
-	Room->AnchorUUID = ToOculusXR(RoomAnchor->uuid);
-	Room->SpaceHandle = RoomAnchor->space;
+	UpdateRoomAnchorProperties(RoomAnchor, Room);
 }
 
 static void MrukOnRoomAnchorAdded(const MRUKShared::MrukRoomAnchor* RoomAnchor, void* UserContext)
 {
 	auto* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
-	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToOculusXR(RoomAnchor->uuid));
+	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(RoomAnchor->uuid));
 	// Room has been added before in MrukOnPreRoomAnchorAdded()
 	check(Room);
 	Room->InitializeRoom();
@@ -57,10 +111,9 @@ static void MrukOnRoomAnchorAdded(const MRUKShared::MrukRoomAnchor* RoomAnchor, 
 static void MrukOnRoomAnchorUpdated(const MRUKShared::MrukRoomAnchor* RoomAnchor, const MRUKShared::MrukUuid* OldRoomAnchorUuid, bool SignificantChange, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
-	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToOculusXR(*OldRoomAnchorUuid));
+	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(*OldRoomAnchorUuid));
 	check(Room);
-	Room->AnchorUUID = ToOculusXR(RoomAnchor->uuid);
-	Room->SpaceHandle = RoomAnchor->space;
+	UpdateRoomAnchorProperties(RoomAnchor, Room);
 	if (SignificantChange)
 	{
 		Room->InitializeRoom();
@@ -71,7 +124,7 @@ static void MrukOnRoomAnchorUpdated(const MRUKShared::MrukRoomAnchor* RoomAnchor
 static void MrukOnRoomAnchorRemoved(const MRUKShared::MrukRoomAnchor* RoomAnchor, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
-	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToOculusXR(RoomAnchor->uuid));
+	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(RoomAnchor->uuid));
 	Subsystem->OnRoomRemoved.Broadcast(Room);
 	Subsystem->Rooms.Remove(Room);
 	Room->Destroy();
@@ -83,8 +136,8 @@ static void UpdateAnchorProperties(const MRUKShared::MrukSceneAnchor* SceneAncho
 	TArray<FVector2D> PlaneBoundary;
 	if (SceneAnchor->hasPlane)
 	{
-		Plane = ToOculusXR(Room->GetWorld(), SceneAnchor->plane);
-		PlaneBoundary = ToOculusXR(Room->GetWorld(), SceneAnchor->planeBoundary, SceneAnchor->planeBoundaryCount);
+		Plane = ToUnreal(Room->GetWorld(), SceneAnchor->plane);
+		PlaneBoundary = ToUnreal(Room->GetWorld(), SceneAnchor->planeBoundary, SceneAnchor->planeBoundaryCount);
 	}
 	else
 	{
@@ -94,7 +147,7 @@ static void UpdateAnchorProperties(const MRUKShared::MrukSceneAnchor* SceneAncho
 	FBox3d Volume;
 	if (SceneAnchor->hasVolume)
 	{
-		Volume = ToOculusXR(Room->GetWorld(), SceneAnchor->volume);
+		Volume = ToUnreal(Room->GetWorld(), SceneAnchor->volume);
 	}
 	else
 	{
@@ -116,15 +169,17 @@ static void UpdateAnchorProperties(const MRUKShared::MrukSceneAnchor* SceneAncho
 		}
 	}
 
-	Anchor->Setup(ToOculusXR(SceneAnchor->uuid), SceneAnchor->space, ToOculusXR(SceneAnchor->pose),
-		TArray{ ToOculusXR(SceneAnchor->semanticLabel) }, Plane,
+	const float WorldToMeters = Room->GetWorld() ? Room->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+
+	Anchor->Setup(ToUnreal(SceneAnchor->uuid), SceneAnchor->space, ToUnreal(SceneAnchor->pose, WorldToMeters),
+		TArray{ ToUnreal(SceneAnchor->semanticLabel) }, Plane,
 		PlaneBoundary, Volume, std::move(GlobalMeshPositions), std::move(GlobalMeshIndices));
 }
 
 static void MrukOnSceneAnchorAdded(const MRUKShared::MrukSceneAnchor* SceneAnchor, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
-	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToOculusXR(SceneAnchor->roomUuid));
+	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(SceneAnchor->roomUuid));
 	check(Room);
 	AMRUKAnchor* Anchor = Room->SpawnAnchor();
 	UpdateAnchorProperties(SceneAnchor, Room, Anchor);
@@ -135,9 +190,9 @@ static void MrukOnSceneAnchorAdded(const MRUKShared::MrukSceneAnchor* SceneAncho
 static void MrukOnSceneAnchorUpdated(const MRUKShared::MrukSceneAnchor* SceneAnchor, bool SignificantChange, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
-	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToOculusXR(SceneAnchor->roomUuid));
+	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(SceneAnchor->roomUuid));
 	check(Room);
-	AMRUKAnchor* Anchor = Room->FindAnchorByUuid(ToOculusXR(SceneAnchor->uuid));
+	AMRUKAnchor* Anchor = Room->FindAnchorByUuid(ToUnreal(SceneAnchor->uuid));
 	check(Anchor);
 	UpdateAnchorProperties(SceneAnchor, Room, Anchor);
 	if (SignificantChange)
@@ -149,9 +204,9 @@ static void MrukOnSceneAnchorUpdated(const MRUKShared::MrukSceneAnchor* SceneAnc
 static void MrukOnSceneAnchorRemoved(const MRUKShared::MrukSceneAnchor* SceneAnchor, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
-	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToOculusXR(SceneAnchor->roomUuid));
+	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(SceneAnchor->roomUuid));
 	check(Room);
-	AMRUKAnchor* Anchor = Room->FindAnchorByUuid(ToOculusXR(SceneAnchor->uuid));
+	AMRUKAnchor* Anchor = Room->FindAnchorByUuid(ToUnreal(SceneAnchor->uuid));
 	Room->OnAnchorRemoved.Broadcast(Anchor);
 	Room->RemoveAnchor(Anchor);
 }
@@ -225,7 +280,7 @@ bool UMRUKSubsystem::RaycastAll(const FVector& Origin, const FVector& Direction,
 
 static void OpenXrEventHandler(void* Data, void* Context)
 {
-	MRUKShared::GetInstance()->AnchorStoreOnOpenXrEvent(Data);
+	MRUKShared::GetInstance()->OnOpenXrEvent(Data);
 }
 
 static bool IsOpenXRSystem()
@@ -269,6 +324,16 @@ void UMRUKSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	MRUKShared::GetInstance()->SetLogPrinter(SharedLibraryLogPrinter);
 
+	MRUKShared::MrukResult result = MRUKShared::GetInstance()->CreateGlobalContext();
+	if (result != MRUKShared::MRUK_SUCCESS)
+	{
+		UE_LOG(LogMRUK, Error, TEXT("Failed to initialize global context. It will not be possible to load anchors: %d"), result);
+	}
+	else
+	{
+		UE_LOG(LogMRUK, Log, TEXT("Global context initialized successfully"));
+	}
+
 	uint64_t OpenXrInstance = 0;
 	uint64_t OpenXrSession = 0;
 	UOculusXRFunctionLibrary::GetNativeOpenXRHandles(&OpenXrInstance, &OpenXrSession);
@@ -295,26 +360,14 @@ void UMRUKSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			UOculusXRFunctionLibrary::RegisterOpenXrEventHandler(OpenXrEventHandler, this);
 		}
 
-		MRUKShared::MrukResult result = MRUKShared::GetInstance()->AnchorStoreCreate(OpenXrInstance, OpenXrSession, OpenXrInstanceProcAddr, OpenXrBaseSpace, NULL, 0);
+		result = MRUKShared::GetInstance()->InitOpenXr(OpenXrInstance, OpenXrSession, OpenXrInstanceProcAddr, OpenXrBaseSpace, NULL, 0);
 		if (result != MRUKShared::MRUK_SUCCESS)
 		{
-			UE_LOG(LogMRUK, Error, TEXT("Failed to initialize anchor store. It will not be possible to load anchors: %d"), result);
+			UE_LOG(LogMRUK, Error, TEXT("Failed to initialize Open XR. It will not be possible to load anchors: %d"), result);
 		}
 		else
 		{
-			UE_LOG(LogMRUK, Log, TEXT("Anchor store initialized successfully"));
-		}
-	}
-	else
-	{
-		MRUKShared::MrukResult result = MRUKShared::GetInstance()->AnchorStoreCreateWithoutOpenXr();
-		if (result != MRUKShared::MRUK_SUCCESS)
-		{
-			UE_LOG(LogMRUK, Error, TEXT("Failed to initialize anchor store. It will not be possible to load anchors: %d"), result);
-		}
-		else
-		{
-			UE_LOG(LogMRUK, Log, TEXT("Anchor store initialized successfully"));
+			UE_LOG(LogMRUK, Log, TEXT("Open XR initialized successfully"));
 		}
 	}
 
@@ -329,7 +382,9 @@ void UMRUKSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		.onDiscoveryFinished = MrukOnDiscoveryFinished,
 		.userContext = this,
 	};
-	MRUKShared::GetInstance()->AnchorStoreRegisterEventListener(EventListener);
+	MRUKShared::GetInstance()->RegisterEventListener(EventListener);
+	MRUKShared::GetInstance()->SetTrackingSpacePoseGetter(MrukGetTrackingSpacePose);
+	MRUKShared::GetInstance()->SetTrackingSpacePoseSetter(MrukSetTrackingSpacePose);
 }
 
 void UMRUKSubsystem::Deinitialize()
@@ -341,7 +396,7 @@ void UMRUKSubsystem::Deinitialize()
 
 	if (MRUKShared::GetInstance())
 	{
-		MRUKShared::GetInstance()->AnchorStoreDestroy();
+		MRUKShared::GetInstance()->DestroyGlobalContext();
 	}
 
 	MRUKShared::FreeMRUKSharedLibrary();
@@ -366,7 +421,7 @@ void UMRUKSubsystem::UnregisterRoom(AMRUKRoom* Room)
 	{
 		MRUKShared::MrukUuid Uuid{};
 		memcpy(&Uuid.data, Room->AnchorUUID.UUIDBytes, 2 * sizeof(uint64_t));
-		MRUKShared::GetInstance()->AnchorStoreClearRoom(Uuid);
+		MRUKShared::GetInstance()->ClearRoom(Uuid);
 	}
 }
 
@@ -419,9 +474,9 @@ AMRUKRoom* UMRUKSubsystem::GetCurrentRoom() const
 
 FString UMRUKSubsystem::SaveSceneToJsonString()
 {
-	const char* Json = MRUKShared::GetInstance()->AnchorStoreSaveSceneToJson(true, NULL, 0);
+	const char* Json = MRUKShared::GetInstance()->SaveSceneToJson(true, NULL, 0);
 	const FString Result(Json);
-	MRUKShared::GetInstance()->AnchorStoreFreeJson(Json);
+	MRUKShared::GetInstance()->FreeJson(Json);
 	return Result;
 }
 
@@ -433,8 +488,9 @@ void UMRUKSubsystem::LoadSceneFromJsonString(const FString& String)
 		return;
 	}
 
+	const UOculusXRHMDRuntimeSettings* Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
 	SceneLoadStatus = EMRUKInitStatus::Busy;
-	MRUKShared::MrukResult result = MRUKShared::GetInstance()->AnchorStoreLoadSceneFromJson(TCHAR_TO_ANSI(*String), true, MRUKShared::MRUK_SCENE_MODEL_V1);
+	MRUKShared::MrukResult result = MRUKShared::GetInstance()->LoadSceneFromJson(TCHAR_TO_ANSI(*String), true, MRUKShared::MRUK_SCENE_MODEL_V1);
 	if (result != MRUKShared::MRUK_SUCCESS)
 	{
 		SceneLoadStatus = EMRUKInitStatus::Failed;
@@ -451,7 +507,8 @@ void UMRUKSubsystem::LoadSceneFromDevice()
 	}
 
 	SceneLoadStatus = EMRUKInitStatus::Busy;
-	MRUKShared::MrukResult result = MRUKShared::GetInstance()->AnchorStoreStartDiscovery(true, MRUKShared::MRUK_SCENE_MODEL_V1);
+	const UOculusXRHMDRuntimeSettings* Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
+	MRUKShared::MrukResult result = MRUKShared::GetInstance()->StartDiscovery(true, MRUKShared::MRUK_SCENE_MODEL_V1);
 	if (result != MRUKShared::MRUK_SUCCESS)
 	{
 		SceneLoadStatus = EMRUKInitStatus::Failed;
@@ -463,7 +520,7 @@ void UMRUKSubsystem::LoadSceneFromDevice()
 void UMRUKSubsystem::ClearScene()
 {
 	SceneLoadStatus = EMRUKInitStatus::None;
-	MRUKShared::GetInstance()->AnchorStoreClearRooms();
+	MRUKShared::GetInstance()->ClearRooms();
 }
 
 AMRUKAnchor* UMRUKSubsystem::TryGetClosestSurfacePosition(const FVector& WorldPosition, FVector& OutSurfacePosition, const FMRUKLabelFilter& LabelFilter, double MaxDistance)
@@ -654,7 +711,7 @@ UOculusXRRoomLayoutManagerComponent* UMRUKSubsystem::GetRoomLayoutManager()
 
 bool UMRUKSubsystem::DiscoveryIsRunning() const
 {
-	return MRUKShared::GetInstance()->AnchorStoreIsDiscoveryRunning();
+	return MRUKShared::GetInstance()->IsDiscoveryRunning();
 }
 
 AMRUKRoom* UMRUKSubsystem::SpawnRoom()
@@ -690,23 +747,18 @@ void UMRUKSubsystem::Tick(float DeltaTime)
 {
 	if (EnableWorldLock)
 	{
-		if (const auto Room = GetCurrentRoom())
+		if (const APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
 		{
-			if (const APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
+			if (APawn* Pawn = PlayerController->GetPawn())
 			{
-				if (APawn* Pawn = PlayerController->GetPawn())
+				MRUKShared::MrukPosef SharedLibOffset;
+				SharedLibOffset.position = { 0.0f, 0.0f, 0.0f };
+				SharedLibOffset.rotation = { 0.0f, 0.0f, 0.0f, 1.0f };
+				if (MRUKShared::GetInstance()->GetWorldLockOffset(&SharedLibOffset))
 				{
-					const auto& PawnTransform = Pawn->GetActorTransform();
-
-					FVector HeadPosition;
-					FRotator Unused;
-
-					// Get the position and rotation of the VR headset
-					UHeadMountedDisplayFunctionLibrary::GetOrientationAndPosition(Unused, HeadPosition);
-
-					HeadPosition = PawnTransform.TransformPosition(HeadPosition);
-
-					Room->UpdateWorldLock(Pawn, HeadPosition);
+					const float WorldToMeters = GetWorld() ? GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+					auto Transform = ToUnreal(SharedLibOffset, WorldToMeters);
+					Pawn->SetActorLocationAndRotation(Transform.GetTranslation(), Transform.GetRotation());
 				}
 			}
 		}
@@ -720,12 +772,12 @@ void UMRUKSubsystem::Tick(float DeltaTime)
 		if (NewBaseSpace != OpenXrBaseSpace)
 		{
 			OpenXrBaseSpace = NewBaseSpace;
-			MRUKShared::GetInstance()->AnchorStoreSetBaseSpace(OpenXrBaseSpace);
+			MRUKShared::GetInstance()->SetBaseSpace(OpenXrBaseSpace);
 		}
 
 		UOculusXRFunctionLibrary::GetNextPredictedDisplayTime(&NextPredictedDisplayTime);
 	}
-	MRUKShared::GetInstance()->AnchorStoreTick(NextPredictedDisplayTime);
+	MRUKShared::GetInstance()->TickGlobalContext(NextPredictedDisplayTime);
 }
 
 bool UMRUKSubsystem::IsTickable() const
