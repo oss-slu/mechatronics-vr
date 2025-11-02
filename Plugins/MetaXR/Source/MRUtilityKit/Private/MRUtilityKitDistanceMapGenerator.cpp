@@ -302,10 +302,8 @@ void AMRUKDistanceMapGenerator::CreateMaskMeshesForRoom(AMRUKRoom* Room)
 
 		SpawnedActors.Push(CreateMaskMeshOfAnchor(Anchor));
 	}
-	if (Room->FloorAnchor)
-	{
-		SpawnedActors.Push(CreateMaskMeshOfAnchor(Room->FloorAnchor));
-	}
+
+	SpawnedActors.Push(CreateMaskMeshOfAnchor(Room->FloorAnchor));
 
 	SpawnedMaskMeshes.Add(Room, SpawnedActors);
 
@@ -341,7 +339,7 @@ AActor* AMRUKDistanceMapGenerator::CreateMaskMeshOfAnchor(AMRUKAnchor* Anchor)
 	// The different materials have different colors. These colors will be used to create different
 	// initialization masks for the jump flood algorithm.
 
-	if (Anchor == Anchor->Room->FloorAnchor)
+	if (Anchor->Room->FloorAnchor == Anchor)
 	{
 		ProceduralMesh->SetMaterial(0, FloorMaskMaterial);
 	}

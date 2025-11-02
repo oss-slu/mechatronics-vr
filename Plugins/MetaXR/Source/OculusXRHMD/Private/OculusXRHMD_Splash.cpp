@@ -32,7 +32,11 @@ namespace OculusXRHMD
 			LayerDesc.QuadSize = FVector2D(0.01f, 0.01f);
 			LayerDesc.Priority = 0;
 			LayerDesc.PositionType = IStereoLayers::TrackerLocked;
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			LayerDesc.Texture = nullptr;
+#else
+			LayerDesc.TextureObj.Reset();
+#endif
 			UELayer = MakeShareable(new FLayer(NextLayerId++));
 			UELayer->SetDesc(LayerDesc);
 		}
@@ -431,8 +435,11 @@ namespace OculusXRHMD
 		OculusDesc.bIsDynamic = Splash.bIsDynamic || Splash.bIsExternal;
 		OculusDesc.TextureOffset = Splash.UVRect.Min;
 		OculusDesc.TextureScale = Splash.UVRect.Max;
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		OculusDesc.LoadedTexture = Splash.Texture;
-
+#else
+		OculusDesc.LoadedTexture = Splash.TextureObj;
+#endif
 		AddSplash(OculusDesc);
 	}
 
@@ -457,10 +464,26 @@ namespace OculusXRHMD
 		return false;
 	}
 
+#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+	void FSplash::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		for (FSplashLayer& SplashLayer : SplashLayers)
+		{
+			Collector.AddReferencedObject(SplashLayer.Desc.LoadingTexture);
+			Collector.AddReferencedObject(SplashLayer.Desc.LoadedTexture);
+		}
+	}
+#endif
+
 	IStereoLayers::FLayerDesc FSplash::StereoLayerDescFromOculusSplashDesc(FOculusXRSplashDesc OculusDesc)
 	{
 		IStereoLayers::FLayerDesc LayerDesc;
+
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		if (OculusDesc.LoadedTexture->GetTextureCube() != nullptr)
+#else
+		if (OculusDesc.LoadedTexture.IsValid() && OculusDesc.LoadedTexture->IsA<UTextureCube>())
+#endif
 		{
 			LayerDesc.SetShape<FCubemapLayer>();
 		}
@@ -471,7 +494,11 @@ namespace OculusXRHMD
 		LayerDesc.UVRect = FBox2D(OculusDesc.TextureOffset, OculusDesc.TextureOffset + OculusDesc.TextureScale);
 		LayerDesc.Priority = INT32_MAX - (int32)(OculusDesc.TransformInMeters.GetTranslation().X * 1000.f);
 		LayerDesc.PositionType = IStereoLayers::TrackerLocked;
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		LayerDesc.Texture = OculusDesc.LoadedTexture;
+#else
+		LayerDesc.TextureObj = OculusDesc.LoadedTexture;
+#endif
 		LayerDesc.Flags = IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO | (OculusDesc.bNoAlphaChannel ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0) | (OculusDesc.bIsDynamic ? IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE : 0);
 
 		return LayerDesc;
@@ -498,7 +525,11 @@ namespace OculusXRHMD
 				// load temporary texture (if TexturePath was specified)
 				LoadTexture(SplashLayer);
 			}
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			if (SplashLayer.Desc.LoadingTexture && SplashLayer.Desc.LoadingTexture->IsValidLowLevel())
+#else
+			if (SplashLayer.Desc.LoadingTexture.IsValid() && SplashLayer.Desc.LoadingTexture->IsValidLowLevel())
+#endif
 			{
 				SplashLayer.Desc.LoadingTexture->UpdateResource();
 				bWaitForRT = true;
@@ -512,11 +543,19 @@ namespace OculusXRHMD
 			FSplashLayer& SplashLayer = SplashLayers[SplashLayerIndex];
 
 			//@DBG BEGIN
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			if (SplashLayer.Desc.LoadingTexture && SplashLayer.Desc.LoadingTexture->IsValidLowLevel())
+#else
+			if (SplashLayer.Desc.LoadingTexture.IsValid() && SplashLayer.Desc.LoadingTexture->IsValidLowLevel())
+#endif
 			{
 				if (SplashLayer.Desc.LoadingTexture->GetResource() && SplashLayer.Desc.LoadingTexture->GetResource()->TextureRHI)
 				{
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 					SplashLayer.Desc.LoadedTexture = SplashLayer.Desc.LoadingTexture->GetResource()->TextureRHI;
+#else
+					SplashLayer.Desc.LoadedTexture = SplashLayer.Desc.LoadingTexture;
+#endif
 				}
 				else
 				{
@@ -525,7 +564,11 @@ namespace OculusXRHMD
 			}
 			//@DBG END
 
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			if (SplashLayer.Desc.LoadedTexture)
+#else
+			if (SplashLayer.Desc.LoadedTexture.IsValid())
+#endif
 			{
 				SplashLayer.Layer = MakeShareable(new FLayer(NextLayerId++));
 				SplashLayer.Layer->SetDesc(StereoLayerDescFromOculusSplashDesc(SplashLayer.Desc));
@@ -554,6 +597,7 @@ namespace OculusXRHMD
 				}
 			}
 
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			// add UE VR splash screen
 			FOculusXRSplashDesc UESplashDesc = OculusXRHMD->GetUESplashScreenDesc();
 			if (UESplashDesc.LoadedTexture != nullptr)
@@ -563,6 +607,7 @@ namespace OculusXRHMD
 				UELayer->SetDesc(StereoLayerDescFromOculusSplashDesc(UESplashDesc));
 				Layers_RenderThread_Input.Add(UELayer->Clone());
 			}
+#endif
 
 			Layers_RenderThread_Input.Sort(FLayerPtr_CompareId());
 		}
@@ -645,11 +690,19 @@ namespace OculusXRHMD
 
 		UE_LOG(LogLoadingSplash, Log, TEXT("Loading texture for splash %s..."), *InSplashLayer.Desc.TexturePath.GetAssetName());
 		InSplashLayer.Desc.LoadingTexture = Cast<UTexture>(InSplashLayer.Desc.TexturePath.TryLoad());
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		if (InSplashLayer.Desc.LoadingTexture != nullptr)
+#else
+		if (InSplashLayer.Desc.LoadingTexture.IsValid())
+#endif
 		{
 			UE_LOG(LogLoadingSplash, Log, TEXT("...Success. "));
 		}
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		InSplashLayer.Desc.LoadedTexture = nullptr;
+#else
+		InSplashLayer.Desc.LoadedTexture.Reset();
+#endif
 		InSplashLayer.Layer.Reset();
 	}
 
@@ -657,8 +710,13 @@ namespace OculusXRHMD
 	{
 		CheckInGameThread();
 
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		InSplashLayer.Desc.LoadingTexture = nullptr;
 		InSplashLayer.Desc.LoadedTexture = nullptr;
+#else
+		InSplashLayer.Desc.LoadingTexture.Reset();
+		InSplashLayer.Desc.LoadedTexture.Reset();
+#endif
 		InSplashLayer.Layer.Reset();
 	}
 

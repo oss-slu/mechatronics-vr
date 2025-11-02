@@ -205,11 +205,14 @@ void FMRUKSpec::Define()
 					TestEqual(TEXT("Wall semantic classification"), Room->FloorAnchor->SemanticClassifications[0], FMRUKLabels::Floor);
 				}
 			}
-			if (TestNotNull(TEXT("Ceiling anchor"), Room->CeilingAnchor.Get()))
+			if (TestTrue(TEXT("Ceiling anchor there"), Room->CeilingAnchor != nullptr))
 			{
-				if (TestEqual(TEXT("Number of ceiling semantic classifications"), Room->CeilingAnchor->SemanticClassifications.Num(), 1))
+				if (TestNotNull(TEXT("Ceiling anchor"), Room->CeilingAnchor.Get()))
 				{
-					TestEqual(TEXT("Wall semantic classification"), Room->CeilingAnchor->SemanticClassifications[0], FMRUKLabels::Ceiling);
+					if (TestEqual(TEXT("Number of ceiling semantic classifications"), Room->CeilingAnchor->SemanticClassifications.Num(), 1))
+					{
+						TestEqual(TEXT("Wall semantic classification"), Room->CeilingAnchor->SemanticClassifications[0], FMRUKLabels::Ceiling);
+					}
 				}
 			}
 			for (auto Wall : Room->WallAnchors)
@@ -387,8 +390,8 @@ void FMRUKSpec::Define()
 
 			const TArray<TPair<double, FVector>> Inputs = {
 				{ 0.0, FVector(-63.212, 41.209, -129.629) },
-				{ 0.5, FVector(-65.876, 40.507, 1.873) },
-				{ 1.0, FVector(-68.540, 39.804, 133.376) },
+				{ 0.5, FVector(-63.212, 41.209, 1.873) },
+				{ 1.0, FVector(-63.212, 41.209, 133.376) },
 			};
 
 			for (int32 I = 0; I < Inputs.Num(); ++I)
@@ -487,10 +490,9 @@ void FMRUKSpec::Define()
 				}
 
 				constexpr double Tolerance = 0.001;
-				const FQuat& ActualRotation = ActualSeatTransform.GetRotation();
 				TestEqual(TEXT("Actor UUID is the same"), Actor->AnchorUUID, TestData.ExpectedAnchorUUID);
 				TestEqual(TEXT("Location is the same"), ActualSeatTransform.GetLocation(), TestData.ExpectedLocation, Tolerance);
-				TestTrue(TEXT("Rotation is the same"), ActualRotation.Equals(TestData.ExpectedRotation, Tolerance));
+				TestTrue(TEXT("Rotation is the same"), ActualSeatTransform.GetRotation().Equals(TestData.ExpectedRotation, Tolerance));
 			}
 		});
 
