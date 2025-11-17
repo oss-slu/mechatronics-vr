@@ -19,7 +19,8 @@ namespace UnrealBuildTool.Rules
                         "EyeTracker",
                         "OVRPluginXR",
                         "OculusXRHMD",
-                        "OculusXRMovement"
+                        "OculusXRMovement",
+                        "OculusXRTelemetry"
                     }
                 );
 

@@ -51,8 +51,16 @@ namespace OculusXR
 		virtual bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
 		virtual const void* OnCreateInstance(class IOpenXRHMDModule* InModule, const void* InNext) override;
 		virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext) override;
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_GameThread(XrSession InSession) override;
+#else
+		virtual void OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers) override;
+#endif
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRenderingLate_RenderThread(XrSession InSession, FRHICommandListImmediate& RHICmdList) override;
+#else
+		virtual void OnBeginRenderingLate_RenderThread(XrSession InSession, FRDGBuilder& GraphBuilder) override;
+#endif
 		virtual void PostBeginFrame_RHIThread(XrTime PredictedDisplayTime) override;
 		virtual void PostRenderBasePassMobile_RenderThread(FRHICommandList& RHICmdList, FSceneView& InView) override;
 		virtual void PostRenderBasePassDeferred_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView,

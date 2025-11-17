@@ -5,6 +5,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "OculusXRAnchorTypes.h"
+#include "MRUtilityKit.h"
 #include "MRUtilityKitBPLibrary.generated.h"
 
 USTRUCT(BlueprintType)
@@ -160,30 +161,19 @@ public:
 	static FLinearColor GetMatrixColumn(const FMatrix& Matrix, int32 Index);
 
 	/**
-	 * Compute a grid by taking into account the room box geometry. E.g. create evenly spaced points on ceiling, floor and walls.
-	 * @param Room The room to use
-	 * @param MaxPointsCount The maximum number of points
-	 * @param PointsPerUnitX The density of points on the X axis
-	 * @param PointsPerUnitY The density of points on the Y axis
-	 * @param bIncludeFloor Whether or not to include the floor
-	 * @param bIncludeCeiling Whether or not to include the ceiling
-	 * @param bIncludeWalls Whether or not to include the walls
-	 * @return The computed points
-	 */
-	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
-	static TArray<FVector> ComputeRoomBoxGrid(const AMRUKRoom* Room, int32 MaxPointsCount, double PointsPerUnitX = 1.0, double PointsPerUnitY = 1.0);
-
-	/**
 	 * Create mesh segments from the given mesh. This can be used for creating a destructible mesh system.
 	 * @param MeshPositions The mesh positions that should be segmented
 	 * @param MeshIndices The mesh indices that should be segmented
-	 * @param SegmentationPoints A set of points that should be used to calculate the segments
+	 * @param PointsPerUnitX The number of points per unit along the X axis
+	 * @param PointsPerUnitY The number of points per unit along the Y axis
+	 * @param PointsPerUnitZ The number of points per unit along the Z axis
 	 * @param ReservedMin Reserved space from the lower part of the bound box
 	 * @param ReservedMax Reserved space from the upper part of the bounding box
 	 * @param OutSegments The segmented meshes that have been created from the given mesh
-	 * @param OutReservedSegment
+	 * @param OutReservedSegment The reserved mesh segment that has been created from the given mesh
+	 * @param WorldToMeters Scale for world to meters
 	 */
 	static void CreateMeshSegmentation(const TArray<FVector>& MeshPositions, const TArray<uint32>& MeshIndices,
-		const TArray<FVector>& SegmentationPoints, const FVector& ReservedMin, const FVector& ReservedMax,
-		TArray<FMRUKMeshSegment>& OutSegments, FMRUKMeshSegment& OutReservedSegment);
+		float PointsPerUnitX, float PointsPerUnitY, float PointsPerUnitZ, const FVector& ReservedMin, const FVector& ReservedMax,
+		TArray<FMRUKMeshSegment>& OutSegments, FMRUKMeshSegment& OutReservedSegment, float WorldToMeters = 100.0);
 };

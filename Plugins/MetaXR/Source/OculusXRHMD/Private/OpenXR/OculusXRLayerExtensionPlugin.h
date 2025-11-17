@@ -18,12 +18,24 @@ namespace OculusXR
 		virtual bool GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
 		const void* OnCreateInstance(class IOpenXRHMDModule* InModule, const void* InNext);
 		virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const void* InNext) override;
-		virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags);
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
+		virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags) override;
+#else
+		virtual const void* OnEndProjectionLayer_RHIThread(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags) override;
+#endif
 		virtual void PostCreateSession(XrSession InSession) override;
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_GameThread(XrSession InSession) override;
+#else
+		virtual void OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers) override;
+#endif
 
 #if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void UpdateCompositionLayers(XrSession InSession, TArray<XrCompositionLayerBaseHeader*>& Headers) override;
+#else
+		virtual void UpdateCompositionLayers_RHIThread(XrSession InSession, TArray<XrCompositionLayerBaseHeader*>& Headers) override;
+#endif
 #endif
 		void SetEnableLocalDimming(bool Enable);
 		void SetEyeBufferSharpenType(EOculusXREyeBufferSharpenType EyeBufferSharpenType);

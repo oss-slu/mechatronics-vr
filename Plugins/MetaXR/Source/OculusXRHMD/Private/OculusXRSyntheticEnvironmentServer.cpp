@@ -133,11 +133,19 @@ TArray<FMetaXRSES::ServerInfo>& FMetaXRSES::GetSynthEnvRooms()
 	}
 
 	SynthEnvRooms = {};
+	PopulateSynthEnvRooms();
+	return SynthEnvRooms;
+}
+
+void FMetaXRSES::PopulateSynthEnvRooms()
+{
+	SynthEnvRooms = {};
+	SynthEnvParsed = false;
 
 	FString dirPath = FMetaXRSimulator::Get().GetPackagePath();
 	if (dirPath.IsEmpty())
 	{
-		return SynthEnvRooms;
+		return;
 	}
 
 	TArray<FString> dirNames;
@@ -152,7 +160,6 @@ TArray<FMetaXRSES::ServerInfo>& FMetaXRSES::GetSynthEnvRooms()
 		SynthEnvRooms.Append(GatherServers(dir));
 	}
 	SynthEnvParsed = true;
-	return SynthEnvRooms;
 }
 
 FString FMetaXRSES::GetLocalSharingServerPath()

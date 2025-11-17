@@ -1216,13 +1216,13 @@ namespace OculusXRInput
 	const TMap<FName, MotionSourceInfo> MotionSourceMap{
 		{ FName("Left"), { ovrpNode_ControllerLeft, ovrpNode_HandLeft } },
 		{ FName("Right"), { ovrpNode_ControllerRight, ovrpNode_HandRight } },
-		{ FName("LeftGrip"), { ovrpNode_HandLeft, ovrpNode_None } },
-		{ FName("RightGrip"), { ovrpNode_HandRight, ovrpNode_None } },
-		{ FName("LeftAim"), { ovrpNode_HandLeft, ovrpNode_None } },
-		{ FName("RightAim"), { ovrpNode_HandRight, ovrpNode_None } },
+		{ FName("LeftGrip"), { ovrpNode_ControllerLeft, ovrpNode_HandLeft } },
+		{ FName("RightGrip"), { ovrpNode_ControllerRight, ovrpNode_HandRight } },
+		{ FName("LeftAim"), { ovrpNode_ControllerLeft, ovrpNode_HandLeft } },
+		{ FName("RightAim"), { ovrpNode_ControllerRight, ovrpNode_HandRight } },
 		// Sometimes we can get an enum as the motion source name
-		{ FName("EControllerHand::Left"), { ovrpNode_HandLeft, ovrpNode_None } },
-		{ FName("EControllerHand::Right"), { ovrpNode_HandRight, ovrpNode_None } },
+		{ FName("EControllerHand::Left"), { ovrpNode_ControllerLeft, ovrpNode_HandLeft } },
+		{ FName("EControllerHand::Right"), { ovrpNode_ControllerRight, ovrpNode_HandRight } },
 	};
 
 #if UE_VERSION_OLDER_THAN(5, 3, 0)
@@ -1317,9 +1317,33 @@ namespace OculusXRInput
 
 							ovrpNode Node = MotionInfo.Primary;
 
+							// Check to see if controller is detached - if so, we want to fall back to hand position.
+							bool bIsDetachedController = false;
+							if (Node == ovrpNode_ControllerLeft || Node == ovrpNode_ControllerRight)
+							{
+								ovrpHand Hand = (Node == ovrpNode_ControllerLeft) ? ovrpHand_Left : ovrpHand_Right;
+								ovrpInteractionProfile InteractionProfile;
+								if (OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().GetCurrentDetachedInteractionProfile(Hand, &InteractionProfile)))
+								{
+									if (InteractionProfile != ovrpInteractionProfile_None)
+									{
+										// If we detect a controller InteractionProfile, we know the controller is detached
+										bIsDetachedController = true;
+									}
+								}
+							}
+
+							// Get the controller position as long as it isn't detached
 							ovrpBool bResult = true;
-							bool bIsPositionValid = OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().GetNodePositionValid(Node, &bResult)) && bResult;
-							bool bIsOrientationValid = OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().GetNodeOrientationValid(Node, &bResult)) && bResult;
+							bool bIsPositionValid = false;
+							bool bIsOrientationValid = false;
+							if (!bIsDetachedController)
+							{
+								bIsPositionValid = OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().GetNodePositionValid(Node, &bResult)) && bResult;
+								bIsOrientationValid = OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().GetNodeOrientationValid(Node, &bResult)) && bResult;
+							}
+
+							// Fallback to hand position if controller position isn't valid
 							if (!bIsPositionValid && !bIsOrientationValid && MotionInfo.Fallback != ovrpNode_None)
 							{
 								Node = MotionInfo.Fallback;

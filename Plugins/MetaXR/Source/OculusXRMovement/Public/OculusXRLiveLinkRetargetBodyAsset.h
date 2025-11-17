@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "LiveLinkRetargetAsset.h"
-#include "OculusXRMovementTypes.h"
-#include "Containers/StaticArray.h"
 #include "BonePose.h"
+#include "CoreMinimal.h"
+#include "Containers/StaticArray.h"
+#include "LiveLinkRetargetAsset.h"
+#include "Misc/EngineVersionComparison.h"
+#include "OculusXRMovementTypes.h"
 
 #include "OculusXRLiveLinkRetargetBodyAsset.generated.h"
 
@@ -136,7 +137,11 @@ private:
 	uint16 LastBoneContainerSerialNumber;
 
 	// Compact pose indices per bone id
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 	TStaticArray<FCompactPoseBoneIndex, static_cast<uint8>(EOculusXRBoneID::COUNT)> LastSkeletonBoneRemapping{ InPlace, FCompactPoseBoneIndex(INDEX_NONE) };
+#else
+	TArray<FCompactPoseBoneIndex> LastSkeletonBoneRemapping;
+#endif
 
 	// Recalculate skeleton dependent mappings
 	void OnBoneContainerChanged(const FBoneContainer& BoneContainer);

@@ -64,18 +64,29 @@ namespace XRPassthrough
 		virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext) override;
 		virtual void PostCreateSession(XrSession InSession) override;
 		virtual void OnDestroySession(XrSession InSession) override;
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual const void* OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags) override;
+#else
+		virtual const void* OnEndProjectionLayer_RHIThread(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags) override;
+#endif
 
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if !UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnCreateLayer(uint32 LayerId) override;
 		virtual void OnDestroyLayer(uint32 LayerId) override;
 		virtual void OnSetLayerDesc(uint32 LayerId) override;
 #endif
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void UpdateCompositionLayers(XrSession InSession, TArray<XrCompositionLayerBaseHeaderType*>& Headers) override;
-
+#else
+		virtual void UpdateCompositionLayers_RHIThread(XrSession InSession, TArray<XrCompositionLayerBaseHeader*>& Headers) override;
+#endif
 		virtual void OnWorldTickEnd(UWorld* InWorld, ELevelTick InTickType, float InDeltaSeconds);
 
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_GameThread(XrSession InSession) override;
+#else
+		virtual void OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers) override;
+#endif
 		virtual void OnPostRender_RenderThread(FRDGBuilder& GraphBuilder);
 
 		virtual void OnEvent(XrSession InSession, const XrEventDataBaseHeader* InHeader) override;
@@ -109,6 +120,7 @@ namespace XRPassthrough
 
 		TMap<uint32, FPassthroughLayerPtr> LayerMap;
 		TArray<FPassthroughLayerPtr> Layers_RenderThread;
+		TArray<FPassthroughLayerPtr> Layers_RHIThread;
 
 		XRPassthrough::FDeferredDeletionQueue DeferredDeletion;
 

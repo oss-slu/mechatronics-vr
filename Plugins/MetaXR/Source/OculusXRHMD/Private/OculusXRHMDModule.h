@@ -97,7 +97,7 @@ public:
 	OCULUSXRHMD_API static bool IsSimulatorActivated();
 	OCULUSXRHMD_API static void ToggleOpenXRRuntime();
 	OCULUSXRHMD_API static bool IsSimulatorInstalled();
-	OCULUSXRHMD_API static void CheckForXRSimUpdate();
+	OCULUSXRHMD_API static void CheckForXRSimUpdate(bool bCheckSkippedVersion);
 	OCULUSXRHMD_API static void UpdateXRSimToLatest();
 	OCULUSXRHMD_API static bool CanUpdatedToLatest();
 
@@ -108,6 +108,7 @@ public:
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OCULUSXRHMD_API static void* GetOVRPluginHandle();
 	OCULUSXRHMD_API static OculusPluginWrapper& GetPluginWrapper();
+
 	virtual bool PoseToOrientationAndPosition(const FQuat& InOrientation, const FVector& InPosition, FQuat& OutOrientation, FVector& OutPosition) const override;
 
 protected:

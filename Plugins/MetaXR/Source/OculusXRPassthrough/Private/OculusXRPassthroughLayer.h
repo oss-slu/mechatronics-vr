@@ -12,7 +12,7 @@ class UProceduralMeshComponent;
 namespace XRPassthrough
 {
 
-#ifdef WITH_OCULUS_BRANCH
+#if defined(WITH_OCULUS_BRANCH) || !UE_VERSION_OLDER_THAN(5, 6, 0)
 	using XrCompositionLayerBaseHeaderType = XrCompositionLayerBaseHeader;
 #else
 	// epic branch has member as const
@@ -98,7 +98,7 @@ namespace XRPassthrough
 	{
 		FORCEINLINE bool operator()(const FPassthroughLayerPtr& A, const FPassthroughLayerPtr& B) const
 		{
-			return A->GetDesc().GetLayerId() < B->GetDesc().GetLayerId();
+			return A->GetDesc().Id < B->GetDesc().Id;
 		}
 	};
 

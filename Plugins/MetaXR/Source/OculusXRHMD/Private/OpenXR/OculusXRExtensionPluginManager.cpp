@@ -13,7 +13,7 @@ namespace OculusXR
 #ifdef WITH_OCULUS_BRANCH
 		, EnvironmentDepthExtensionPlugin()
 #endif
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH))
 		, SpaceWarpExtensionPlugin()
 #endif // defined(WITH_OCULUS_BRANCH)
 		, SystemInfoExtensionPlugin()
@@ -35,7 +35,7 @@ namespace OculusXR
 #ifdef WITH_OCULUS_BRANCH
 		EnvironmentDepthExtensionPlugin.RegisterOpenXRExtensionPlugin();
 #endif
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH))
 		SpaceWarpExtensionPlugin.RegisterOpenXRExtensionPlugin();
 #endif // defined(WITH_OCULUS_BRANCH)
 		MultiPlayerStateExtensionPlugin.RegisterOpenXRExtensionPlugin();
