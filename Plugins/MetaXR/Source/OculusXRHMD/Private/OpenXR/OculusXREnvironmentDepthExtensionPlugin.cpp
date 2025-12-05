@@ -526,11 +526,7 @@ namespace OculusXR
 		return InNext;
 	}
 
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-	void FEnvironmentDepthExtensionPlugin::OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers)
-#else
 	void FEnvironmentDepthExtensionPlugin::OnBeginRendering_GameThread(XrSession InSession)
-#endif
 	{
 		StageSpace = OculusXR::GetOpenXRTrackingSystem()->GetIOpenXRHMD()->GetTrackingSpace();
 		XrSpace CurrentStageSpace = StageSpace;
@@ -553,11 +549,7 @@ namespace OculusXR
 		AcquireEnvironmentDepthTexture_RHIThread(PredictedDisplayTime);
 	}
 
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-	void FEnvironmentDepthExtensionPlugin::OnBeginRenderingLate_RenderThread(XrSession InSession, FRDGBuilder& GraphBuilder)
-#else
 	void FEnvironmentDepthExtensionPlugin::OnBeginRenderingLate_RenderThread(XrSession InSession, FRHICommandListImmediate& RHICmdList)
-#endif
 	{
 		if (bSoftOcclusionsEnabled && EnvironmentDepthMinMaxTexture != nullptr && !EnvironmentDepthSwapchain.IsEmpty())
 		{
@@ -572,13 +564,8 @@ namespace OculusXR
 				return;
 			}
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			RenderEnvironmentDepthMinMaxTexture_RenderThread(RendererModule, EnvironmentDepthMinMaxTexture,
 				EnvironmentDepthSwapchain[DepthFrameDesc->swapchainIndex], RHICmdList);
-#else
-			RenderEnvironmentDepthMinMaxTexture_RenderThread(RendererModule, EnvironmentDepthMinMaxTexture,
-				EnvironmentDepthSwapchain[DepthFrameDesc->swapchainIndex], GraphBuilder.RHICmdList);
-#endif
 
 			PrevEnvironmentDepthMinMaxSwapchainIndex = DepthFrameDesc->swapchainIndex;
 		}

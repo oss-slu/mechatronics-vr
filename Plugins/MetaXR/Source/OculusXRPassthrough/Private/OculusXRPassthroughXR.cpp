@@ -126,7 +126,6 @@ namespace XRPassthrough
 	FPassthroughXR::FPassthroughXR()
 		: SceneViewExtension(nullptr)
 		, Layers_RenderThread{}
-		, Layers_RHIThread{}
 		, bPassthroughInitialized(false)
 		, PassthroughInstance{ XR_NULL_HANDLE }
 		, Settings(nullptr)
@@ -143,7 +142,7 @@ namespace XRPassthrough
 
 	void FPassthroughXR::RegisterAsOpenXRExtension()
 	{
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 		// Feature not enabled on Marketplace build. Currently only for the meta fork
 		RegisterOpenXRExtensionModularFeature();
 #endif
@@ -284,17 +283,13 @@ namespace XRPassthrough
 		return Layer;
 	}
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 	void FPassthroughXR::UpdateCompositionLayers(XrSession InSession, TArray<XrCompositionLayerBaseHeaderType*>& Headers)
-#else
-	void FPassthroughXR::UpdateCompositionLayers_RHIThread(XrSession InSession, TArray<XrCompositionLayerBaseHeaderType*>& Headers)
-#endif
 	{
 		check(IsInRenderingThread() || IsInRHIThread());
 
 		TArray<FPassthroughLayer*> SortedLayers;
-		SortedLayers.Empty(Layers_RHIThread.Num());
-		for (FPassthroughLayerPtr& Layer : Layers_RHIThread)
+		SortedLayers.Empty(Layers_RenderThread.Num());
+		for (FPassthroughLayerPtr& Layer : Layers_RenderThread)
 		{
 			SortedLayers.Emplace(Layer.Get());
 		}
@@ -331,11 +326,7 @@ namespace XRPassthrough
 		WorldToMetersScale = TS->GetWorldToMetersScale();
 	}
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 	void FPassthroughXR::OnBeginRendering_GameThread(XrSession InSession)
-#else
-	void FPassthroughXR::OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers)
-#endif
 	{
 		// Send game thread layers to render thread ones
 		TArray<FPassthroughLayerPtr> XLayers;
@@ -360,8 +351,8 @@ namespace XRPassthrough
 			// Scan for changes
 			while (XLayerIndex < XLayers.Num() && LayerIndex_RenderThread < Layers_RenderThread.Num())
 			{
-				uint32 LayerIdA = XLayers[XLayerIndex]->GetDesc().Id;
-				uint32 LayerIdB = Layers_RenderThread[LayerIndex_RenderThread]->GetDesc().Id;
+				uint32 LayerIdA = XLayers[XLayerIndex]->GetDesc().GetLayerId();
+				uint32 LayerIdB = Layers_RenderThread[LayerIndex_RenderThread]->GetDesc().GetLayerId();
 
 				if (LayerIdA < LayerIdB) // If a layer was inserted in the middle of existing ones
 				{
@@ -404,20 +395,6 @@ namespace XRPassthrough
 
 			Layers_RenderThread = ValidLayers;
 
-			TArray<FPassthroughLayerPtr> RHIXLayers;
-			RHIXLayers.Reset(Layers_RenderThread.Num());
-			for (auto& Layer : Layers_RenderThread)
-			{
-				if (Layer.IsValid())
-				{
-					RHIXLayers.Emplace(Layer->Clone());
-				}
-			}
-
-			RHICmdList.EnqueueLambda([this, RHIXLayers](FRHICommandListImmediate& RHICmdList) {
-				Layers_RHIThread = RHIXLayers;
-			});
-
 			DeferredDeletion.HandleLayerDeferredDeletionQueue_RenderThread();
 		});
 	}
@@ -457,10 +434,10 @@ namespace XRPassthrough
 					{
 						if (Layer->GetLayerHandle() == LayerResumedEvent->layer)
 						{
-							UE_LOG(LogOculusXRPassthrough, Log, TEXT("FOculusXRPassthroughEventHandling - Passthrough Layer #%d resumed"), Layer->GetDesc().Id);
+							UE_LOG(LogOculusXRPassthrough, Log, TEXT("FOculusXRPassthroughEventHandling - Passthrough Layer #%d resumed"), Layer->GetDesc().GetLayerId());
 
 							// Send event
-							OculusXRPassthrough::FOculusXRPassthroughEventDelegates::OculusPassthroughLayerResumed.Broadcast(Layer->GetDesc().Id);
+							OculusXRPassthrough::FOculusXRPassthroughEventDelegates::OculusPassthroughLayerResumed.Broadcast(Layer->GetDesc().GetLayerId());
 							break;
 						}
 					}
@@ -469,11 +446,7 @@ namespace XRPassthrough
 		}
 	}
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 	const void* FPassthroughXR::OnEndProjectionLayer(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags)
-#else
-	const void* FPassthroughXR::OnEndProjectionLayer_RHIThread(XrSession InSession, int32 InLayerIndex, const void* InNext, XrCompositionLayerFlags& OutFlags)
-#endif
 	{
 		check(IsInRenderingThread() || IsInRHIThread());
 
@@ -506,7 +479,7 @@ namespace XRPassthrough
 		return InNext;
 	}
 
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 	void FPassthroughXR::OnCreateLayer(uint32 LayerId)
 	{
 		OculusXRHMD::CheckInGameThread();

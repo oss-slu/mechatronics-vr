@@ -1,4 +1,4 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates.
+﻿// Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #pragma once
 #include "OculusXRSetupRule.h"
@@ -62,27 +62,10 @@ namespace OculusXRPluginRules
 		bool bApplied = false;
 	};
 
-	class FUseHorizonOSSDKRule final : public ISetupRule
-	{
-	public:
-		FUseHorizonOSSDKRule()
-			: ISetupRule("Plugin_UseHorizonOSSDK",
-				  NSLOCTEXT("OculusXRPluginRules", "UseHorizonOSSDK_DisplayName", "Update Android Manifest to support Horizon OS SDK"),
-				  NSLOCTEXT("OculusXRPluginRules", "UseHorizonOSSDK_Description", "The Android manifest needs to be updated to support usage of the Horizon OS SDK."),
-				  ESetupRuleCategory::Plugins,
-				  ESetupRuleSeverity::Critical) {}
-
-		virtual bool IsApplied() const override;
-
-	protected:
-		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
-	};
-
 	// All defined plugin rules. Add new rules to this table for them to be auto-registered
 	inline TArray<SetupRulePtr> PluginRules_Table{
 		MakeShared<FUseRecommendedXRAPIRule>(),
 		MakeShared<FDisableOculusVRRule>(),
-		MakeShared<FDisableSteamVRRule>(),
-		MakeShared<FUseHorizonOSSDKRule>()
+		MakeShared<FDisableSteamVRRule>()
 	};
 } // namespace OculusXRPluginRules

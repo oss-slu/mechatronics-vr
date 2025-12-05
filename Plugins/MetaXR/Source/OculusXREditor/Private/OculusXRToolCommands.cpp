@@ -4,6 +4,7 @@
 #include "OculusXRToolCommands.h"
 
 #include "OculusXRProjectSetupToolModule.h"
+#include "OculusXRSyntheticEnvironmentServer.h"
 #include "Framework/Docking/TabManager.h"
 #include "Misc/EngineVersionComparison.h"
 
@@ -28,6 +29,36 @@ void FOculusToolCommands::RegisterCommands()
 
 	UI_COMMAND(CheckForUpdateXRSim, "Check For Updates", "Check If Meta XR Simulator Update Is Available.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(UpdateXRSim, "Update To Latest Version", "Update Meta XR Simulator To Latest Version.", EUserInterfaceActionType::Button, FInputChord());
+
+#if PLATFORM_WINDOWS
+	static const FString launch("Launch ");
+	static const FString dot(".");
+	const auto& rooms = FMetaXRSES::GetSynthEnvRooms();
+	for (const auto& room : rooms)
+	{
+		TSharedPtr<FUICommandInfo> command;
+		const FString DotCommandName = dot + room.GuiName;
+		const FString InDescription = launch + room.GuiName;
+		const FString InCommandNameUnderscoreTooltip = room.GuiName + TEXT("_ToolTip");
+
+		const FString InSubNamespace = TEXT(LOCTEXT_NAMESPACE);
+		const FString UICommandsStr = TEXT("UICommands");
+		const FString Namespace = UICommandsStr + dot + InSubNamespace;
+
+		FUICommandInfo::MakeCommandInfo(
+			this->AsShared(),
+			command,
+			FName(InCommandNameUnderscoreTooltip),
+			AS_LOCALIZABLE_ADVANCED(*Namespace, *InDescription, *InDescription),
+			AS_LOCALIZABLE_ADVANCED(*Namespace, InCommandNameUnderscoreTooltip.GetCharArray().GetData(), *InDescription),
+			FSlateIcon(),
+			EUserInterfaceActionType::Button,
+			FInputChord(),
+			FInputChord());
+		RoomCommands.Add(command);
+	}
+#endif
+
 	UI_COMMAND(StopServer, "Stop Server", "Stop Server", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(OpenSettings, "Open Settings", "Open Meta XR Simulator Settings", EUserInterfaceActionType::Button, FInputChord());

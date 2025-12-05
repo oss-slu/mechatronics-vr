@@ -28,11 +28,6 @@ OculusXRInput::FInputHapticsExtensionPlugin* FOculusXRInputModule::GetHapticsOpe
 	return HapticsExtensionPlugin.Get();
 }
 
-OculusXRInput::FSimultaneousHandsAndControllersExtensionPlugin* FOculusXRInputModule::GetSimultaneousHandsAndControllersEOpenXRExtension() const
-{
-	return SimultaneousHandsAndControllersExtensionPlugin.Get();
-}
-
 void FOculusXRInputModule::StartupModule()
 {
 	IInputDeviceModule::StartupModule();
@@ -48,8 +43,6 @@ void FOculusXRInputModule::StartupModule()
 	TouchProInputExtensionPlugin->RegisterOpenXRExtensionPlugin();
 	TouchPlusInputExtensionPlugin = MakeShareable(new OculusXRInput::FTouchPlusInputExtensionPlugin());
 	TouchPlusInputExtensionPlugin->RegisterOpenXRExtensionPlugin();
-	SimultaneousHandsAndControllersExtensionPlugin = MakeShareable(new OculusXRInput::FSimultaneousHandsAndControllersExtensionPlugin());
-	SimultaneousHandsAndControllersExtensionPlugin->RegisterOpenXRExtensionPlugin();
 }
 
 void FOculusXRInputModule::ShutdownModule()

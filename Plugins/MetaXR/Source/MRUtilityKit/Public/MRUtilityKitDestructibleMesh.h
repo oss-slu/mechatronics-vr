@@ -53,11 +53,9 @@ public:
 	 * Segment the given geometry into smaller chunks. For each chunk a procedural mesh component will be spawned and attached to the owning actor.
 	 * @param MeshPositions Positions of the mesh to segment
 	 * @param MeshIndices Indices of the mesh to segment
-	 * @param PointsPerUnitX The number of points per unit along the X axis
-	 * @param PointsPerUnitY The number of points per unit along the Y axis
-	 * @param PointsPerUnitZ The number of points per unit along the Z axis
+	 * @param SegmentationPoints Points to use to determine the segments.
 	 */
-	void SegmentMesh(const TArray<FVector>& MeshPositions, const TArray<uint32>& MeshIndices, float PointsPerUnitX, float PointsPerUnitY, float PointsPerUnitZ);
+	void SegmentMesh(const TArray<FVector>& MeshPositions, const TArray<uint32>& MeshIndices, const TArray<FVector>& SegmentationPoints);
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -82,28 +80,26 @@ public:
 	UMRUKDestructibleMeshComponent* DestructibleMeshComponent;
 
 	/**
-	 * The number of points per unit along the X axis
+	 * Density of mesh segments on the X axis.
 	 * Increase this value to get smaller cracks in the global mesh.
 	 * Decrease this value to get bigger cracks in the global mesh.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
-	float PointsPerUnitX = 2.0f;
+	double PointsPerUnitX = 1.0;
 
 	/**
-	 * The number of points per unit along the Y axis
-	 * Increase this value to get smaller cracks in the global mesh.
-	 * Decrease this value to get bigger cracks in the global mesh.
+	 * How many segmentation points should be created at a maximum.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
-	float PointsPerUnitY = 2.0f;
+	int MaxPointsCount = 256;
 
 	/**
-	 * The number of points per unit along the Z axis
+	 * Density of mesh segments on the Y axis.
 	 * Increase this value to get smaller cracks in the global mesh.
 	 * Decrease this value to get bigger cracks in the global mesh.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
-	float PointsPerUnitZ = 2.0f;
+	double PointsPerUnitY = 1.0;
 
 	/**
 	 * Create a destructible mesh for the given room. If the global mesh has not yet been loaded
@@ -150,28 +146,26 @@ public:
 	UMaterialInterface* GlobalMeshMaterial;
 
 	/**
-	 * The number of points per unit along the X axis
+	 * Density of mesh segments on the X axis.
 	 * Increase this value to get smaller cracks in the global mesh.
 	 * Decrease this value to get bigger cracks in the global mesh.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
-	float PointsPerUnitX = 2.0f;
+	double PointsPerUnitX = 1.0;
 
 	/**
-	 * The number of points per unit along the Y axis
-	 * Increase this value to get smaller cracks in the global mesh.
-	 * Decrease this value to get bigger cracks in the global mesh.
+	 * How many segmentation points should be created at a maximum.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
-	float PointsPerUnitY = 2.0f;
+	int MaxPointsCount = 256;
 
 	/**
-	 * The number of points per unit along the Z axis
+	 * Density of mesh segments on the Y axis.
 	 * Increase this value to get smaller cracks in the global mesh.
 	 * Decrease this value to get bigger cracks in the global mesh.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
-	float PointsPerUnitZ = 2.0f;
+	double PointsPerUnitY = 1.0;
 
 	/**
 	 * Area on the top of the mesh that should be indestructible.

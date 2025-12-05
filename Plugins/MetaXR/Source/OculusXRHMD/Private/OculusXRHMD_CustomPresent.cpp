@@ -589,12 +589,8 @@ namespace OculusXRHMD
 			{
 				FRHIRenderPassInfo RPInfo(DstTexture, ERenderTargetActions::Load_Store);
 
-#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)) && !UE_VERSION_OLDER_THAN(5, 6, 0)
-				// On Vulkan the positive and negative Y faces of the cubemap need to be flipped,
-				// which requires swapping the positive and negative Y faces indices and negating
-				// y components
-				const int FaceCount = 6;
-				static const FMatrix44f DxFaceToSampleMatrix[FaceCount] = {
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+				static const FMatrix44f FaceToSampleMatrix[6] = {
 					FMatrix44f(
 						FVector3f(0, 0, 1),
 						FVector3f(0, 1, 0),
@@ -626,44 +622,8 @@ namespace OculusXRHMD
 						FVector3f(0, 0, 1),
 						FVector3f(0, 0, 0)),
 				};
+#endif
 
-				static const FMatrix44f VulkanFaceToSampleMatrix[FaceCount] = {
-					FMatrix44f(
-						FVector3f(0, 0, 1),
-						FVector3f(0, -1, 0),
-						FVector3f(1, 0, 0),
-						FVector3f(0, 0, 0)),
-					FMatrix44f(
-						FVector3f(0, 0, -1),
-						FVector3f(0, -1, 0),
-						FVector3f(-1, 0, 0),
-						FVector3f(0, 0, 0)),
-					FMatrix44f(
-						FVector3f(1, 0, 0),
-						FVector3f(0, 0, -1),
-						FVector3f(0, 1, 0),
-						FVector3f(0, 0, 0)),
-					FMatrix44f(
-						FVector3f(1, 0, 0),
-						FVector3f(0, 0, 1),
-						FVector3f(0, -1, 0),
-						FVector3f(0, 0, 0)),
-					FMatrix44f(
-						FVector3f(1, 0, 0),
-						FVector3f(0, -1, 0),
-						FVector3f(0, 0, -1),
-						FVector3f(0, 0, 0)),
-					FMatrix44f(
-						FVector3f(-1, 0, 0),
-						FVector3f(0, -1, 0),
-						FVector3f(0, 0, 1),
-						FVector3f(0, 0, 0)),
-				};
-
-				const FMatrix44f* FaceToSampleMatrix = bUsingVulkan ? VulkanFaceToSampleMatrix : DxFaceToSampleMatrix;
-
-				RPInfo.ColorRenderTargets[0].ArraySlice = FaceIndex;
-#else
 				// On Vulkan the positive and negative Y faces of the cubemap need to be flipped
 				if (bUsingVulkan)
 				{
@@ -682,7 +642,7 @@ namespace OculusXRHMD
 				{
 					RPInfo.ColorRenderTargets[0].ArraySlice = FaceIndex;
 				}
-#endif
+
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyTextureFace"));
 				{
 					if (bNoAlphaWrite)
@@ -692,7 +652,7 @@ namespace OculusXRHMD
 
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)) && !UE_VERSION_OLDER_THAN(5, 6, 0)
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 					TShaderMapRef<FOculusOpenXRCubemapPS> PixelShader(ShaderMap);
 #else
 					TShaderMapRef<FOculusCubemapPS> PixelShader(ShaderMap);
@@ -706,8 +666,8 @@ namespace OculusXRHMD
 #else
 					FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 
-#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)) && !UE_VERSION_OLDER_THAN(5, 6, 0)
-					check(FaceIndex < FaceCount);
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+					check(FaceIndex < UE_ARRAY_COUNT(FaceToSampleMatrix));
 					PixelShader->SetParameters(BatchedParameters, SamplerState, SrcTextureRHI, FaceToSampleMatrix[FaceIndex]);
 #else
 					PixelShader->SetParameters(BatchedParameters, SamplerState, SrcTextureRHI, FaceIndex);

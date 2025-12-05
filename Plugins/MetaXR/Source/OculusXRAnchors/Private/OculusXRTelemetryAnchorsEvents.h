@@ -1,8 +1,8 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates.
+﻿// Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #pragma once
 
-#include "OculusXRTelemetryMarker.h"
+#include "OculusXRTelemetry.h"
 
 namespace OculusXRTelemetry::Events
 {

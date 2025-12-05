@@ -41,7 +41,6 @@ public class OculusXRProjectSetupTool : ModuleRules
                 "OculusXRPassthrough",
                 "OculusXRAnchors",
                 "OculusXRScene",
-                "OculusXRTelemetry",
                 "OculusXRUncookedOnly",
                 "AndroidRuntimeSettings",
                 "AndroidPlatformEditor",

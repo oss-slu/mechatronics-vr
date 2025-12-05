@@ -85,11 +85,7 @@ namespace XRMovement
 		OpenXRHMD = nullptr;
 	}
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 	void FBodyTrackingXR::OnBeginRendering_GameThread(XrSession InSession)
-#else
-	void FBodyTrackingXR::OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers)
-#endif
 	{
 		Update_GameThread(InSession);
 	}

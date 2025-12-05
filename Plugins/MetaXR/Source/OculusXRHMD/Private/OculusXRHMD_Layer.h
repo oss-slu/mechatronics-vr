@@ -63,11 +63,8 @@ namespace OculusXRHMD
 		bool NeedsPassthroughPokeAHole();
 
 		bool ShapeNeedsTextures(ovrpShape shape);
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
+
 		FTextureRHIRef GetTexture() { return Desc.Texture; }
-#else
-		TWeakObjectPtr<class UTexture> GetTexture() { return Desc.TextureObj; }
-#endif
 
 		TSharedPtr<FLayer, ESPMode::ThreadSafe> Clone() const;
 

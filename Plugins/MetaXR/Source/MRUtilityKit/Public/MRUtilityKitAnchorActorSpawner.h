@@ -64,7 +64,7 @@ public:
 	 * E.g. if holes are needed in the walls where the windows and doors are, specify DOOR_FRAME and WINDOW_FRAME.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
-	TArray<FString> CutHoleLabels = { FMRUKLabels::WindowFrame, FMRUKLabels::DoorFrame, FMRUKLabels::Opening };
+	TArray<FString> CutHoleLabels;
 
 	/**
 	 * A map of Actor classes to spawn for the given label.
@@ -233,14 +233,14 @@ protected:
 	 * @param Room The room to spawn in.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
-	TArray<AActor*> SpawnProceduralMeshOnFloorIfNoFloorActorGiven(AMRUKRoom* Room);
+	AActor* SpawnProceduralMeshOnFloorIfNoFloorActorGiven(AMRUKRoom* Room);
 
 	/**
 	 * Spawn a procedural mesh for the ceiling if no ceiling actor is given to the spawner.
 	 * @param Room The room to spawn in.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
-	TArray<AActor*> SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(AMRUKRoom* Room);
+	AActor* SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(AMRUKRoom* Room);
 
 	/**
 	 * Spawn a procedural mesh for the given anchor if the settings on the AnchorActorSpawner say so.

@@ -2,8 +2,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusXRInputFunctionLibrary.h"
-
-#include "IXRTrackingSystem.h"
 #include "OculusXRControllerLegacyPoseTransformComponent.h"
 #include "OculusXRHandTracking.h"
 #include "OculusXRControllerTracking.h"
@@ -122,11 +120,6 @@ bool UOculusXRInputFunctionLibrary::IsHandPositionValid(const EOculusXRHandType 
 	return OculusXRInput::FOculusHandTracking::IsHandPositionValid(ControllerIndex, DeviceHand);
 }
 
-bool UOculusXRInputFunctionLibrary::IsHandInteractionProfile(const EOculusXRHandType DeviceHand)
-{
-	return OculusXRInput::FOculusHandTracking::IsHandInteractionProfile(DeviceHand);
-}
-
 FString UOculusXRInputFunctionLibrary::GetBoneName(EOculusXRBone BoneId)
 {
 	const auto ovrBoneId = OculusXRInput::FOculusHandTracking::ToOvrBone(BoneId);
@@ -135,16 +128,6 @@ FString UOculusXRInputFunctionLibrary::GetBoneName(EOculusXRBone BoneId)
 		return OculusXRInput::FOculusHandTracking::GetBoneName(static_cast<uint8>(EOculusXRBone::Invalid));
 	}
 	return OculusXRInput::FOculusHandTracking::GetBoneName(static_cast<uint8>(ovrBoneId));
-}
-
-bool UOculusXRInputFunctionLibrary::SetSimultaneousHandsAndControllersEnabled(bool bEnabled)
-{
-	return OculusXRInput::FOculusHandTracking::SetSimultaneousHandsAndControllersEnabled(bEnabled);
-}
-
-bool UOculusXRInputFunctionLibrary::IsSimultaneousHandsAndControllersEnabled()
-{
-	return OculusXRInput::FOculusHandTracking::IsSimultaneousHandsAndControllersEnabled();
 }
 
 void UOculusXRInputFunctionLibrary::PlayCurveHapticEffect(class UHapticFeedbackEffect_Curve* HapticEffect, EControllerHand Hand, EOculusXRHandHapticsLocation Location, float Scale, bool bLoop)

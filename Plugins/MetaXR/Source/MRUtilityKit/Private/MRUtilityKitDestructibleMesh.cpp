@@ -19,18 +19,16 @@ UMRUKDestructibleMeshComponent::UMRUKDestructibleMeshComponent(const FObjectInit
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UMRUKDestructibleMeshComponent::SegmentMesh(const TArray<FVector>& MeshPositions, const TArray<uint32>& MeshIndices, float PointsPerUnitX, float PointsPerUnitY, float PointsPerUnitZ)
+void UMRUKDestructibleMeshComponent::SegmentMesh(const TArray<FVector>& MeshPositions, const TArray<uint32>& MeshIndices, const TArray<FVector>& SegmentationPoints)
 {
-	TaskResult = UE::Tasks::Launch(UE_SOURCE_LOCATION, [this, MeshPositions, MeshIndices, PointsPerUnitX, PointsPerUnitY, PointsPerUnitZ]() {
+	TaskResult = UE::Tasks::Launch(UE_SOURCE_LOCATION, [this, MeshPositions, MeshIndices, SegmentationPoints]() {
 		TArray<FMRUKMeshSegment> Segments;
 		FMRUKMeshSegment ReservedMeshSegment;
 
 		const FVector ReservedMin(ReservedTop, -1.0, -1.0);
 		const FVector ReservedMax(ReservedBottom, -1.0, -1.0);
 
-		const float WorldToMeters = GetWorld() ? GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
-
-		UMRUKBPLibrary::CreateMeshSegmentation(MeshPositions, MeshIndices, PointsPerUnitX, PointsPerUnitY, PointsPerUnitZ, ReservedMin, ReservedMax, Segments, ReservedMeshSegment, WorldToMeters);
+		UMRUKBPLibrary::CreateMeshSegmentation(MeshPositions, MeshIndices, SegmentationPoints, ReservedMin, ReservedMax, Segments, ReservedMeshSegment);
 		return TPair<TArray<FMRUKMeshSegment>, FMRUKMeshSegment>{ MoveTemp(Segments), MoveTemp(ReservedMeshSegment) };
 	});
 	SetComponentTickEnabled(true);
@@ -140,7 +138,16 @@ void AMRUKDestructibleGlobalMesh::CreateDestructibleMesh(AMRUKRoom* Room)
 	}
 	const TArray<uint32>& MeshIndices = ProcMeshSection->ProcIndexBuffer;
 
-	DestructibleMeshComponent->SegmentMesh(MeshPositions, MeshIndices, PointsPerUnitX, PointsPerUnitY, PointsPerUnitZ);
+	TArray<FVector> SegmentationPointsWS = UMRUKBPLibrary::ComputeRoomBoxGrid(Room, MaxPointsCount, PointsPerUnitX, PointsPerUnitY);
+
+	TArray<FVector> SegmentationPointsLS;
+	SegmentationPointsLS.SetNum(SegmentationPointsWS.Num());
+	const FTransform T = GlobalMesh->GetActorTransform().Inverse();
+	for (int32 i = 0; i < SegmentationPointsWS.Num(); ++i)
+	{
+		SegmentationPointsLS[i] = T.TransformPosition(SegmentationPointsWS[i]);
+	}
+	DestructibleMeshComponent->SegmentMesh(MeshPositions, MeshIndices, SegmentationPointsLS);
 }
 
 void AMRUKDestructibleGlobalMesh::RemoveGlobalMeshSegment(UPrimitiveComponent* Mesh)
@@ -230,7 +237,7 @@ AMRUKDestructibleGlobalMesh* AMRUKDestructibleGlobalMeshSpawner::AddDestructible
 	AMRUKDestructibleGlobalMesh* Mesh = GetWorld()->SpawnActor<AMRUKDestructibleGlobalMesh>();
 	Mesh->PointsPerUnitX = PointsPerUnitX;
 	Mesh->PointsPerUnitY = PointsPerUnitY;
-	Mesh->PointsPerUnitZ = PointsPerUnitZ;
+	Mesh->MaxPointsCount = MaxPointsCount;
 	Mesh->DestructibleMeshComponent->GlobalMeshMaterial = GlobalMeshMaterial;
 	Mesh->DestructibleMeshComponent->ReservedBottom = ReservedBottom;
 	Mesh->DestructibleMeshComponent->ReservedTop = ReservedTop;

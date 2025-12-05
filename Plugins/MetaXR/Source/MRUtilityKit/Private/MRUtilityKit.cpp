@@ -17,13 +17,10 @@ DEFINE_LOG_CATEGORY(LogMRUK);
 
 const FString FMRUKLabels::Floor("FLOOR");
 const FString FMRUKLabels::WallFace("WALL_FACE");
-const FString FMRUKLabels::InnerWallFace("INNER_WALL_FACE");
-const FString FMRUKLabels::OtherRoomFace("OTHER_ROOM_FACE");
 const FString FMRUKLabels::InvisibleWallFace("INVISIBLE_WALL_FACE");
 const FString FMRUKLabels::Ceiling("CEILING");
 const FString FMRUKLabels::DoorFrame("DOOR_FRAME");
 const FString FMRUKLabels::WindowFrame("WINDOW_FRAME");
-const FString FMRUKLabels::Opening("OPENING");
 const FString FMRUKLabels::Couch("COUCH");
 const FString FMRUKLabels::Table("TABLE");
 const FString FMRUKLabels::Screen("SCREEN");

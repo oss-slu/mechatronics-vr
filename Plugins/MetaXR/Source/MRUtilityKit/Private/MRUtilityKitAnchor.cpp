@@ -179,11 +179,11 @@ bool AMRUKAnchor::Raycast(const FVector& Origin, const FVector& Direction, float
 
 	MRUKShared::MrukHit Hit{};
 
-	if (MRUKShared::GetInstance()->RaycastAnchor(ToMrukShared(AnchorUUID), PositionToMrukShared(Origin, WorldToMeters), UnitVectorToMrukShared(Direction), MaxDist / WorldToMeters, ToMrukSharedSurfaceTypes(ComponentTypes), &Hit))
+	if (MRUKShared::GetInstance()->AnchorStoreRaycastAnchor(ToMrukShared(AnchorUUID), FromUnrealToOpenXr(Origin, WorldToMeters), FromUnrealToOpenXr(Direction), MaxDist / WorldToMeters, ToMrukSharedSurfaceTypes(ComponentTypes), &Hit))
 	{
 		OutHit.HitDistance = Hit.hitDistance * WorldToMeters;
-		OutHit.HitNormal = -UnitVectorToUnreal(Hit.hitNormal);
-		OutHit.HitPosition = PositionToUnreal(Hit.hitPosition, WorldToMeters);
+		OutHit.HitNormal = -FromOpenXrToUnreal(Hit.hitNormal);
+		OutHit.HitPosition = FromOpenXrToUnreal(Hit.hitPosition, WorldToMeters);
 		return true;
 	}
 
@@ -197,15 +197,15 @@ bool AMRUKAnchor::RaycastAll(const FVector& Origin, const FVector& Direction, fl
 	static const uint32_t MaxHitCount = 128;
 	MRUKShared::MrukHit Hits[MaxHitCount];
 	uint32_t HitsCount = MaxHitCount;
-	if (MRUKShared::GetInstance()->RaycastAnchorAll(ToMrukShared(AnchorUUID), PositionToMrukShared(Origin, WorldToMeters), UnitVectorToMrukShared(Direction), MaxDist / WorldToMeters, ToMrukSharedSurfaceTypes(ComponentTypes), Hits, &HitsCount))
+	if (MRUKShared::GetInstance()->AnchorStoreRaycastAnchorAll(ToMrukShared(AnchorUUID), FromUnrealToOpenXr(Origin, WorldToMeters), FromUnrealToOpenXr(Direction), MaxDist / WorldToMeters, ToMrukSharedSurfaceTypes(ComponentTypes), Hits, &HitsCount))
 	{
 		for (uint32_t i = 0; i < HitsCount; ++i)
 		{
 			MRUKShared::MrukHit& Hit = Hits[i];
 			FMRUKHit OutHit;
 			OutHit.HitDistance = Hit.hitDistance * WorldToMeters;
-			OutHit.HitNormal = -UnitVectorToUnreal(Hit.hitNormal);
-			OutHit.HitPosition = PositionToUnreal(Hit.hitPosition, WorldToMeters);
+			OutHit.HitNormal = -FromOpenXrToUnreal(Hit.hitNormal);
+			OutHit.HitPosition = FromOpenXrToUnreal(Hit.hitPosition, WorldToMeters);
 			OutHits.Push(OutHit);
 		}
 		return true;
@@ -228,9 +228,10 @@ void AMRUKAnchor::AttachProceduralMesh(TArray<FMRUKPlaneUV> PlaneUVAdjustments, 
 	}
 
 	ProceduralMeshComponent = NewObject<UProceduralMeshComponent>(this, TEXT("ProceduralMesh"));
-	GenerateProceduralAnchorMesh(ProceduralMeshComponent, PlaneUVAdjustments, CutHoleLabels, false, GenerateCollision);
 	ProceduralMeshComponent->SetupAttachment(RootComponent);
 	ProceduralMeshComponent->RegisterComponent();
+
+	GenerateProceduralAnchorMesh(ProceduralMeshComponent, PlaneUVAdjustments, CutHoleLabels, false, GenerateCollision);
 
 	for (int32 SectionIndex = 0; SectionIndex < ProceduralMeshComponent->GetNumSections(); ++SectionIndex)
 	{

@@ -33,7 +33,6 @@
 #include "GlobalShader.h"
 #include "Misc/EngineVersionComparison.h"
 #include "OculusXRHMD_FoveatedRendering.h"
-#include "DataDrivenShaderPlatformInfo.h"
 
 namespace OculusXRHMD
 {
@@ -78,7 +77,7 @@ namespace OculusXRHMD
 	public:
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return !bEnableMultiView || IsVulkanPlatform(Parameters.Platform);
+			return !bEnableMultiView || Parameters.Platform == SP_VULKAN_ES3_1_ANDROID || Parameters.Platform == SP_VULKAN_SM5;
 		}
 
 		static void ModifyCompilationEnvironment(const FPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -196,17 +195,8 @@ namespace OculusXRHMD
 		virtual void OnEndPlay(FWorldContext& InWorldContext) override;
 		virtual bool OnStartGameFrame(FWorldContext& WorldContext) override;
 		virtual bool OnEndGameFrame(FWorldContext& WorldContext) override;
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
-#else
-		virtual void OnBeginRendering_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily) override;
-#endif
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_GameThread() override;
-#else
-		virtual void OnBeginRendering_GameThread(FSceneViewFamily& InViewFamily) override;
-#endif
-
 		virtual class IXRLoadingScreen* CreateLoadingScreen() override { return GetSplash(); }
 		virtual FVector2D GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const override;
 
@@ -272,7 +262,6 @@ namespace OculusXRHMD
 #if !UE_VERSION_OLDER_THAN(5, 5, 0)
 		virtual void GetMotionControllerState(UObject* WorldContext, const EXRSpaceType XRSpaceType, const EControllerHand Hand, const EXRControllerPoseType XRControllerPoseType, FXRMotionControllerState& MotionControllerState) override;
 #endif
-		virtual bool GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile) override;
 		// IStereoRendering interface
 		virtual bool IsStereoEnabled() const override;
 		virtual bool IsStereoEnabledOnNextFrame() const override;
@@ -284,11 +273,7 @@ namespace OculusXRHMD
 		virtual FMatrix GetStereoProjectionMatrix(const int32 ViewIndex) const override;
 		virtual void InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas) override;
 		// virtual void GetEyeRenderParams_RenderThread(const struct FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-		virtual void RenderTexture_RenderThread(class FRDGBuilder& GraphBuilder, FRDGTextureRef BackBuffer, FRDGTextureRef SrcTexture, FVector2f WindowSize) const override;
-#else
 		virtual void RenderTexture_RenderThread(class FRHICommandListImmediate& RHICmdList, class FRHITexture* BackBuffer, class FRHITexture* SrcTexture, FVector2D WindowSize) const override;
-#endif
 		// virtual void SetClippingPlanes(float NCP, float FCP) override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual IStereoLayers* GetStereoLayers() override { return this; }
@@ -302,11 +287,7 @@ namespace OculusXRHMD
 
 		// FHeadMountedDisplayBase interface
 		virtual FVector2D GetEyeCenterPoint_RenderThread(int32 ViewIndex) const override;
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-		virtual FIntRect GetFullFlatEyeRect_RenderThread(const FRHITextureDesc& EyeTexture) const override;
-#else
 		virtual FIntRect GetFullFlatEyeRect_RenderThread(FTextureRHIRef EyeTexture) const override;
-#endif
 		virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FIntRect SrcRect, FRHITexture* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
 		virtual bool PopulateAnalyticsAttributes(TArray<struct FAnalyticsEventAttribute>& EventAttributes) override;
 
@@ -343,17 +324,9 @@ namespace OculusXRHMD
 		virtual void SetLayerDesc(uint32 LayerId, const IStereoLayers::FLayerDesc& InLayerDesc) override;
 		virtual bool GetLayerDesc(uint32 LayerId, IStereoLayers::FLayerDesc& OutLayerDesc) override;
 		virtual void MarkTextureForUpdate(uint32 LayerId) override;
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
-		virtual IStereoLayers::FLayerDesc GetDebugCanvasLayerDesc(FTextureRHIRef Texture);
-#else
-		virtual IStereoLayers::FLayerDesc GetDebugCanvasLayerDesc(class UTextureRenderTarget2D* Texture) override;
-#endif
+		virtual IStereoLayers::FLayerDesc GetDebugCanvasLayerDesc(FTextureRHIRef Texture) override;
 		virtual void GetAllocatedTexture(uint32 LayerId, FTextureRHIRef& Texture, FTextureRHIRef& LeftTexture) override;
-
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual bool ShouldCopyDebugLayersToSpectatorScreen() const override { return true; }
-#endif
-
 		virtual void PushLayerState(bool) override
 		{ /* Todo */
 		}
@@ -419,9 +392,7 @@ namespace OculusXRHMD
 #endif
 
 		class FSceneViewport* FindSceneViewport();
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		FOculusXRSplashDesc GetUESplashScreenDesc();
-#endif
 		void EyeTrackedFoveatedRenderingFallback();
 
 	public:

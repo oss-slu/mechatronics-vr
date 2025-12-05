@@ -41,10 +41,6 @@ namespace OculusXRHMD
 	//-------------------------------------------------------------------------------------------------
 
 	class FSplash : public IXRLoadingScreen, public TSharedFromThis<FSplash>
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-		,
-					public FGCObject
-#endif
 	{
 	protected:
 		class FTicker : public FTickableObjectRenderThread, public TSharedFromThis<FTicker>
@@ -99,12 +95,6 @@ namespace OculusXRHMD
 		{
 			return false;
 		}
-#endif
-
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-		/* FGCObject interface */
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-		virtual FString GetReferencerName() const override { return TEXT("OculusXRHMD::FSplash"); }
 #endif
 
 	protected:

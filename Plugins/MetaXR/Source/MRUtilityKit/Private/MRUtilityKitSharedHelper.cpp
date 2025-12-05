@@ -12,14 +12,40 @@ MRUKShared::MrukUuid ToMrukShared(const FOculusXRUUID& Uuid)
 	return MrukUuid;
 }
 
-FOculusXRUUID ToUnreal(const MRUKShared::MrukUuid& Uuid)
+FOculusXRUUID ToOculusXR(const MRUKShared::MrukUuid& Uuid)
 {
 	FOculusXRUUID ConvertedUuid;
 	memcpy(ConvertedUuid.UUIDBytes, Uuid.data, sizeof(ConvertedUuid.UUIDBytes));
 	return ConvertedUuid;
 }
 
-FBox3d ToUnreal(const UWorld* World, const MRUKShared::MrukVolume& Volume)
+FTransform ToOculusXR(const MRUKShared::MrukPosef& Pose)
+{
+	FTransform Transform{};
+
+	FQuat Rotation(Pose.rotation.x, Pose.rotation.y, Pose.rotation.z, Pose.rotation.w);
+	const FXRTrackingSystemBase* TS = static_cast<FXRTrackingSystemBase*>(GEngine->XRSystem.Get());
+	const auto TrackingToWorld = TS->GetTrackingToWorldTransform();
+	const float WorldToMeters = TS->GetWorldToMetersScale();
+	const FVector BasePosition = TS->GetBasePosition();
+	const FQuat BaseOrientation = TS->GetBaseOrientation();
+
+	FQuat BaseRotationInverse = BaseOrientation.Inverse();
+
+	FVector Position(-Pose.position.Z, Pose.position.X, Pose.position.Y);
+	Position = (Position - BasePosition) * WorldToMeters;
+	Position = BaseRotationInverse.RotateVector(Position);
+
+	FQuat Orientation(-Pose.rotation.z, Pose.rotation.x, Pose.rotation.y, -Pose.rotation.w);
+	Orientation = (BaseRotationInverse * Orientation).GetNormalized();
+
+	Transform.SetTranslation(TrackingToWorld.TransformPosition(Position));
+	Transform.SetRotation(TrackingToWorld.TransformRotation(Orientation));
+
+	return Transform;
+}
+
+FBox3d ToOculusXR(const UWorld* World, const MRUKShared::MrukVolume& Volume)
 {
 	FVector Min{ -Volume.min.Z, Volume.min.X, Volume.min.Y };
 	Min.X -= Volume.max.Z - Volume.min.Z;
@@ -31,14 +57,14 @@ FBox3d ToUnreal(const UWorld* World, const MRUKShared::MrukVolume& Volume)
 	return Box;
 }
 
-FBox2d ToUnreal(const UWorld* World, const MRUKShared::MrukPlane& Plane)
+FBox2d ToOculusXR(const UWorld* World, const MRUKShared::MrukPlane& Plane)
 {
 	const float WorldToMeters = World ? World->GetWorldSettings()->WorldToMeters : 100.0f;
 	FBox2d Box(FVector2D{ Plane.x, Plane.y } * WorldToMeters, FVector2D{ Plane.x + Plane.width, Plane.y + Plane.height } * WorldToMeters);
 	return Box;
 }
 
-TArray<FVector2D> ToUnreal(const UWorld* World, const FVector2f* const Boundary, uint32_t BoundaryCount)
+TArray<FVector2D> ToOculusXR(const UWorld* World, const FVector2f* const Boundary, uint32_t BoundaryCount)
 {
 	const float WorldToMeters = World ? World->GetWorldSettings()->WorldToMeters : 100.0f;
 	TArray<FVector2D> ConvertedBoundary;
@@ -50,7 +76,7 @@ TArray<FVector2D> ToUnreal(const UWorld* World, const FVector2f* const Boundary,
 	return ConvertedBoundary;
 }
 
-FString ToUnreal(MRUKShared::MrukLabel Label)
+FString ToOculusXR(MRUKShared::MrukLabel Label)
 {
 	switch (Label)
 	{
@@ -144,42 +170,12 @@ MRUKShared::MrukLabelFilter ToMrukShared(const FMRUKLabelFilter LabelFilter)
 	return Filter;
 }
 
-FVector UnitVectorToUnreal(const FVector3f& UnitVector)
+FVector FromOpenXrToUnreal(const FVector3f& V, float WorldToMeters)
 {
-	return FVector(-UnitVector.Z, UnitVector.X, UnitVector.Y);
+	return FVector(-V.Z, V.X, V.Y) * WorldToMeters;
 }
 
-FVector3f UnitVectorToMrukShared(const FVector& UnitVector)
+FVector3f FromUnrealToOpenXr(const FVector& V, float WorldToMeters)
 {
-	return FVector3f(UnitVector.Y, UnitVector.Z, -UnitVector.X);
-}
-
-FVector PositionToUnreal(const FVector3f& Position, float WorldToMeters)
-{
-	return UnitVectorToUnreal(Position) * WorldToMeters;
-}
-
-FVector3f PositionToMrukShared(const FVector& Position, float WorldToMeters)
-{
-	return UnitVectorToMrukShared(Position) / WorldToMeters;
-}
-
-FQuat ToUnreal(const MRUKShared::MrukQuatf& Q)
-{
-	return FQuat(-Q.z, Q.x, Q.y, -Q.w);
-}
-
-MRUKShared::MrukQuatf ToMrukShared(const FQuat& Q)
-{
-	return MRUKShared::MrukQuatf{ static_cast<float>(Q.Y), static_cast<float>(Q.Z), -static_cast<float>(Q.X), -static_cast<float>(Q.W) };
-}
-
-FTransform ToUnreal(const MRUKShared::MrukPosef& Pose, float WorldToMeters)
-{
-	return FTransform(ToUnreal(Pose.rotation), PositionToUnreal(Pose.position, WorldToMeters));
-}
-
-MRUKShared::MrukPosef ToMrukShared(const FTransform& Transform, float WorldToMeters)
-{
-	return MRUKShared::MrukPosef{ PositionToMrukShared(Transform.GetTranslation(), WorldToMeters), ToMrukShared(Transform.GetRotation()) };
+	return FVector3f(V.Y, V.Z, -V.X) / WorldToMeters;
 }

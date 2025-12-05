@@ -25,10 +25,11 @@ namespace
 		Actor->SetActorRelativeScale3D(FVector::OneVector);
 
 		UProceduralMeshComponent* ProceduralMeshComponent = NewObject<UProceduralMeshComponent>(Actor, TEXT("ProceduralMesh"));
-		Anchor->GenerateProceduralAnchorMesh(ProceduralMeshComponent, PlaneUVAdjustments, CutHoleLabels, false, true);
 		ProceduralMeshComponent->SetupAttachment(Actor->GetRootComponent());
 		ProceduralMeshComponent->RegisterComponent();
 		Actor->AddInstanceComponent(ProceduralMeshComponent);
+
+		Anchor->GenerateProceduralAnchorMesh(ProceduralMeshComponent, PlaneUVAdjustments, CutHoleLabels, false, true);
 
 		for (int32 SectionIndex = 0; SectionIndex < ProceduralMeshComponent->GetNumSections(); ++SectionIndex)
 		{
@@ -136,14 +137,7 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshesOnWallsIfNoWallAct
 {
 	TArray<AActor*> Actors;
 	const auto WallFace = SpawnGroups.Find(FMRUKLabels::WallFace);
-	const auto InnerWallFace = SpawnGroups.Find(FMRUKLabels::InnerWallFace);
-	const auto OtherRoomFace = SpawnGroups.Find(FMRUKLabels::OtherRoomFace);
-
-	const bool SpawnWalls = (!WallFace || (WallFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*WallFace)))
-		&& (!InnerWallFace || (InnerWallFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*InnerWallFace)))
-		&& ((!OtherRoomFace || (OtherRoomFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*OtherRoomFace))));
-
-	if (SpawnWalls)
+	if (!WallFace || (WallFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*WallFace)))
 	{
 		// If no wall mesh is given we want to spawn the walls procedural to make seamless UVs
 		TArray<FMRUKAnchorWithPlaneUVs> AnchorsWithPlaneUVs;
@@ -156,9 +150,8 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshesOnWallsIfNoWallAct
 	return Actors;
 }
 
-TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshOnFloorIfNoFloorActorGiven(AMRUKRoom* Room)
+AActor* AMRUKAnchorActorSpawner::SpawnProceduralMeshOnFloorIfNoFloorActorGiven(AMRUKRoom* Room)
 {
-	TArray<AActor*> Actors;
 	const auto Floor = SpawnGroups.Find(FMRUKLabels::Floor);
 	if (Room->FloorAnchor && (!Floor || (Floor->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*Floor))))
 	{
@@ -166,14 +159,13 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshOnFloorIfNoFloorActo
 		const float WorldToMeters = GetWorldSettings()->WorldToMeters;
 		const FVector2D Scale = Room->FloorAnchor->PlaneBounds.GetSize() / WorldToMeters;
 		const TArray<FMRUKPlaneUV> PlaneUVAdj = { { FVector2D::ZeroVector, Scale } };
-		Actors.Push(SpawnProceduralMesh(Room->FloorAnchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial));
+		return SpawnProceduralMesh(Room->FloorAnchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial);
 	}
-	return Actors;
+	return nullptr;
 }
 
-TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(AMRUKRoom* Room)
+AActor* AMRUKAnchorActorSpawner::SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(AMRUKRoom* Room)
 {
-	TArray<AActor*> Actors;
 	const auto Ceiling = SpawnGroups.Find(FMRUKLabels::Ceiling);
 	if (Room->CeilingAnchor && (!Ceiling || (Ceiling->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*Ceiling))))
 	{
@@ -181,9 +173,9 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshOnCeilingIfNoCeiling
 		const float WorldToMeters = GetWorldSettings()->WorldToMeters;
 		const FVector2D Scale = Room->CeilingAnchor->PlaneBounds.GetSize() / WorldToMeters;
 		const TArray<FMRUKPlaneUV> PlaneUVAdj = { { FVector2D::ZeroVector, Scale } };
-		Actors.Push(SpawnProceduralMesh(Room->CeilingAnchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial));
+		return SpawnProceduralMesh(Room->CeilingAnchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial);
 	}
-	return Actors;
+	return nullptr;
 }
 
 AActor* AMRUKAnchorActorSpawner::SpawnProceduralMeshForAnchorIfNeeded(AMRUKAnchor* Anchor)
@@ -227,19 +219,26 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshesInRoom(AMRUKRoom* 
 		Actors.Append(WallActors);
 	}
 
-	TArray<AActor*> FloorActors = SpawnProceduralMeshOnFloorIfNoFloorActorGiven(Room);
-	Actors.Append(FloorActors);
-	TArray<AActor*> CeilingActors = SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(Room);
-	Actors.Append(CeilingActors);
+	AActor* Actor = nullptr;
 
+	Actor = SpawnProceduralMeshOnFloorIfNoFloorActorGiven(Room);
+	if (Actor)
+	{
+		Actors.Push(Actor);
+	}
+	Actor = SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(Room);
+	if (Actor)
+	{
+		Actors.Push(Actor);
+	}
 	for (const auto& Anchor : Room->AllAnchors)
 	{
-		if (Anchor->HasLabel(FMRUKLabels::Floor) || Anchor->HasLabel(FMRUKLabels::Ceiling) || Anchor->HasLabel(FMRUKLabels::WallFace) || Anchor->HasLabel(FMRUKLabels::InnerWallFace) || Anchor->HasLabel(FMRUKLabels::OtherRoomFace))
+		if (Anchor->HasLabel(FMRUKLabels::Floor) || Anchor->HasLabel(FMRUKLabels::Ceiling) || Anchor->HasLabel(FMRUKLabels::WallFace))
 		{
 			// These have already been spawned above in case it was necessary
 			continue;
 		}
-		AActor* Actor = SpawnProceduralMeshForAnchorIfNeeded(Anchor);
+		Actor = SpawnProceduralMeshForAnchorIfNeeded(Anchor);
 		if (Actor)
 		{
 			Actors.Push(Actor);
