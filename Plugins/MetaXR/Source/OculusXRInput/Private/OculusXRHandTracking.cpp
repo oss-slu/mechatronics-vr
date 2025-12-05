@@ -18,11 +18,9 @@
 #include "Misc/CoreDelegates.h"
 #include "Model.h"
 #include "OculusXRHMD.h"
-#include "OculusXRHMDRuntimeSettings.h"
 #include "OpenXR/OculusXROpenXRUtilities.h"
 #include "OculusXRInputModule.h"
 #include "OculusXRInputState.h"
-#include "OculusXRSimultaneousHandsAndControllersExtensionPlugin.h"
 
 #define OCULUS_TO_UE4_SCALE 100.0f
 
@@ -362,26 +360,6 @@ namespace OculusXRInput
 				const FOculusXRInputModule* InputModule = static_cast<FOculusXRInputModule*>(&FOculusXRInputModule::Get());
 				const FOculusHandControllerState& HandState = InputModule->GetHandTrackingOpenXRExtension()->HandControllerStates[DeviceHand];
 				return HandState.bIsPositionValid;
-			}
-		}
-
-		return false;
-	}
-
-	bool FOculusHandTracking::IsHandInteractionProfile(EOculusXRHandType DeviceHand)
-	{
-		if (DeviceHand == EOculusXRHandType::None)
-		{
-			return false;
-		}
-
-		if (GEngine && GEngine->XRSystem.IsValid())
-		{
-			EControllerHand ControllerHand = DeviceHand == EOculusXRHandType::HandLeft ? EControllerHand::Left : EControllerHand::Right;
-			FString InteractionProfile;
-			if (GEngine->XRSystem->GetCurrentInteractionProfile(ControllerHand, InteractionProfile))
-			{
-				return InteractionProfile == FString("/interaction_profiles/ext/hand_interaction_ext");
 			}
 		}
 
@@ -1214,48 +1192,5 @@ namespace OculusXRInput
 				FOculusXRHMDModule::GetPluginWrapper().SetControllerDrivenHandPosesAreNatural(false);
 				break;
 		}
-	}
-
-	bool FOculusHandTracking::SetSimultaneousHandsAndControllersEnabled(bool bEnabled)
-	{
-		if (OculusXRHMD::FOculusXRHMD::GetOculusXRHMD() != nullptr)
-		{
-			if (!IsPluginWrapperAvailible())
-			{
-				return false;
-			}
-
-			const auto Result = FOculusXRHMDModule::GetPluginWrapper().SetSimultaneousHandsAndControllersEnabled(bEnabled);
-			return Result == ovrpSuccess;
-		}
-		else if (OculusXR::IsOpenXRSystem())
-		{
-			const FOculusXRInputModule* InputModule = static_cast<FOculusXRInputModule*>(&FOculusXRInputModule::Get());
-			return InputModule->GetSimultaneousHandsAndControllersEOpenXRExtension()->SetSimultaneousHandsAndControllersEnabled(bEnabled);
-		}
-
-		return false;
-	}
-
-	bool FOculusHandTracking::IsSimultaneousHandsAndControllersEnabled()
-	{
-		if (OculusXRHMD::FOculusXRHMD::GetOculusXRHMD() != nullptr)
-		{
-			if (!IsPluginWrapperAvailible())
-			{
-				return false;
-			}
-
-			ovrpBool bSupported = false;
-			const auto Result = FOculusXRHMDModule::GetPluginWrapper().IsMultimodalHandsControllersSupported(&bSupported);
-			return Result == ovrpSuccess && bSupported == ovrpBool_True;
-		}
-		else if (OculusXR::IsOpenXRSystem())
-		{
-			const FOculusXRInputModule* InputModule = static_cast<FOculusXRInputModule*>(&FOculusXRInputModule::Get());
-			return InputModule->GetSimultaneousHandsAndControllersEOpenXRExtension()->IsSimultaneousHandsAndControllersEnabled();
-		}
-
-		return false;
 	}
 } // namespace OculusXRInput

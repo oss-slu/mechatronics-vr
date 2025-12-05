@@ -2,16 +2,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusXRSimulator.h"
-#include "Misc/EngineVersionComparison.h"
 
 #include <sstream>
 
 #include "JsonObjectConverter.h"
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 #include "MaterialHLSLGenerator.h"
-#endif
-
-#include "OculusXRSyntheticEnvironmentServer.h"
 #include "Algo/MaxElement.h"
 
 #if PLATFORM_WINDOWS
@@ -493,7 +488,7 @@ FString FMetaXRSimulator::GetPackagePath() const
 	return FPaths::Combine(InstallationPath, PreferredVersion);
 }
 
-void FMetaXRSimulator::InstallSimulator(const FString& URL, const FString& Version, TFunction<void()> OnSuccess)
+void FMetaXRSimulator::InstallSimulator(const FString& URL, const FString& Version, const TFunction<void()>& OnSuccess)
 {
 	FNotificationInfo Progress(FText::FromString("Installing Meta XR Simulator..."));
 	Progress.bFireAndForget = false;
@@ -586,7 +581,7 @@ FString FMetaXRSimulator::GetPluginVersion()
 }
 
 void FMetaXRSimulator::UnzipSimulator(const FString& Path, const FString& TargetPath, const TSharedPtr<SNotificationItem>& Notification,
-	TFunction<void()> OnSuccess)
+	const TFunction<void()>& OnSuccess)
 {
 
 	if (!Unzip(Path, TargetPath, Notification))
@@ -613,11 +608,11 @@ void FMetaXRSimulator::UnzipSimulator(const FString& Path, const FString& Target
 	}
 }
 
-void FMetaXRSimulator::FetchAvailableVersions(bool bCheckSkippedVersion)
+void FMetaXRSimulator::FetchAvailableVersions()
 {
 	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-	Request->OnProcessRequestComplete().BindLambda([this, bCheckSkippedVersion](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful) {
+	Request->OnProcessRequestComplete().BindLambda([&](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful) {
 		Request->OnRequestProgress64().Unbind();
 		if (Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
 		{
@@ -666,7 +661,7 @@ void FMetaXRSimulator::FetchAvailableVersions(bool bCheckSkippedVersion)
 				MaxAvailableVersion.Emplace(*Maximum);
 			}
 
-			SpawnNotificationToUpdateIfAvailable(bCheckSkippedVersion);
+			SpawnNotificationToUpdateIfAvailable();
 		}
 	});
 
@@ -708,7 +703,7 @@ bool FMetaXRSimulator::IsLatestVersionInstalled()
 	return false;
 }
 
-void FMetaXRSimulator::SpawnNotificationToUpdateIfAvailable(bool bCheckSkippedVersion)
+void FMetaXRSimulator::SpawnNotificationToUpdateIfAvailable()
 {
 	if (!FModuleManager::Get().IsModuleLoaded("MainFrame"))
 	{
@@ -723,18 +718,6 @@ void FMetaXRSimulator::SpawnNotificationToUpdateIfAvailable(bool bCheckSkippedVe
 	if (!MaxAvailableVersion.IsSet())
 	{
 		return;
-	}
-
-	if (bCheckSkippedVersion)
-	{
-		auto Settings = GetDefault<UOculusXRHMDRuntimeSettings>();
-		if (Algo::FindByPredicate(Settings->SkippedVersions, [Version = MaxAvailableVersion->Version](const FString& InVersion) {
-				return CompareVersionStrings(InVersion, Version) == 0;
-			})
-			!= nullptr)
-		{
-			return;
-		}
 	}
 
 	auto InstalledVersions = GetInstalledVersions();
@@ -759,9 +742,6 @@ void FMetaXRSimulator::SpawnNotificationToUpdateIfAvailable(bool bCheckSkippedVe
 			NotificationFuture.Get()->Fadeout();
 			if (!bUpdate)
 			{
-				auto Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
-				Settings->SkippedVersions.Add(MaxAvailableVersion->Version);
-				Settings->TryUpdateDefaultConfigFile();
 				return;
 			}
 			InstallSimulator(MaxAvailableVersion->DownloadUrl, MaxAvailableVersion->Version, nullptr);

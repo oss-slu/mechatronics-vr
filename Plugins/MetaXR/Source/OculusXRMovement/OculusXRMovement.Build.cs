@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
                     "HeadMountedDisplay",
                     "OVRPluginXR",
                     "OculusXRHMD",
-                    "OculusXRTelemetry",
                     "XRBase",
                     "OpenXR",
                     "OpenXRHMD",

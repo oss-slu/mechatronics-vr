@@ -9,7 +9,6 @@
 #include "IOpenXRExtensionPlugin.h"
 #include "OculusXRInputHandTrackingTypes.h"
 #include "OculusXRInputState.h"
-#include "khronos/openxr/meta_openxr_preview/meta_hand_tracking_wide_motion_mode.h"
 
 namespace OculusXRInput
 {
@@ -33,7 +32,6 @@ namespace OculusXRInput
 			memset(XrRightHandJointLocations, 0, sizeof(XrRightHandJointLocations));
 			memset(XrLeftHandJointVelocities, 0, sizeof(XrLeftHandJointVelocities));
 			memset(XrRightHandJointVelocities, 0, sizeof(XrRightHandJointVelocities));
-
 		}
 
 		void RegisterOpenXRExtensionPlugin()
@@ -57,16 +55,11 @@ namespace OculusXRInput
 		virtual const void* OnGetSystem(XrInstance InInstance, const void* InNext) override;
 		virtual const void* OnCreateInstance(class IOpenXRHMDModule* InModule, const void* InNext) override;
 		virtual void PostCreateInstance(XrInstance InInstance) override;
-		virtual void PostCreateSession(XrSession InSession) override;
 		virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext) override;
 		virtual const void* OnBeginSession(XrSession InSession, const void* InNext) override;
 		virtual void UpdateDeviceLocations(XrSession InSession, XrTime DisplayTime, XrSpace TrackingSpace) override;
 		virtual void PostSyncActions(XrSession InSession) override;
 		virtual void OnDestroySession(XrSession InSession) override;
-
-#ifdef WITH_OCULUS_BRANCH
-		virtual const void* OnCreateHandTracker(const void* InNext) override;
-#endif // WITH_OCULUS_BRANCH
 
 		virtual bool IsHandTrackingAvailable();
 		virtual bool IsHandTrackingActive();
@@ -81,14 +74,11 @@ namespace OculusXRInput
 		void CreateActions();
 		void DestroyActions();
 
-		XrSession Session;
-
 		TArray<FMicrogestureActionProperties> MicrogestureActions;
 
 		XrActionSet MicrogestureActionSet = XR_NULL_HANDLE;
 
 		XrPath XrPathHandInteractionProfile = XR_NULL_PATH;
-
 
 		XrHandJointLocationEXT XrLeftHandJointLocations[XR_HAND_JOINT_COUNT_EXT];
 		XrHandJointLocationEXT XrRightHandJointLocations[XR_HAND_JOINT_COUNT_EXT];
@@ -107,11 +97,6 @@ namespace OculusXRInput
 		virtual FVector XrPoseVectorToFVector(XrVector3f XrVector);
 		virtual FQuat XrPoseQuatToFQuat(XrQuaternionf XrQuat);
 		virtual FQuat XrBoneQuatToFQuat(XrQuaternionf XrQuat);
-
-		void CreateHandTrackers();
-		void DestroyHandTrackers();
-		void CreateHandTracker(XrHandEXT HandEXT, XrHandTrackerEXT& OutHandTracker);
-		void PotentiallyRecreateHandTrackers();
 
 		bool bExtHandTrackingMeshAvailable = false;
 		bool bExtMicrogesturesAvailable = false;

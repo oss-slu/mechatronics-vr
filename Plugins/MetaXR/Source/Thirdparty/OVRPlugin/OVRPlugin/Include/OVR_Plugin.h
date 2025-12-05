@@ -88,9 +88,6 @@ OVRP_EXPORT ovrpResult ovrp_GetNativeXrApiType(ovrpXrApi* xrApi);
 /// Retrive XrInstance / XrSession when OpenXR is being used
 OVRP_EXPORT ovrpResult ovrp_GetNativeOpenXRHandles(ovrpUInt64* xrInstance, ovrpUInt64* xrSession);
 
-/// Retrieve a pointer to the IUnityInterfaces class
-OVRP_EXPORT ovrpResult ovrp_GetUnityInterfaces(void** unityInterfaces);
-
 /// Retrieves the expected Display Adapter ID associated with the Oculus HMD.
 /// On Windows systems, this will return a DX11 LUID, otherwise nullptr.
 /// @note ovrp_PreInitialize must be called and return a successful result before calling this
@@ -787,6 +784,17 @@ OVRP_EXPORT ovrpResult ovrp_GetFoveationEyeTrackedCenter(ovrpVector2f fovCenter[
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 /// Return true if the device supports GPU Util querying
 OVRP_EXPORT ovrpResult ovrp_GetGPUUtilSupported(ovrpBool* gpuUtilSupported);
 
@@ -816,8 +824,6 @@ OVRP_EXPORT ovrpResult ovrp_GetViewportStencil(
     int* indexCount);
 
 OVRP_EXPORT ovrpResult ovrp_SetDeveloperTelemetryConsent(ovrpBool consent);
-
-OVRP_EXPORT ovrpResult ovrp_GetMachineID(char* machineId);
 
 OVRP_EXPORT ovrpResult ovrp_SendEvent(const char* eventName, const char* param);
 
@@ -849,20 +855,6 @@ OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV2( // For OVRP_1_110_0+
     const char* error_msg,
     const char* is_internal_build,
     const char* batch_mode);
-
-OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV3( // For OVRP_1_111_0+
-    ovrpBool isEssential,
-    const char* productType,
-    const char* eventName,
-    const char* event_metadata_json,
-    const char* project_name,
-    const char* event_entrypoint,
-    const char* project_guid,
-    const char* event_type,
-    const char* event_target,
-    const char* error_msg,
-    ovrpOptionalBool is_internal_build,
-    ovrpOptionalBool batch_mode);
 
 OVRP_EXPORT ovrpResult ovrp_AddCustomMetadata(const char* metadataName, const char* metadataParam);
 
@@ -924,7 +916,6 @@ OVRP_EXPORT ovrpResult ovrp_GetHandTrackingEnabled(ovrpBool* handTrackingEnabled
 OVRP_EXPORT ovrpResult ovrp_GetHandState(ovrpStep step, ovrpHand hand, ovrpHandState* handState);
 OVRP_EXPORT ovrpResult ovrp_GetHandState2(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandState* handState);
 OVRP_EXPORT ovrpResult ovrp_GetHandState3(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandState3* handState);
-OVRP_EXPORT ovrpResult ovrp_GetHandStateAtTime(double time, ovrpHand hand, ovrpHandState3* handState);
 OVRP_EXPORT ovrpResult
 ovrp_GetHandTrackingState(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandTrackingState* handTrackingState);
 OVRP_EXPORT ovrpResult ovrp_GetSkeleton2(ovrpSkeletonType skeletonType, ovrpSkeleton2* skeleton);
@@ -1387,15 +1378,17 @@ OVRP_EXPORT ovrpResult ovrp_DestroyMarkerTracker(ovrpMarkerTracker tracker);
 OVRP_EXPORT ovrpResult ovrp_GetSpaceMarkerPayload(ovrpSpace space, ovrpSpaceMarkerPayload* payload);
 OVRP_EXPORT ovrpResult ovrp_GetMarkerTrackingSupported(ovrpBool* supportsMarkerTracking);
 
-OVRP_EXPORT ovrpResult ovrp_CreateEnvironmentRaycasterAsync(ovrpFuture* future);
-OVRP_EXPORT ovrpResult
-ovrp_CreateEnvironmentRaycasterComplete(ovrpFuture future, ovrpEnvironmentRaycasterCreateCompletion* completion);
-OVRP_EXPORT ovrpResult ovrp_DestroyEnvironmentRaycaster(ovrpEnvironmentRaycaster raycaster);
-OVRP_EXPORT ovrpResult ovrp_PerformEnvironmentRaycast(
-    ovrpEnvironmentRaycaster raycaster,
-    const ovrpRaycastHitPointGetInfo* getInfo,
-    ovrpEnvironmentRaycastHit* hit);
-OVRP_EXPORT ovrpResult ovrp_GetEnvironmentRaycastSupported(ovrpBool* supported);
+
+
+
+
+
+
+
+
+
+
+
 
 // XR_EXT_future
 OVRP_EXPORT ovrpResult ovrp_PollFuture(ovrpFuture future, ovrpFutureState* state);

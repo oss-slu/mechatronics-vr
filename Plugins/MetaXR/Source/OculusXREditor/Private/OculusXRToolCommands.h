@@ -38,7 +38,10 @@ public:
 	TSharedPtr<FUICommandInfo> StopServer;
 	TSharedPtr<FUICommandInfo> OpenSettings;
 
+	TArray<TSharedPtr<FUICommandInfo>> RoomCommands;
+
 private:
 	void ShowOculusTool();
+
 	FAutoConsoleCommand ShowOculusToolCommand;
 };

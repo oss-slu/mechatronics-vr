@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OculusXRTelemetryMarker.h"
+#include "OculusXRTelemetry.h"
 
 namespace OculusXRTelemetry::Events
 {

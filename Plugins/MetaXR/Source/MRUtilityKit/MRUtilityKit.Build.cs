@@ -41,7 +41,6 @@ public class MRUtilityKit : ModuleRules
                 "OculusXRHMD",
                 "OculusXRAnchors",
                 "OculusXRScene",
-                "OculusXRTelemetry",
                 "Json",
                 "ProceduralMeshComponent",
                 "HeadMountedDisplay",

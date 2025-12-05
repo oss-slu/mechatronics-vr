@@ -171,7 +171,6 @@ namespace OculusXRHMD
 		EOculusXRHMDBodyTrackingFidelity BodyTrackingFidelity;
 		EOculusXRHMDBodyJointSet BodyTrackingJointSet;
 
-
 		TSet<EFaceTrackingDataSourceConfig> FaceTrackingDataSource;
 		bool bFaceTrackingVisemesEnabled;
 

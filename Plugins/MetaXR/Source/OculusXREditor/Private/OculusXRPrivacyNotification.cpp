@@ -1,4 +1,4 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates.
+﻿// Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #include "OculusXRPrivacyNotification.h"
 
@@ -9,7 +9,6 @@
 #include "Widgets/Notifications/SNotificationList.h"
 
 #include "OculusXRHMDModule.h"
-#include "OculusXRTelemetryModule.h"
 #include "OculusXRTelemetry.h"
 #include "OculusXRToolStyle.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -27,6 +26,10 @@ namespace OculusXRTelemetry
 {
 	namespace
 	{
+		constexpr int CONSENT_TITLE_MAX_LENGTH = 256;
+		constexpr int CONSENT_TEXT_MAX_LENGTH = 2048;
+		constexpr int CONSENT_NOTIFICATION_MAX_LENGTH = 1024;
+
 		void OnBrowserLinkClicked(const FSlateHyperlinkRun::FMetadata& Metadata)
 		{
 			const FString* Url = Metadata.Find(TEXT("href"));
@@ -38,7 +41,7 @@ namespace OculusXRTelemetry
 
 		void UpdateNotificationShown()
 		{
-			OculusXRTelemetry::SetNotificationShown();
+			FOculusXRHMDModule::GetPluginWrapper().SetNotificationShown(UNREAL_TOOL_ID);
 		}
 
 		std::string MarkdownToRTF(const std::string& markdown)
@@ -208,26 +211,24 @@ namespace OculusXRTelemetry
 	private:
 		FReply OnShareClicked()
 		{
-			OculusXRTelemetry::SaveUnifiedConsent(true);
+			FOculusXRHMDModule::GetPluginWrapper().SaveUnifiedConsent(UNREAL_TOOL_ID, ovrpBool_True);
 			if (UOculusXRTelemetryPrivacySettings* EditorPrivacySettings = GetMutableDefault<UOculusXRTelemetryPrivacySettings>())
 			{
 				EditorPrivacySettings->bIsEnabled = true;
 			}
 			PropagateTelemetryConsent();
-
 			FSlateApplication::Get().FindWidgetWindow(AsShared())->RequestDestroyWindow();
 			return FReply::Handled();
 		}
 
 		FReply OnNotShareClicked()
 		{
-			OculusXRTelemetry::SaveUnifiedConsent(false);
+			FOculusXRHMDModule::GetPluginWrapper().SaveUnifiedConsent(UNREAL_TOOL_ID, ovrpBool_False);
 			if (UOculusXRTelemetryPrivacySettings* EditorPrivacySettings = GetMutableDefault<UOculusXRTelemetryPrivacySettings>())
 			{
 				EditorPrivacySettings->bIsEnabled = false;
 			}
 			PropagateTelemetryConsent();
-
 			FSlateApplication::Get().FindWidgetWindow(AsShared())->RequestDestroyWindow();
 			return FReply::Handled();
 		}
@@ -240,15 +241,22 @@ namespace OculusXRTelemetry
 			return;
 		}
 
-		FString TelemetryWindowTitle = OculusXRTelemetry::GetConsentTitle();
-		FString ConsentText = OculusXRTelemetry::GetConsentMarkdownText();
+		char TelemetryWindowTitle[CONSENT_TITLE_MAX_LENGTH];
+		char ConsentText[CONSENT_TEXT_MAX_LENGTH];
+		if (FOculusXRHMDModule::GetPluginWrapper().GetConsentTitle(TelemetryWindowTitle) == ovrpFailure || FOculusXRHMDModule::GetPluginWrapper().GetConsentMarkdownText(ConsentText) == ovrpFailure)
+		{
+			return;
+		}
 
-		IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([TelemetryWindowTitle, ConsentText](const TSharedPtr<SWindow>& RootWindow, bool /*bIsRunningStartupDialog*/) {
+		std::string Title(TelemetryWindowTitle);
+		std::string MarkdownText(ConsentText);
+
+		IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([Title, MarkdownText](const TSharedPtr<SWindow>& RootWindow, bool /*bIsRunningStartupDialog*/) {
 			const TSharedRef<SWindow> Window = SNew(SWindow)
-												   .Title(FText::FromString(TelemetryWindowTitle))
+												   .Title(FText::FromString(Title.c_str()))
 												   .SizingRule(ESizingRule::Autosized)
 												   .SupportsMaximize(false)
-												   .SupportsMinimize(false)[SNew(SOculusTelemetryWindow).ConsentText(std::string(TCHAR_TO_ANSI(*ConsentText)))];
+												   .SupportsMinimize(false)[SNew(SOculusTelemetryWindow).ConsentText(MarkdownText)];
 
 			FSlateApplication::Get().AddModalWindow(Window, RootWindow);
 		});
@@ -256,8 +264,11 @@ namespace OculusXRTelemetry
 
 	void SpawnNotification()
 	{
-		FString NotificationText = OculusXRTelemetry::GetConsentNotificationMarkdownText("<a id=\"PrivacySettings\">Settings</>");
-
+		char NotificationText[CONSENT_NOTIFICATION_MAX_LENGTH];
+		if (FOculusXRHMDModule::GetPluginWrapper().GetConsentNotificationMarkdownText("<a id=\"PrivacySettings\">Settings</>", NotificationText) == ovrpFailure)
+		{
+			return;
+		}
 		TPromise<TSharedPtr<SNotificationItem>> BtnNotificationPromise;
 		const auto OnClicked = [NotificationFuture = BtnNotificationPromise.GetFuture().Share()]() {
 			const TSharedPtr<SNotificationItem> Notification = NotificationFuture.Get();
@@ -265,7 +276,7 @@ namespace OculusXRTelemetry
 			Notification->Fadeout();
 		};
 
-		FNotificationInfo Info(SNew(SOculusXRPrivacyNotification).OnClicked_Lambda(OnClicked).ConsentText(std::string(TCHAR_TO_ANSI(*NotificationText))));
+		FNotificationInfo Info(SNew(SOculusXRPrivacyNotification).OnClicked_Lambda(OnClicked).ConsentText(NotificationText));
 		Info.ExpireDuration = 60.0f;
 
 		const TSharedPtr<SNotificationItem> PrivacyNotification = FSlateNotificationManager::Get().AddNotification(Info);
@@ -278,7 +289,7 @@ namespace OculusXRTelemetry
 
 	void MaybeSpawnTelemetryConsent()
 	{
-		if (!OculusXRTelemetry::IsActive())
+		if (!FOculusXRHMDModule::Get().IsOVRPluginAvailable() || !FOculusXRHMDModule::GetPluginWrapper().IsInitialized())
 		{
 			return;
 		}
@@ -288,12 +299,14 @@ namespace OculusXRTelemetry
 			return;
 		}
 
-		if (OculusXRTelemetry::ShouldShowTelemetryConsentWindow())
+		const auto& PluginWrapper = FOculusXRHMDModule::GetPluginWrapper();
+
+		if (PluginWrapper.ShouldShowTelemetryConsentWindow(UNREAL_TOOL_ID))
 		{
 			SpawnFullConsentWindow();
 		}
 
-		if (OculusXRTelemetry::ShouldShowTelemetryNotification())
+		if (PluginWrapper.ShouldShowTelemetryNotification(UNREAL_TOOL_ID))
 		{
 			SpawnNotification();
 		}

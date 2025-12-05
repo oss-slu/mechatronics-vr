@@ -84,58 +84,6 @@ struct FMRUKAnchorWithPlaneUVs
 };
 
 /**
- * Represents a face in the room mesh, containing information about its geometry and semantic classification.
- */
-USTRUCT(BlueprintType)
-struct FMRUKRoomFace
-{
-	GENERATED_BODY()
-
-	/**
-	 * Unique identifier for this face in the room mesh.
-	 */
-	FOculusXRUUID Uuid;
-
-	/**
-	 * Unique identifier of the parent object this face belongs to.
-	 */
-	FOculusXRUUID ParentUuid;
-
-	/**
-	 * The semantic classification of this face (e.g., FLOOR, WALL, CEILING).
-	 */
-	FString SemanticClassification;
-
-	/**
-	 * List of indices into the vertices array that define this face's geometry.
-	 * Each 3 consecutive indices represent a triangle in the mesh.
-	 */
-	TArray<int> Indices;
-};
-
-/**
- * Represents the complete mesh data for a room, including vertices and faces.
- */
-UCLASS(ClassGroup = MRUtilityKit)
-class MRUTILITYKIT_API UMRUKRoomMesh : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	/**
-	 * List of all vertices that make up the room mesh.
-	 */
-	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
-	TArray<FVector> Vertices;
-
-	/**
-	 * List of all faces that make up the room mesh, each containing indices into the Vertices list.
-	 */
-	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
-	TArray<FMRUKRoomFace> Faces;
-};
-
-/**
  * Represents a room in the MRUK.
  * A room holds (MRUK)Anchors as children for entities such as Desk, Floor, Ceiling, Walls, etc. Those entities are defined with their label.
  * It also provides events which will be triggered when an anchor has been added, removed or updated from space setup.
@@ -166,14 +114,6 @@ public:
 	FOculusXRUUID AnchorUUID;
 
 	/**
-	 * Contains the mesh data for the room, including vertices and faces.
-	 * This property can be used to access the geometric representation of the room.
-	 * This property will be null if Scene Model V1 was chosen when loading the scene.
-	 */
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = "MR Utility Kit")
-	TObjectPtr<UMRUKRoomMesh> RoomMesh;
-
-	/**
 	 * Event that gets fired if a anchor in this room was updated.
 	 * E.g. volume or plane changed.
 	 */
@@ -201,19 +141,19 @@ public:
 	/**
 	 * Edges of the room.
 	 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "MR Utility Kit")
+	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
 	TArray<FVector> RoomEdges;
 
 	/**
 	 * The floor anchor of this room.
 	 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "MR Utility Kit")
+	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
 	TObjectPtr<AMRUKAnchor> FloorAnchor;
 
 	/**
 	 * The ceiling anchor of this room.
 	 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "MR Utility Kit")
+	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
 	TObjectPtr<AMRUKAnchor> CeilingAnchor;
 
 	/**
@@ -410,7 +350,7 @@ public:
 	 * @param CutHoleLabels                 Labels for which holes should be cut into the plane meshes
 	 * @param ProceduralMaterial			Material to apply on top of the procedural mesh.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit", meta = (AutoCreateRefTerm = "WallTextureCoordinateModes", DeprecatedFunction, DeprecationMessage = "Use AMRUKAnchorActorSpawner instead."))
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit", meta = (AutoCreateRefTerm = "WallTextureCoordinateModes", DeprecatedFunction, DeprecationMessage = "Use GenerateProceduralMesh instead."))
 	void AttachProceduralMeshToWalls(const TArray<FMRUKTexCoordModes>& WallTextureCoordinateModes, const TArray<FString>& CutHoleLabels, UMaterialInterface* ProceduralMaterial = nullptr);
 
 	/**
@@ -462,7 +402,7 @@ public:
 	 * @param Material The Material to show if the global mesh is visible.
 	 * @return         On success true, otherwise false.
 	 */
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use GenerateProceduralSceneMesh instead."), Category = "MR Utility Kit")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use LoadGlobalMeshIntoProceduralMesh instead."), Category = "MR Utility Kit")
 	bool LoadGlobalMeshFromDevice(UMaterialInterface* Material = nullptr);
 
 	/**
@@ -473,7 +413,7 @@ public:
 	 * @param Material   Material to apply on the global mesh.
 	 * @return           On Success true, otherwise false.
 	 */
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use GenerateProceduralSceneMesh instead."), Category = "MR Utility Kit")
+	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use LoadGlobalMeshIntoProceduralMesh instead."), Category = "MR Utility Kit")
 	bool LoadGlobalMeshFromJsonString(const FString& JsonString, UMaterialInterface* Material = nullptr);
 
 	/**
@@ -506,6 +446,7 @@ public:
 	void EndPlay(EEndPlayReason::Type Reason) override;
 
 	void AttachProceduralMeshToWalls(const TArray<FString>& CutHoleLabels, UMaterialInterface* ProceduralMaterial = nullptr);
+	void UpdateWorldLock(APawn* Pawn, const FVector& HeadWorldPosition) const;
 
 	void InitializeRoom();
 
@@ -535,9 +476,7 @@ private:
 	 */
 	TArray<TObjectPtr<AMRUKAnchor>> ComputeConnectedWalls() const;
 
-	/** Deprecated. Should not be used anymore. */
 	FOculusXRRoomLayout RoomLayout;
-
 	UPROPERTY()
 	AMRUKAnchor* KeyWallAnchor = nullptr;
 

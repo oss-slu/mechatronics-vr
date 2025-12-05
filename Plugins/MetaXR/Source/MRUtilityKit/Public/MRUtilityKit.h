@@ -347,13 +347,10 @@ struct MRUTILITYKIT_API FMRUKLabels
 {
 	static const FString Floor;
 	static const FString WallFace;
-	static const FString InnerWallFace;
-	static const FString OtherRoomFace;
 	static const FString InvisibleWallFace;
 	static const FString Ceiling;
 	static const FString DoorFrame;
 	static const FString WindowFrame;
-	static const FString Opening;
 	static const FString Couch;
 	static const FString Table;
 	static const FString Screen;

@@ -4,7 +4,6 @@
 #include "OculusXRBuildAnalytics.h"
 #include "GameProjectGenerationModule.h"
 #include "OculusXRHMDModule.h"
-#include "OculusXRTelemetry.h"
 #include "OculusXRHMDRuntimeSettings.h"
 #include "OculusXRTelemetryPrivacySettings.h"
 #include "Runtime/Core/Public/HAL/FileManager.h"
@@ -78,8 +77,9 @@ void FOculusBuildAnalytics::OnLauncherCreated(ILauncherRef Launcher)
 void FOculusBuildAnalytics::OnLauncherWorkerStarted(ILauncherWorkerPtr LauncherWorker, ILauncherProfileRef Profile)
 {
 	bool isUsingIterativeCotf = GetMutableDefault<UOculusXRHMDRuntimeSettings>()->bIterativeCookOnTheFly;
-
-	OculusXRTelemetry::SendEvent("build_start_is_iterative_cotf", isUsingIterativeCotf ? "1" : "0", "ovrbuild");
+	FOculusXRHMDModule::GetPluginWrapper().SetDeveloperMode(true);
+	FOculusXRHMDModule::GetPluginWrapper().SendEvent2(
+		"build_start_is_iterative_cotf", isUsingIterativeCotf ? "1" : "0", "ovrbuild");
 
 	TArray<FString> Platforms = Profile.Get().GetCookedPlatforms();
 	if (Platforms.Num() == 1)
@@ -136,14 +136,14 @@ void FOculusBuildAnalytics::OnLauncherWorkerStarted(ILauncherWorkerPtr LauncherW
 
 			// Generate build GUID
 			FGuid guid = FGuid::NewGuid();
-			OculusXRTelemetry::AddMetadata("build_guid", TCHAR_TO_ANSI(*guid.ToString()));
+			FOculusXRHMDModule::GetPluginWrapper().AddCustomMetadata("build_guid", TCHAR_TO_ANSI(*guid.ToString()));
 
 			// Send build start event with corresponding metadata
-			OculusXRTelemetry::AddMetadata("asset_count", TCHAR_TO_ANSI(*FString::FromInt(UserAssetCount)));
-			OculusXRTelemetry::AddMetadata("script_count", TCHAR_TO_ANSI(*FString::FromInt(SourceFileCount)));
+			FOculusXRHMDModule::GetPluginWrapper().AddCustomMetadata("asset_count", TCHAR_TO_ANSI(*FString::FromInt(UserAssetCount)));
+			FOculusXRHMDModule::GetPluginWrapper().AddCustomMetadata("script_count", TCHAR_TO_ANSI(*FString::FromInt(SourceFileCount)));
 
-			OculusXRTelemetry::AddMetadata("target_platform", TCHAR_TO_ANSI(*CurrentBuildPlatform));
-			OculusXRTelemetry::AddMetadata("target_oculus_platform", TCHAR_TO_ANSI(*OculusPlatform));
+			FOculusXRHMDModule::GetPluginWrapper().AddCustomMetadata("target_platform", TCHAR_TO_ANSI(*CurrentBuildPlatform));
+			FOculusXRHMDModule::GetPluginWrapper().AddCustomMetadata("target_oculus_platform", TCHAR_TO_ANSI(*OculusPlatform));
 
 			TArray<ILauncherTaskPtr> TaskList;
 			LauncherWorker->GetTasks(TaskList);
@@ -198,8 +198,7 @@ void FOculusBuildAnalytics::OnStageCompleted(const FString& StageName, double Ti
 		}
 
 		TotalBuildTime += Time;
-
-		OculusXRTelemetry::SendEvent(TCHAR_TO_ANSI(*TaskName), TCHAR_TO_ANSI(*FString::SanitizeFloat(Time)), "ovrbuild");
+		FOculusXRHMDModule::GetPluginWrapper().SendEvent2(TCHAR_TO_ANSI(*TaskName), TCHAR_TO_ANSI(*FString::SanitizeFloat(Time)), "ovrbuild");
 	}
 }
 
@@ -267,7 +266,7 @@ void FOculusBuildAnalytics::OnBuildOutputReceived(const FString& Message)
 
 				AndroidPackageTime = Minutes * 60 + Seconds;
 
-				OculusXRTelemetry::SendEvent("build_step_gradle_build", TCHAR_TO_ANSI(*FString::SanitizeFloat(AndroidPackageTime)), "ovrbuild");
+				FOculusXRHMDModule::GetPluginWrapper().SendEvent2("build_step_gradle_build", TCHAR_TO_ANSI(*FString::SanitizeFloat(AndroidPackageTime)), "ovrbuild");
 			}
 		}
 	}
@@ -275,11 +274,6 @@ void FOculusBuildAnalytics::OnBuildOutputReceived(const FString& Message)
 
 void FOculusBuildAnalytics::SendBuildCompleteEvent(float TotalTime)
 {
-	if (!OculusXRTelemetry::IsActive())
-	{
-		return;
-	}
-
 	if (CurrentBuildPlatform.Equals("Android_ASTC"))
 	{
 		int64 APKTotalSize = 0;
@@ -325,10 +319,10 @@ void FOculusBuildAnalytics::SendBuildCompleteEvent(float TotalTime)
 
 		if (APKTotalSize > 0)
 		{
-			OculusXRTelemetry::AddMetadata("build_output_size", TCHAR_TO_ANSI(*FString::FromInt(APKTotalSize)));
+			FOculusXRHMDModule::GetPluginWrapper().AddCustomMetadata("build_output_size", TCHAR_TO_ANSI(*FString::FromInt(APKTotalSize)));
 		}
 	}
 
-	OculusXRTelemetry::AddMetadata("build_step_count", TCHAR_TO_ANSI(*FString::FromInt(BuildStepCount)));
-	OculusXRTelemetry::SendEvent("build_complete", TCHAR_TO_ANSI(*FString::SanitizeFloat(TotalTime)), "ovrbuild");
+	FOculusXRHMDModule::GetPluginWrapper().AddCustomMetadata("build_step_count", TCHAR_TO_ANSI(*FString::FromInt(BuildStepCount)));
+	FOculusXRHMDModule::GetPluginWrapper().SendEvent2("build_complete", TCHAR_TO_ANSI(*FString::SanitizeFloat(TotalTime)), "ovrbuild");
 }

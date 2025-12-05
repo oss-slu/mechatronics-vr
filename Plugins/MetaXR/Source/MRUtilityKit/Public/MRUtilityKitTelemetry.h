@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OculusXRTelemetryMarker.h"
+#include "OculusXRTelemetry.h"
 
 namespace MRUKTelemetry
 {
@@ -15,5 +15,4 @@ namespace MRUKTelemetry
 	using FLoadSceneFromJsonMarker = OculusXRTelemetry::TMarker<257237876>;
 	using FLoadGridSliceResizerMarker = OculusXRTelemetry::TMarker<257238248>;
 	using FLoadDestructibleGlobalMeshSpawner = OculusXRTelemetry::TMarker<257232038>;
-	using FLoadHiFiScene = OculusXRTelemetry::TMarker<257233830>;
 } // namespace MRUKTelemetry

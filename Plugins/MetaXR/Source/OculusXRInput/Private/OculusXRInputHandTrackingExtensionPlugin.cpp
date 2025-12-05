@@ -8,9 +8,7 @@
 
 #include "IOculusXRHMDModule.h"
 #include "OculusXRHandTracking.h"
-#include "OculusXRHMDRuntimeSettings.h"
 #include "OVR_Plugin_Types.h"
-#include "khronos/openxr/meta_openxr_preview/meta_hand_tracking_wide_motion_mode.h"
 
 namespace OculusXRInput
 {
@@ -113,8 +111,8 @@ namespace OculusXRInput
 		MicrogestureActionSet = XR_NULL_HANDLE;
 		XrActionSetCreateInfo ActionSetInfo{ XR_TYPE_ACTION_SET_CREATE_INFO };
 		ActionSetInfo.next = nullptr;
-		FCStringAnsi::Strncpy(ActionSetInfo.actionSetName, "oculusmicrogestureactionset", XR_MAX_ACTION_SET_NAME_SIZE);
-		FCStringAnsi::Strncpy(ActionSetInfo.localizedActionSetName, "OculusMicrogestureActionSet", XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE);
+		FCStringAnsi::Strcpy(ActionSetInfo.actionSetName, XR_MAX_ACTION_SET_NAME_SIZE, "oculusmicrogestureactionset");
+		FCStringAnsi::Strcpy(ActionSetInfo.localizedActionSetName, XR_MAX_LOCALIZED_ACTION_SET_NAME_SIZE, "OculusMicrogestureActionSet");
 		XR_ENSURE(xrCreateActionSet(Instance, &ActionSetInfo, &MicrogestureActionSet));
 
 		// Declare left hand microgesture actions
@@ -141,8 +139,8 @@ namespace OculusXRInput
 			ActionCreateInfo.next = nullptr;
 			ActionCreateInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
 			ActionCreateInfo.countSubactionPaths = 0;
-			FCStringAnsi::Strncpy(ActionCreateInfo.actionName, TCHAR_TO_ANSI(*MicrogestureAction.Name.ToLower()), XR_MAX_ACTION_NAME_SIZE);
-			FCStringAnsi::Strncpy(ActionCreateInfo.localizedActionName, TCHAR_TO_ANSI(*MicrogestureAction.Name), XR_MAX_LOCALIZED_ACTION_NAME_SIZE);
+			FCStringAnsi::Strcpy(ActionCreateInfo.actionName, XR_MAX_ACTION_NAME_SIZE, TCHAR_TO_ANSI(*MicrogestureAction.Name.ToLower()));
+			FCStringAnsi::Strcpy(ActionCreateInfo.localizedActionName, XR_MAX_LOCALIZED_ACTION_NAME_SIZE, TCHAR_TO_ANSI(*MicrogestureAction.Name));
 
 			// Create the action
 			XR_ENSURE(xrCreateAction(MicrogestureActionSet, &ActionCreateInfo, &MicrogestureAction.Action));
@@ -187,7 +185,6 @@ namespace OculusXRInput
 		OutExtensions.Add(XR_FB_HAND_TRACKING_CAPSULES_EXTENSION_NAME);
 		OutExtensions.Add(XR_FB_HAND_TRACKING_AIM_EXTENSION_NAME);
 		OutExtensions.Add(XR_META_HAND_TRACKING_MICROGESTURES_EXTENSION_NAME);
-		OutExtensions.Add(XR_META_HAND_TRACKING_WIDE_MOTION_MODE_EXTENSION_NAME);
 		return true;
 	}
 
@@ -242,11 +239,6 @@ namespace OculusXRInput
 		CreateActions();
 	}
 
-	void FHandTrackingExtensionPlugin::PostCreateSession(XrSession InSession)
-	{
-		Session = InSession;
-	}
-
 	const void* FHandTrackingExtensionPlugin::OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext)
 	{
 		XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties{ XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
@@ -264,10 +256,22 @@ namespace OculusXRInput
 			return InNext;
 		}
 
-		Session = InSession;
-
-		CreateHandTrackers();
-
+		XrHandTrackerEXT LeftHandTracker{};
+		{
+			XrHandTrackerCreateInfoEXT CreateInfo{ XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT };
+			CreateInfo.hand = XR_HAND_LEFT_EXT;
+			CreateInfo.handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT;
+			XR_ENSURE(xrCreateHandTrackerEXT(InSession, &CreateInfo, &LeftHandTracker));
+		}
+		XrHandTrackerEXT RightHandTracker{};
+		{
+			XrHandTrackerCreateInfoEXT CreateInfo{ XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT };
+			CreateInfo.hand = XR_HAND_RIGHT_EXT;
+			CreateInfo.handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT;
+			XR_ENSURE(xrCreateHandTrackerEXT(InSession, &CreateInfo, &RightHandTracker));
+		}
+		OculusHandTrackers.Add(EOculusXRHandType::HandLeft, LeftHandTracker);
+		OculusHandTrackers.Add(EOculusXRHandType::HandRight, RightHandTracker);
 		bIsInitialized = true;
 		return InNext;
 	}
@@ -281,15 +285,6 @@ namespace OculusXRInput
 		OculusHandTrackers.Reset();
 		bIsInitialized = false;
 	}
-
-#ifdef WITH_OCULUS_BRANCH
-	// Should consider moving this to its own extension plugin once it's not gated behind WITH_OCULUS_BRANCH
-	const void* FHandTrackingExtensionPlugin::OnCreateHandTracker(const void* InNext)
-	{
-
-		return InNext;
-	}
-#endif // WITH_OCULUS_BRANCH
 
 	bool FHandTrackingExtensionPlugin::IsHandTrackingAvailable()
 	{
@@ -1232,43 +1227,6 @@ namespace OculusXRInput
 	FQuat FHandTrackingExtensionPlugin::XrPoseQuatToFQuat(XrQuaternionf XrQuat)
 	{
 		return FQuat(-XrQuat.z, XrQuat.x, XrQuat.y, -XrQuat.w);
-	}
-
-	void FHandTrackingExtensionPlugin::CreateHandTrackers()
-	{
-		XrHandTrackerEXT LeftHandTracker{};
-		CreateHandTracker(XR_HAND_LEFT_EXT, LeftHandTracker);
-
-		XrHandTrackerEXT RightHandTracker{};
-		CreateHandTracker(XR_HAND_RIGHT_EXT, RightHandTracker);
-
-		OculusHandTrackers.Add(EOculusXRHandType::HandLeft, LeftHandTracker);
-		OculusHandTrackers.Add(EOculusXRHandType::HandRight, RightHandTracker);
-	}
-
-	void FHandTrackingExtensionPlugin::CreateHandTracker(XrHandEXT HandEXT, XrHandTrackerEXT& OutHandTracker)
-	{
-		XrHandTrackerCreateInfoEXT CreateInfo{ XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT };
-		CreateInfo.hand = HandEXT;
-		CreateInfo.handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT;
-
-
-		XR_ENSURE(xrCreateHandTrackerEXT(Session, &CreateInfo, &OutHandTracker));
-	};
-
-	void FHandTrackingExtensionPlugin::DestroyHandTrackers()
-	{
-		XrHandTrackerEXT* LeftHandTracker = OculusHandTrackers.Find(EOculusXRHandType::HandLeft);
-		if (LeftHandTracker && *LeftHandTracker != XR_NULL_HANDLE)
-		{
-			xrDestroyHandTrackerEXT(*LeftHandTracker);
-		}
-
-		XrHandTrackerEXT* RightHandTracker = OculusHandTrackers.Find(EOculusXRHandType::HandRight);
-		if (RightHandTracker && *RightHandTracker != XR_NULL_HANDLE)
-		{
-			xrDestroyHandTrackerEXT(*RightHandTracker);
-		}
 	}
 
 } // namespace OculusXRInput

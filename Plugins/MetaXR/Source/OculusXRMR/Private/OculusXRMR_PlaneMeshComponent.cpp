@@ -17,7 +17,6 @@
 #include "Engine/Engine.h"
 #include "MaterialShared.h"
 #include "SceneInterface.h"
-#include "SceneView.h"
 #include "TextureResource.h"
 #include "MaterialDomain.h"
 #include "Materials/MaterialRenderProxy.h"

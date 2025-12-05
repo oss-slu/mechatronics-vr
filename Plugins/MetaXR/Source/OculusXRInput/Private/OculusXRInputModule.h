@@ -7,7 +7,6 @@
 #include "OculusXRInputExtensionPlugin.h"
 #include "OculusXRInputHapticsExtensionPlugin.h"
 #include "OculusXRInputHandTrackingExtensionPlugin.h"
-#include "OculusXRSimultaneousHandsAndControllersExtensionPlugin.h"
 #include "OculusXRTouchPlusInputExtensionPlugin.h"
 #include "OculusXRTouchProInputExtensionPlugin.h"
 #include "Templates/SharedPointer.h"
@@ -31,7 +30,6 @@ public:
 	OculusXRInput::FInputExtensionPlugin* GetInputOpenXRExtension() const;
 	OculusXRInput::FHandTrackingExtensionPlugin* GetHandTrackingOpenXRExtension() const;
 	OculusXRInput::FInputHapticsExtensionPlugin* GetHapticsOpenXRExtension() const;
-	OculusXRInput::FSimultaneousHandsAndControllersExtensionPlugin* GetSimultaneousHandsAndControllersEOpenXRExtension() const;
 
 	TWeakPtr<OculusXRInput::FOculusXRInput> OculusXRInputDevice;
 
@@ -56,8 +54,6 @@ private:
 	FTouchProInputExtensionPluginPtr TouchProInputExtensionPlugin;
 	typedef TSharedPtr<OculusXRInput::FTouchPlusInputExtensionPlugin, ESPMode::ThreadSafe> FTouchPlusInputExtensionPluginPtr;
 	FTouchPlusInputExtensionPluginPtr TouchPlusInputExtensionPlugin;
-	typedef TSharedPtr<OculusXRInput::FSimultaneousHandsAndControllersExtensionPlugin, ESPMode::ThreadSafe> FSimultaneousHandsAndControllersExtensionPluginPtr;
-	FSimultaneousHandsAndControllersExtensionPluginPtr SimultaneousHandsAndControllersExtensionPlugin;
 };
 
 #else //	OCULUS_INPUT_SUPPORTED_PLATFORMS

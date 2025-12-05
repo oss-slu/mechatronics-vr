@@ -39,7 +39,7 @@ public:
 
 	/** Meta XR Simulator */
 	void ToggleOpenXRRuntime();
-	void CheckForXRSimUpdate(bool bCheckSkippedVersion = false);
+	void CheckForXRSimUpdate();
 	void UpdateXRSimToLatest();
 	bool CanUpdatedToLatest();
 	void CreateSESSubMenus(FMenuBuilder& MenuBuilder);

@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #ifdef WITH_OCULUS_BRANCH
 
+#include "CoreMinimal.h"
 #include "ICustomOcclusionProvider.h"
 #include "SceneSoftwareOcclusion.h"
 

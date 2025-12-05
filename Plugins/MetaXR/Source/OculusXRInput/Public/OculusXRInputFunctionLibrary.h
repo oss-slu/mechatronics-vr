@@ -258,37 +258,12 @@ public:
 	static bool IsHandPositionValid(const EOculusXRHandType DeviceHand, const int32 ControllerIndex = 0);
 
 	/**
-	 * Check if the interaction profile for the given hand is a hand interaction profile.  Can be used to
-	 * determine whether the position for a hand is coming from hand tracking or another kind of input device.
-	 *
-	 * @param DeviceHand				(in) The hand to check the interaction profile of
-	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
-	static bool IsHandInteractionProfile(const EOculusXRHandType DeviceHand);
-
-	/**
 	 * Get the bone name from the bone index
 	 *
 	 * @param BoneIndex					(in) Bone index to get the name of
 	 */
 	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking")
 	static FString GetBoneName(EOculusXRBone BoneId);
-
-	/**
-	 * Enables or disables simultaneous hand and controller tracking.  If disabled, only either hands or controllers, exclusively,
-	 * will be tracked at any point in time.
-	 * @param bEnabled					(in) Whether simultaneous hand and controller tracking should be enabled
-	 * @return							True if the call to set simultaneous hand and controller tracking succeeded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|HandTracking", meta = (ReturnDisplayName = "bSucceeded"))
-	static bool SetSimultaneousHandsAndControllersEnabled(bool bEnabled);
-
-	/**
-	 * Get the current enabled state for simultaneous hand and controller tracking.
-	 * @return							True if simultaneous hands and controller tracking is enabled
-	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary|HandTracking", meta = (ReturnDisplayName = "bEnabled"))
-	static bool IsSimultaneousHandsAndControllersEnabled();
 
 	/**
 	 * Play a haptic feedback curve on the player's controller with location support.

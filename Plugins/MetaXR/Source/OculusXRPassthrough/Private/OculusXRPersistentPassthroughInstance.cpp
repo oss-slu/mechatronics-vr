@@ -66,12 +66,7 @@ void UOculusXRPersistentPassthroughInstance::UpdateLayer()
 	if (Texture)
 	{
 		Texture->SetForceMipLevelsToBeResident(30.0f);
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		LayerDesc.Texture = Texture->GetResource()->TextureRHI;
-#else
-		LayerDesc.TextureObj = Texture;
-#endif
-
 		LayerDesc.Flags |= (Texture->GetMaterialType() == MCT_TextureExternal) ? IStereoLayers::LAYER_FLAG_TEX_EXTERNAL : 0;
 	}
 

@@ -29,7 +29,7 @@
 // Note: OVRP_MINOR_VERSION == OCULUS_SDK_VERSION + 32
 
 #define OVRP_MAJOR_VERSION 1
-#define OVRP_MINOR_VERSION 113
+#define OVRP_MINOR_VERSION 110
 #define OVRP_PATCH_VERSION 0
 
 #define OVRP_VERSION OVRP_MAJOR_VERSION, OVRP_MINOR_VERSION, OVRP_PATCH_VERSION
@@ -591,6 +591,9 @@ typedef enum {
 
 typedef enum {
   ovrpFoveationFlag_EyeTracked = (1 << 0),
+
+
+
 } ovrpFoveationFlags;
 
 
@@ -1233,7 +1236,6 @@ typedef enum {
   ovrpShape_EyeFov = 3,
   ovrpShape_OffcenterCubemap = 4,
   ovrpShape_Equirect = 5,
-  ovrpShape_ScaledEquirect = 6,
   ovrpShape_ReconstructionPassthrough = 7,
   ovrpShape_SurfaceProjectedPassthrough = 8,
   ovrpShape_Fisheye = 9,
@@ -1314,6 +1316,8 @@ typedef enum {
 
 
 
+
+
 } ovrpLayerFlags;
 
 /// Layer description used by ovrp_SetupLayer to create the layer
@@ -1357,7 +1361,6 @@ typedef struct {
 
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_OffcenterCubemap;
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Equirect;
-typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_ScaledEquirect;
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Fisheye;
 
 typedef union {
@@ -1368,7 +1371,6 @@ typedef union {
   ovrpLayerDesc_EyeFov EyeFov;
   ovrpLayerDesc_OffcenterCubemap OffcenterCubemap;
   ovrpLayerDesc_Equirect Equirect;
-  ovrpLayerDesc_ScaledEquirect ScaledEquirect;
   ovrpLayerDesc_Fisheye Fisheye;
   ovrpLayerDesc_InsightPassthrough InsightPassthrough;
 } ovrpLayerDescUnion;
@@ -1508,11 +1510,6 @@ typedef OVRP_LAYER_SUBMIT_TYPE ovrpLayerSubmit_Equirect;
 
 typedef struct {
   OVRP_LAYER_SUBMIT_TYPE;
-  float Radius;
-} ovrpLayerSubmit_ScaledEquirect;
-
-typedef struct {
-  OVRP_LAYER_SUBMIT_TYPE;
   float FovX;
   float FovY;
   float Horizon;
@@ -1527,7 +1524,6 @@ typedef union {
   ovrpLayerSubmit_EyeFov EyeFov;
   ovrpLayerSubmit_OffcenterCubemap OffcenterCubemap;
   ovrpLayerSubmit_Equirect Equirect;
-  ovrpLayerSubmit_ScaledEquirect ScaledEquirect;
   ovrpLayerSubmit_Fisheye Fisheye;
 } ovrpLayerSubmitUnion;
 
@@ -3873,49 +3869,51 @@ typedef struct ovrpSpaceMarkerPayload_ {
   ovrpSpaceMarkerPayloadType payloadType;
 } ovrpSpaceMarkerPayload;
 
-typedef ovrpUInt64 ovrpEnvironmentRaycaster;
 
-typedef enum {
-  ovrpRaycastFilterType_None = 0,
-  ovrpRaycastFilterType_Distance = 1,
-  ovrpRaycastFilterType_Max = 0x7ffffff,
-} ovrpRaycastFilterType;
 
-typedef struct ovrpRaycastFilterHeader_ {
-  ovrpRaycastFilterType Type;
-} ovrpRaycastFilterHeader;
 
-typedef struct ovrpRaycastDistanceFilter_ {
-  ovrpRaycastFilterType Type;
-  float MaxDistance;
-} ovrpRaycastDistanceFilter;
 
-typedef struct ovrpRaycastHitPointGetInfo_ {
-  ovrpVector3f StartPoint;
-  ovrpVector3f Direction;
-  ovrpUInt32 FilterCount;
-  ovrpRaycastFilterHeader** Filters;
-} ovrpRaycastHitPointGetInfo;
 
-typedef struct ovrpEnvironmentRaycasterCreateCompletion_ {
-  ovrpResult Result;
-  ovrpEnvironmentRaycaster Raycaster;
-} ovrpEnvironmentRaycasterCreateCompletion;
 
-typedef enum {
-  ovrpEnvironmentRaycastStatus_Hit = 1,
-  ovrpEnvironmentRaycastStatus_NoHit = 2,
-  ovrpEnvironmentRaycastStatus_HitPointOccluded = 3,
-  ovrpEnvironmentRaycastStatus_HitPointOutsideFoV = 4,
-  ovrpEnvironmentRaycastStatus_RayOccluded = 5,
-  ovrpEnvironmentRaycastStatus_InvalidOrientation = 6,
-  ovrpEnvironmentRaycastStatus_Max = 0x7FFFFFFF
-} ovrpEnvironmentRaycastStatus;
 
-typedef struct ovrpEnvironmentRaycastHit_ {
-  ovrpEnvironmentRaycastStatus Status;
-  ovrpPosef Pose;
-} ovrpEnvironmentRaycastHit;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 typedef ovrpUInt64 ovrpFuture;
 typedef int ovrpFutureCompletionType;

@@ -14,7 +14,6 @@
 #include "OculusXRHMDRuntimeSettings.h"
 #include "OculusXRPSTUtils.h"
 #include "Misc/EngineVersionComparison.h"
-#include "Misc/FileHelper.h"
 
 #define LOCTEXT_NAMESPACE "OculusXRCompatibilityRules"
 namespace

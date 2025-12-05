@@ -39,5 +39,3 @@ void FOculusXRSoftwareOcclusionModule::ShutdownModule()
 	}
 #endif // WITH_OCULUS_BRANCH
 }
-
-#undef LOCTEXT_NAMESPACE

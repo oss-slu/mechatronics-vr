@@ -106,11 +106,7 @@ namespace OculusXRHMD
 
 	void FLayer::SetDesc(const IStereoLayers::FLayerDesc& InDesc)
 	{
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		if (Desc.Texture != InDesc.Texture || Desc.LeftTexture != InDesc.LeftTexture)
-#else
-		if (Desc.TextureObj != InDesc.TextureObj || Desc.LeftTextureObj != InDesc.LeftTextureObj)
-#endif
 		{
 			bUpdateTexture = true;
 		}
@@ -239,31 +235,13 @@ namespace OculusXRHMD
 		}
 	}
 
-#if !UE_VERSION_OLDER_THAN(5, 6, 0)
-	static FTextureRHIRef GetTextureRHI(TWeakObjectPtr<UTexture> Texture)
-	{
-		FTextureResource* TextureResource = Texture.IsValid() ? Texture->GetResource() : nullptr;
-		if (TextureResource != nullptr)
-		{
-			return TextureResource->GetTextureRHI();
-		}
-		return nullptr;
-	};
-#endif
-
 	void FLayer::BuildPokeAHoleMesh(TArray<FVector>& Vertices, TArray<int32>& Triangles, TArray<FVector2D>& UV0)
 	{
 		if (Desc.HasShape<FQuadLayer>())
 		{
 			const float QuadScale = 0.99;
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			FIntPoint TexSize = Desc.Texture.IsValid() ? Desc.Texture->GetTexture2D()->GetSizeXY() : Desc.LayerSize;
-#else
-			FTextureRHIRef TextureRHI = GetTextureRHI(Desc.TextureObj);
-			FIntPoint TexSize = TextureRHI.IsValid() && TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D ? TextureRHI->GetSizeXY() : Desc.LayerSize;
-#endif
-
 			float AspectRatio = TexSize.X ? (float)TexSize.Y / (float)TexSize.X : 3.0f / 4.0f;
 
 			float QuadSizeX = Desc.QuadSize.X;
@@ -289,12 +267,7 @@ namespace OculusXRHMD
 			const FCylinderLayer& CylinderProps = Desc.GetShape<FCylinderLayer>();
 			const float CylinderScale = 0.99;
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 			FIntPoint TexSize = Desc.Texture.IsValid() ? Desc.Texture->GetTexture2D()->GetSizeXY() : Desc.LayerSize;
-#else
-			FTextureRHIRef TextureRHI = GetTextureRHI(Desc.TextureObj);
-			FIntPoint TexSize = TextureRHI.IsValid() && TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D ? TextureRHI->GetSizeXY() : Desc.LayerSize;
-#endif
 			float AspectRatio = TexSize.X ? (float)TexSize.Y / (float)TexSize.X : 3.0f / 4.0f;
 
 			float CylinderHeight = (Desc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO) ? CylinderProps.OverlayArc * AspectRatio : CylinderProps.Height;
@@ -510,23 +483,19 @@ namespace OculusXRHMD
 
 			uint32 SizeX = 0, SizeY = 0;
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
-			FTextureRHIRef TextureRHI = Desc.Texture;
-			FTextureRHIRef LeftTextureRHI = Desc.LeftTexture;
-#else
-			FTextureRHIRef TextureRHI = GetTextureRHI(Desc.TextureObj);
-			FTextureRHIRef LeftTextureRHI = GetTextureRHI(Desc.LeftTextureObj);
-#endif
-			if (TextureRHI.IsValid())
+			if (Desc.Texture.IsValid())
 			{
-				if (TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D)
+				FRHITexture* Texture2D = Desc.Texture->GetTexture2D();
+				FRHITexture* TextureCube = Desc.Texture->GetTextureCube();
+
+				if (Texture2D)
 				{
-					SizeX = TextureRHI->GetDesc().Extent.X;
-					SizeY = TextureRHI->GetDesc().Extent.Y;
+					SizeX = Texture2D->GetSizeX();
+					SizeY = Texture2D->GetSizeY();
 				}
-				else if (TextureRHI->GetDesc().Dimension == ETextureDimension::TextureCube)
+				else if (TextureCube)
 				{
-					SizeX = SizeY = TextureRHI->GetDesc().Extent.X;
+					SizeX = SizeY = TextureCube->GetSize();
 				}
 			}
 			else
@@ -571,9 +540,9 @@ namespace OculusXRHMD
 				return false;
 			}
 
-			EPixelFormat Format = TextureRHI.IsValid() ? CustomPresent->GetPixelFormat(TextureRHI->GetFormat()) : CustomPresent->GetDefaultPixelFormat();
+			EPixelFormat Format = Desc.Texture.IsValid() ? CustomPresent->GetPixelFormat(Desc.Texture->GetFormat()) : CustomPresent->GetDefaultPixelFormat();
 #if PLATFORM_ANDROID
-			uint32 NumMips = TextureRHI.IsValid() ? TextureRHI->GetNumMips() : 1;
+			uint32 NumMips = Desc.Texture.IsValid() ? Desc.Texture->GetNumMips() : 1;
 #else
 			uint32 NumMips = 0;
 #endif
@@ -608,7 +577,7 @@ namespace OculusXRHMD
 			// Calculate layer desc
 			FOculusXRHMDModule::GetPluginWrapper().CalculateLayerDesc(
 				Shape,
-				!LeftTextureRHI.IsValid() ? ovrpLayout_Mono : ovrpLayout_Stereo,
+				!Desc.LeftTexture.IsValid() ? ovrpLayout_Mono : ovrpLayout_Stereo,
 				ovrpSizei{ (int)SizeX, (int)SizeY },
 				NumMips,
 				NumSamples,
@@ -789,14 +758,9 @@ namespace OculusXRHMD
 					ETextureCreateFlags ColorTexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_ResolveTargetable | (bNeedsSRGBFlag ? TexCreate_SRGB : TexCreate_None);
 					ETextureCreateFlags DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_InputAttachmentRead | (bSupportDepthComposite ? TexCreate_ResolveTargetable : TexCreate_None);
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
-					FTextureRHIRef TextureRHI = Desc.Texture;
-#else
-					FTextureRHIRef TextureRHI = GetTextureRHI(Desc.TextureObj);
-#endif
-					if (TextureRHI.IsValid())
+					if (Desc.Texture.IsValid())
 					{
-						ColorTexCreateFlags |= (TextureRHI->GetFlags() & TexCreate_SRGB);
+						ColorTexCreateFlags |= (Desc.Texture->GetFlags() & TexCreate_SRGB);
 					}
 
 					FClearValueBinding ColorTextureBinding;
@@ -910,11 +874,7 @@ namespace OculusXRHMD
 			}
 		}
 
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		if ((Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE) && Desc.Texture.IsValid() && IsVisible())
-#else
-		if ((Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE) && Desc.TextureObj.IsValid() && IsVisible())
-#endif
 		{
 			bUpdateTexture = true;
 		}
@@ -1113,23 +1073,15 @@ namespace OculusXRHMD
 
 		if (bUpdateTexture && SwapChain.IsValid())
 		{
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
-			FTextureRHIRef TextureRHI = Desc.Texture;
-			FTextureRHIRef LeftTextureRHI = Desc.LeftTexture;
-#else
-			FTextureRHIRef TextureRHI = GetTextureRHI(Desc.TextureObj);
-			FTextureRHIRef LeftTextureRHI = GetTextureRHI(Desc.LeftTextureObj);
-#endif
-
 			// Copy textures
-			if (TextureRHI.IsValid())
+			if (Desc.Texture.IsValid())
 			{
 				bool bAlphaPremultiply = true;
 				bool bNoAlphaWrite = (Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL) != 0;
 
 				// Left
 				{
-					FRHITexture* SrcTexture = LeftTextureRHI.IsValid() ? LeftTextureRHI : TextureRHI;
+					FRHITexture* SrcTexture = Desc.LeftTexture.IsValid() ? Desc.LeftTexture : Desc.Texture;
 					FRHITexture* DstTexture = SwapChain->GetTexture();
 
 					const ovrpRecti& OvrpViewportRect = OvrpLayerSubmit.ViewportRect[ovrpEye_Left];
@@ -1141,7 +1093,7 @@ namespace OculusXRHMD
 				// Right
 				if (OvrpLayerDesc.Layout != ovrpLayout_Mono)
 				{
-					FRHITexture* SrcTexture = TextureRHI;
+					FRHITexture* SrcTexture = Desc.Texture;
 					FRHITexture* DstTexture = RightSwapChain.IsValid() ? RightSwapChain->GetTexture() : SwapChain->GetTexture();
 
 					const ovrpRecti& OvrpViewportRect = OvrpLayerSubmit.ViewportRect[ovrpEye_Right];
@@ -1374,7 +1326,7 @@ namespace OculusXRHMD
 			{
 				OvrpLayerSubmit.LayerSubmitFlags |= ovrpLayerSubmitFlag_SpaceWarp;
 				OvrpLayerSubmit.EyeFov.MotionVectorDepthFar = Frame->NearClippingPlane / 100.f;
-				OvrpLayerSubmit.EyeFov.MotionVectorDepthNear = INFINITY;
+				OvrpLayerSubmit.EyeFov.MotionVectorDepthNear = 9999999.0f;
 				OvrpLayerSubmit.EyeFov.MotionVectorOffset = ovrpVector4f{ 0.0f, 0.0f, 0.0f, 0.0f };
 				OvrpLayerSubmit.EyeFov.MotionVectorScale = ovrpVector4f{ 1.0f, 1.0f, 1.0f, 1.0f };
 

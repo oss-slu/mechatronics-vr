@@ -11,6 +11,7 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"CoreUObject"
+				
 			]
 		}
 	],
@@ -41,11 +42,17 @@
 			]
 		},
 		{
-			"Name": "OculusXR",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/8313d8d7e7cf4e03a33e79eb757bccba",
+			"Name": "LiveLinkControlRig",
+			"Enabled": true
+		},
+		{
+			"Name": "AppleARKitFaceSupport",
+			"Enabled": true,
 			"SupportedTargetPlatforms": [
+				"IOS",
 				"Win64",
+				"Mac",
+				"Linux",
 				"Android"
 			]
 		}

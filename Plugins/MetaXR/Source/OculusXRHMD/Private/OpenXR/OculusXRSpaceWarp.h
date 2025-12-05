@@ -2,12 +2,11 @@
 
 #pragma once
 #include "CoreMinimal.h"
-#include "Misc/EngineVersionComparison.h"
-#include "OpenXR/IOculusXRExtensionPlugin.h"
 #include "SceneViewExtension.h"
 #include "XRSwapChain.h"
+#include "OpenXR/IOculusXRExtensionPlugin.h"
 
-#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH))
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOculusSpaceWarpExtensionPlugin, Log, All);
 
@@ -26,11 +25,7 @@ namespace OculusXR
 		virtual const void* OnCreateInstance(IOpenXRHMDModule* InModule, const void* InNext) override;
 		virtual void PostCreateInstance(XrInstance InInstance) override;
 		virtual void PostCreateSession(XrSession InSession) override;
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_RenderThread(XrSession InSession) override;
-#else  // UE_VERSION_OLDER_THAN(5, 6, 0)
-		virtual void OnBeginRendering_RenderThread(XrSession InSession, FRDGBuilder& GraphBuilder) override;
-#endif // UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual const void* OnBeginProjectionView(XrSession InSession, int32 InLayerIndex, int32 InViewIndex, const void* InNext) override;
 		virtual void PostBeginFrame_RHIThread(XrTime PredictedDisplayTime) override;
 		virtual const void* OnEndFrame(XrSession InSession, XrTime DisplayTime, const void* InNext) override;

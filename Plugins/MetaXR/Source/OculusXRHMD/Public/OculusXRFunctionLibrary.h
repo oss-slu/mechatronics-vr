@@ -428,12 +428,6 @@ class OCULUSXRHMD_API UOculusXRFunctionLibrary : public UBlueprintFunctionLibrar
 	static class IStereoLayers* GetStereoLayers();
 
 
-	/**
-	 * Returns currently selected MetaXR XrApi backend
-	 */
-	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
-	static EOculusXRXrApi GetXrApi();
-
 	/* GUARDIAN API */
 	/**
 	 * Returns true if the Guardian Outer Boundary is being displayed

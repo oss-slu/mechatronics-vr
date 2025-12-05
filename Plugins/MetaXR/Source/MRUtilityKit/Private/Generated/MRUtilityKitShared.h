@@ -22,11 +22,7 @@ struct MRUKShared
 
     struct MrukRoomAnchor;
 
-    struct MrukTrackable;
-
     struct MrukUuid;
-
-    struct MrukPosef;
 
     enum MrukSceneModel
     {
@@ -96,21 +92,6 @@ struct MRUKShared
         MRUK_LABEL_STORAGE_TOP = 4194304,
     };
 
-    enum MrukTrackableType
-    {
-        MRUK_TRACKABLE_TYPE_NONE = 0,
-        MRUK_TRACKABLE_TYPE_KEYBOARD = 1,
-        MRUK_TRACKABLE_TYPE_QRCODE = 2,
-    };
-
-    enum MrukMarkerPayloadType
-    {
-        MRUK_MARKER_PAYLOAD_TYPE_NONE = 0,
-        MRUK_MARKER_PAYLOAD_TYPE_INVALID_QRCODE = 1,
-        MRUK_MARKER_PAYLOAD_TYPE_STRING_QRCODE = 2,
-        MRUK_MARKER_PAYLOAD_TYPE_BINARY_QRCODE = 3,
-    };
-
     enum MrukEnvironmentRaycastStatus
     {
         MRUK_ENVIRONMENT_RAYCAST_STATUS_HIT = 1,
@@ -142,15 +123,7 @@ struct MRUKShared
 
     typedef void (*MrukOnEnvironmentRaycasterCreated)(MrukResult result, void* userContext);
 
-    typedef void (*MrukOnTrackersConfigured)(MrukResult result, void* userContext);
-
-    typedef void (*MrukOnTrackableAdded)(const MrukTrackable* trackable, void* userContext);
-
-    typedef void (*MrukOnTrackableUpdated)(const MrukTrackable* trackable, void* userContext);
-
-    typedef void (*MrukOnTrackableRemoved)(const MrukTrackable* trackable, void* userContext);
-
-    typedef struct MrukPosef (*TrackingSpacePoseGetter)();
+    typedef struct MrukPosef (*TrackingSpacePoseGetter)(MrukPosef MrukPosef);
 
     typedef void (*TrackingSpacePoseSetter)(MrukPosef pose);
 
@@ -221,14 +194,13 @@ struct MRUKShared
         uint64_t space;
         MrukUuid uuid;
         MrukUuid roomUuid;
-        MrukUuid parentUuid;
         MrukPosef pose;
         MrukVolume volume;
         MrukPlane plane;
         MrukLabel semanticLabel;
-        const FVector2f* planeBoundary;
-        const uint32_t* globalMeshIndices;
-        const FVector3f* globalMeshPositions;
+        FVector2f* planeBoundary;
+        uint32_t* globalMeshIndices;
+        FVector3f* globalMeshPositions;
         uint32_t planeBoundaryCount;
         uint32_t globalMeshIndicesCount;
         uint32_t globalMeshPositionsCount;
@@ -236,48 +208,11 @@ struct MRUKShared
         bool hasPlane;
     };
 
-    struct MrukRoomFace
-    {
-        MrukUuid uuid;
-        MrukUuid parentUuid;
-        MrukLabel semanticLabel;
-        const uint32_t* indices;
-        uint32_t indicesCount;
-    };
-
-    struct MrukRoomMesh
-    {
-        const FVector3f* vertices;
-        MrukRoomFace* faces;
-        uint32_t verticesCount;
-        uint32_t facesCount;
-    };
-
     struct MrukRoomAnchor
     {
-        MrukSceneModel sceneModel;
         uint64_t space;
         MrukUuid uuid;
         MrukPosef pose;
-        MrukRoomMesh roomMesh;
-    };
-
-    struct MrukTrackable
-    {
-        MrukTrackableType trackableType;
-        MrukMarkerPayloadType markerPayloadType;
-        uint64_t space;
-        MrukUuid uuid;
-        MrukPosef pose;
-        MrukVolume volume;
-        MrukPlane plane;
-        const FVector2f* planeBoundary;
-        const uint8_t* payload;
-        uint32_t planeBoundaryCount;
-        uint32_t payloadCount;
-        bool hasVolume;
-        bool hasPlane;
-        bool isTracked;
     };
 
     struct MrukEventListener
@@ -291,10 +226,6 @@ struct MRUKShared
         MrukOnSceneAnchorRemoved onSceneAnchorRemoved;
         MrukOnDiscoveryFinished onDiscoveryFinished;
         MrukOnEnvironmentRaycasterCreated onEnvironmentRaycasterCreated;
-        MrukOnTrackersConfigured onTrackersConfigured;
-        MrukOnTrackableAdded onTrackableAdded;
-        MrukOnTrackableUpdated onTrackableUpdated;
-        MrukOnTrackableRemoved onTrackableRemoved;
         void* userContext;
     };
 
@@ -338,21 +269,6 @@ struct MRUKShared
         FVector3f normal;
     };
 
-    struct MrukVector2i
-    {
-        int x;
-        int y;
-    };
-
-    struct MrukCameraIntrinsics
-    {
-        FVector2f focalLength;
-        FVector2f principalPoint;
-        FVector3f lensTranslation;
-        MrukQuatf lensRotation;
-        MrukVector2i sensorResolution;
-    };
-
 
     /**
      * This allows the engine to intercept the logs from the shared library and print them using the
@@ -362,164 +278,116 @@ struct MRUKShared
     void (*SetLogPrinter)(LogPrinter printer);
 
     /**
-     * This should only be called once on application startup to create the global context. This is a
-     * pre-requisite to call all of the other APIs. When the context is not needed anymore it should be
-     * destroyed with ContextDestroy() to free resources (i.e. when the application is shutdown).
-     */
-    MrukResult (*CreateGlobalContext)();
-
-    /**
-     * Destroy the global context
-     * This should only be called once on application shutdown.
-     */
-    void (*DestroyGlobalContext)();
-
-    /**
-     * Initialize OpenXR with an external OpenXR instance and session.
+     * Create the global anchor store with a external OpenXR instance and session.
      * This should only be called once on application startup.
-     * Make sure to hook up the OnOpenXrEvent() function as well.
+     * Make sure to hook up the ContextOnOpenXrEvent() function as well.
      * If the context is not needed anymore it should be destroyed with ContextDestroy() to free
      * resources.
      */
-    MrukResult (*InitOpenXr)(uint64_t xrInstance, uint64_t xrSession, void* xrInstanceProcAddrFunc, uint64_t baseSpace, const char** availableOpenXrExtensions, uint32_t availableOpenXrExtensionsCount);
+    MrukResult (*AnchorStoreCreate)(uint64_t xrInstance, uint64_t xrSession, void* xrInstanceProcAddrFunc, uint64_t baseSpace, const char** availableOpenXrExtensions, uint32_t availableOpenXrExtensionsCount);
+    MrukResult (*AnchorStoreCreateWithoutOpenXr)();
 
     /**
      * This should be called when the OpenXR instance is destroyed and it is no longer valid to attempt
      * to make any OpenXR calls. This can happen with Link when exiting play mode.
      */
-    void (*ShutdownOpenXr)();
+    void (*AnchorStoreShutdownOpenXr)();
 
     /**
-     * Initialize the Unity interfaces. This should be called once after the global context has been
-     * created. See https://docs.unity3d.com/6000.1/Documentation/Manual/native-plugin-interface.html
-     * for more details. Note that the usual UnityPluginLoad and UnityPluginUnload functions will not be
-     * called automatically by unity because the MRUK Shared Library is loaded dynamically at runtime to
-     * allow hot reloading. So we must explicitly call this ourselves to get access to the interface.
-     *
-     * @param[in] unityInterfaces A pointer to IUnityInterfaces
+     * Destroy the global anchor store
+     * This should only be called once on application shutdown.
      */
-    void (*InitUnityInterfaces)(void* unityInterfaces);
+    void (*AnchorStoreDestroy)();
 
     /**
      * If the base space changes after initialization, this function should be called to update the
      * base space.
      */
-    void (*SetBaseSpace)(uint64_t baseSpace);
+    void (*AnchorStoreSetBaseSpace)(uint64_t baseSpace);
 
     /**
-     * Start anchor discovery in the global context
+     * Start anchor discovery in the anchor store
      */
-    MrukResult (*StartDiscovery)(bool shouldRemoveMissingRooms, MrukSceneModel sceneModel);
+    MrukResult (*AnchorStoreStartDiscovery)(bool shouldRemoveMissingRooms, MrukSceneModel sceneModel);
 
     /**
-     * Start anchor query from shared group uuid in the global context
+     * Start anchor query from shared group uuid in the anchor store
      */
-    MrukResult (*StartQueryByLocalGroup)(MrukSharedRoomsData sharedRoomsData, bool shouldRemoveMissingRooms, MrukSceneModel sceneModel);
+    MrukResult (*AnchorStoreStartQueryByLocalGroup)(MrukSharedRoomsData sharedRoomsData, bool shouldRemoveMissingRooms, MrukSceneModel sceneModel);
 
     /**
      * Load the scene from a json string
      */
-    MrukResult (*LoadSceneFromJson)(const char* jsonString, bool shouldRemoveMissingRooms, MrukSceneModel sceneModel);
+    MrukResult (*AnchorStoreLoadSceneFromJson)(const char* jsonString, bool shouldRemoveMissingRooms, MrukSceneModel sceneModel);
 
     /**
      * Save the scene to a json string.
-     * @return The serialized JSON string. This string must be freed with FreeJson after use!
+     * @return The serialized JSON string. This string must be freed with FreeAnchorStoreJson after use!
      */
-    const char* (*SaveSceneToJson)(bool includeGlobalMesh, MrukUuid* roomUuids, uint32_t numRoomUuids);
+    const char* (*AnchorStoreSaveSceneToJson)(bool includeGlobalMesh, MrukUuid* roomUuids, uint32_t numRoomUuids);
 
     /**
-     * Free the json string returned by SaveSceneToJson.
+     * Free the json string returned by AnchorStoreSaveSceneToJson.
      * @param[in] jsonString The JSON string to free.
      */
-    void (*FreeJson)(const char* jsonString);
+    void (*AnchorStoreFreeJson)(const char* jsonString);
 
     /**
-     * Given a prefabricated scene description, load it in the global context.
+     * Given a prefabricated scene description, load it in the anchor store.
      */
-    MrukResult (*LoadSceneFromPrefab)(MrukRoomAnchor* roomAnchors, uint32_t numRoomAnchors, MrukSceneAnchor* sceneAnchors, uint32_t numSceneAnchors);
+    MrukResult (*AnchorStoreLoadSceneFromPrefab)(MrukRoomAnchor* roomAnchors, uint32_t numRoomAnchors, MrukSceneAnchor* sceneAnchors, uint32_t numSceneAnchors);
 
     /**
-     * Clear and remove all rooms in the global context.
+     * Clear and remove all rooms in the anchor store.
      */
-    void (*ClearRooms)();
+    void (*AnchorStoreClearRooms)();
 
     /**
      * Clear and remove the room that matches the given uuid.
      */
-    void (*ClearRoom)(MrukUuid roomUuid);
+    void (*AnchorStoreClearRoom)(MrukUuid roomUuid);
 
     /**
      * Allows to forward OpenXR events from the engine into the shared library
      */
-    void (*OnOpenXrEvent)(void* baseEventHeader);
+    void (*AnchorStoreOnOpenXrEvent)(void* baseEventHeader);
 
     /**
      * Needs to be called every tick by the engine.
      */
-    void (*TickGlobalContext)(uint64_t nextPredictedDisplayTime);
-    void (*RegisterEventListener)(MrukEventListener listener);
+    void (*AnchorStoreTick)(uint64_t nextPredictedDisplayTime);
+    void (*AnchorStoreRegisterEventListener)(MrukEventListener listener);
 
     /**
      * Cast a ray against all anchors in the room and return the first hit.
      * A maxDistance of <= 0 will return the first hit regardless of distance.
      */
-    bool (*RaycastRoom)(MrukUuid roomUuid, FVector3f origin, FVector3f direction, float maxDistance, MrukLabelFilter labelFilter, MrukHit* outHit);
+    bool (*AnchorStoreRaycastRoom)(MrukUuid roomUuid, FVector3f origin, FVector3f direction, float maxDistance, MrukLabelFilter labelFilter, MrukHit* outHit);
 
     /**
      * Cast a ray against all anchors in the room and return all hits along the ray.
      * A maxDistance of <= 0 will return the hits along the ray regardless of distance.
      */
-    bool (*RaycastRoomAll)(MrukUuid roomUuid, FVector3f origin, FVector3f direction, float maxDistance, MrukLabelFilter labelFilter, MrukHit* outHits, uint32_t* outHitsCount);
+    bool (*AnchorStoreRaycastRoomAll)(MrukUuid roomUuid, FVector3f origin, FVector3f direction, float maxDistance, MrukLabelFilter labelFilter, MrukHit* outHits, uint32_t* outHitsCount);
 
     /**
      * Cast a ray against the anchor in the room and return the first hit.
      * A maxDistance of <= 0 will return the hits along the ray regardless of distance.
      */
-    bool (*RaycastAnchor)(MrukUuid sceneAnchorUuid, FVector3f origin, FVector3f direction, float maxDistance, uint32_t surfaceTypes, MrukHit* outHit);
+    bool (*AnchorStoreRaycastAnchor)(MrukUuid sceneAnchorUuid, FVector3f origin, FVector3f direction, float maxDistance, uint32_t surfaceTypes, MrukHit* outHit);
 
     /**
      * Cast a ray against the anchor in the room and return all hits along the ray.
      * A maxDistance of <= 0 will return the hits along the ray regardless of distance.
      */
-    bool (*RaycastAnchorAll)(MrukUuid sceneAnchorUuid, FVector3f origin, FVector3f direction, float maxDistance, uint32_t surfaceTypes, MrukHit* outHits, uint32_t* outHitsCount);
+    bool (*AnchorStoreRaycastAnchorAll)(MrukUuid sceneAnchorUuid, FVector3f origin, FVector3f direction, float maxDistance, uint32_t surfaceTypes, MrukHit* outHits, uint32_t* outHitsCount);
+    bool (*AnchorStoreIsDiscoveryRunning)();
 
     /**
-     * Check if the given position is in the room or not.
-     *
-     * @param[in] roomUuid The unique identifier for the room.
-     * @param[in] position The 3D position to check.
-     * @param[in] testVerticalBounds A boolean indicating whether to test vertical bounds. If false then
-     * the point will be considered inside as long as it is within the perimeter of the room regardless
-     * of whether the point is below the floor or above the ceiling.
-     * @return True if the position is within the room, false otherwise.
-     */
-    bool (*IsPositionInRoom)(MrukUuid roomUuid, FVector3f position, bool testVerticalBounds);
-
-    /**
-     * Gets the current room the headset is in. If the headset is not in any given room
-     * then it will return the room the headset was last in when this function was called.
-     * If the headset hasn't been in a valid room yet then return the first room in the list.
-     * If no rooms have been loaded yet then return false.
-     *
-     * @param[out] outRoomUuid Pointer to a MrukUuid that will be filled with the current room UUID.
-     * @return True if a room was found, false otherwise.
-     */
-    bool (*GetCurrentRoom)(MrukUuid* outRoomUuid);
-
-    /**
-     * Checks whether scene anchor discovery is currently in progress.
-     *
-     * @return True if discovery is ongoing (either actively loading scene data or
-     * performing background processing like BVH building), false if discovery
-     * hasn't started yet or has completely finished.
-     */
-    bool (*IsDiscoveryRunning)();
-
-    /**
-     * Get the world lock offset for the current room. This is the difference between the room's initial
+     * Get the world lock offset for a given room. This is the difference between the room's initial
      * pose when it was created and the current pose.
      */
-    bool (*GetWorldLockOffset)(MrukPosef* offset);
+    bool (*AnchorStoreGetWorldLockOffset)(MrukUuid roomUuid, MrukPosef* offset);
 
     /**
      * Add two vectors together. This is implemented as a test to ensure the native shared
@@ -550,25 +418,23 @@ struct MRUKShared
     void (*FreeMesh)(MrukMesh2f* mesh);
 
     /**
-     * Compute the mesh segmentation for a given set of vertices, indices and points per unit.
-     * The function will automatically generate segmentation points in a uniform voxel grid
-     * within the mesh bounds. You *MUST* call FreeMeshSegmentation() on the meshSegments array when you
-     * are done with it or you will leak memory.
+     * Compute the mesh segmentation for a given set of vertices, indices and segmentation points.
+     * You *MUST* call FreeMeshSegmentation() on the meshSegments array when you are done with it or you
+     * will leak memory.
      *
      * @param[in] vertices The mesh vertices.
      * @param[in] numVertices The number of vertices in the mesh.
      * @param[in] indices The mesh indices.
      * @param[in] numIndices The number of indices in the mesh.
-     * @param[in] pointsPerUnitX The number of points per unit along the X axis.
-     * @param[in] pointsPerUnitY The number of points per unit along the Y axis.
-     * @param[in] pointsPerUnitZ The number of points per unit along the Z axis.
+     * @param[in] segmentationPoints The points that should be used to calculate the segments.
+     * @param[in] numSegmentationPoints The number of segmentation points.
      * @param[in] reservedMin The minimum bounding box for the reserved segment.
      * @param[in] reservedMax The maximum bounding box for the reserved segment.
      * @param[out] meshSegments The resulting segments.
      * @param[out] numSegments The number of segments in the resulting array.
      * @param[out] reservedSegment The segment that is inside the reserved bounding box.
      */
-    MrukResult (*ComputeMeshSegmentation)(const FVector3f* vertices, uint32_t numVertices, const uint32_t* indices, uint32_t numIndices, float pointsPerUnitX, float pointsPerUnitY, float pointsPerUnitZ, FVector3f reservedMin, FVector3f reservedMax, MrukMesh3f** meshSegments, uint32_t* numSegments, MrukMesh3f* reservedSegment);
+    MrukResult (*ComputeMeshSegmentation)(const FVector3f* vertices, uint32_t numVertices, const uint32_t* indices, uint32_t numIndices, const FVector3f* segmentationPoints, uint32_t numSegmentationPoints, FVector3f reservedMin, FVector3f reservedMax, MrukMesh3f** meshSegments, uint32_t* numSegments, MrukMesh3f* reservedSegment);
 
     /**
      * Free the memory allocated by ComputeMeshSegmentation.
@@ -617,115 +483,33 @@ struct MRUKShared
     void (*SetTrackingSpacePoseGetter)(TrackingSpacePoseGetter getter);
     void (*SetTrackingSpacePoseSetter)(TrackingSpacePoseSetter setter);
 
-    /**
-     * Configures the tracker services. This should only be called after the global context
-     * has been created. The trackers that should be enabled can be passed in trackableMask.
-     * 0 means all trackers will be disabled.
-     * The event onTrackersConfigured will be emitted after the tracker service is ready or failed to
-     * start.
-     *
-     * @param[in] trackableMask A bitmask of MrukTrackableType
-     */
-    void (*ConfigureTrackers)(uint32_t trackableMask);
-
-    /**
-     * Set the interval in which trackers will be queried from the system and updated.
-     * @param[in] millseconds Time in millseconds between updates
-     */
-    void (*SetTrackersUpdateInterval)(uint64_t millseconds);
-
-    /**
-     * Gets the supported resolutions for the specified camera.
-     * This function allocates a buffer in C++ and returns a pointer to it.
-     * The caller is responsible for freeing the buffer by calling CameraFreeSupportedResolutions.
-     *
-     * @param[in] eyeIndex The index of the camera.
-     * @param[out] len Will be set to the number of available resolutions.
-     * @return A pointer to an array of MrukVector2i structures, where x is the width and y is the
-     * height. The caller must free this buffer by calling CameraFreeSupportedResolutions. Returns NULL
-     * if no resolutions are available or an error occurred.
-     */
-    MrukVector2i* (*CameraGetSupportedResolutions)(int eyeIndex, int* len);
-
-    /**
-     * Frees the buffer allocated by CameraGetSupportedResolutions.
-     *
-     * @param[in] buffer The buffer to free.
-     */
-    void (*CameraFreeSupportedResolutions)(MrukVector2i* buffer);
-
-    /**
-     * Starts the camera capture for the specified camera.
-     * @param[in] eyeIndex The index of the camera to start.
-     * @param[out] width The width of the camera frames that will be captured.
-     * @param[out] height The height of the camera frames that will be captured.
-     * @param[out] intrinsics The intrinsic parameters of the camera.
-     * @return True if the camera was successfully started, false otherwise.
-     */
-    bool (*CameraPlay)(int eyeIndex, int* width, int* height, MrukCameraIntrinsics* intrinsics);
-
-    /**
-     * Acquires the latest image from the camera.
-     * The caller must call CameraReleaseLatestImage() afterwards, even if the returned buffer is null.
-     * @param[in] eyeIndex The index of the camera.
-     * @param[out] timestampMicrosecondsRealtime Timestamp of the image in microseconds since
-     * the Unix epoch.
-     * @param[out] timestampNsMonotonic Timestamp of the image in monotonic nanoseconds. Used for
-     * getting the precise headset pose at the image's timestamp.
-     * @return A pointer to a buffer containing the RGBA (32 bits, 8 bits per channel) image data. If
-     * null, this means no new image is available.
-     */
-    uint8_t* (*CameraAcquireLatestImage)(int eyeIndex, int64_t* timestampMicrosecondsRealtime, int64_t* timestampNsMonotonic);
-
-    /**
-     * Releases the image buffer acquired by CameraAcquireLatestImage().
-     * Must be called even if CameraAcquireLatestImage() returns null.
-     */
-    void (*CameraReleaseLatestImage)(int eyeIndex);
-
-    /**
-     * Notifies the camera system that the application has gained focus.
-     * This should be called when the application regains focus after being in the background.
-     */
-    void (*CameraOnApplicationFocused)();
-
-    /**
-     * Stops the camera capture for the specified camera.
-     * @param[in] eyeIndex The index of the camera to stop.
-     */
-    void (*CameraStop)(int eyeIndex);
-    double (*ConvertToXrTimeInSeconds)(int64_t timeNsMonotonic);
-
 private:
 
     void LoadNativeFunctions()
     {
         SetLogPrinter = reinterpret_cast<decltype(SetLogPrinter)>(LoadFunction(TEXT("SetLogPrinter")));
-        CreateGlobalContext = reinterpret_cast<decltype(CreateGlobalContext)>(LoadFunction(TEXT("CreateGlobalContext")));
-        DestroyGlobalContext = reinterpret_cast<decltype(DestroyGlobalContext)>(LoadFunction(TEXT("DestroyGlobalContext")));
-        InitOpenXr = reinterpret_cast<decltype(InitOpenXr)>(LoadFunction(TEXT("InitOpenXr")));
-        ShutdownOpenXr = reinterpret_cast<decltype(ShutdownOpenXr)>(LoadFunction(TEXT("ShutdownOpenXr")));
-        InitUnityInterfaces = reinterpret_cast<decltype(InitUnityInterfaces)>(LoadFunction(TEXT("InitUnityInterfaces")));
-        SetBaseSpace = reinterpret_cast<decltype(SetBaseSpace)>(LoadFunction(TEXT("SetBaseSpace")));
-        StartDiscovery = reinterpret_cast<decltype(StartDiscovery)>(LoadFunction(TEXT("StartDiscovery")));
-        StartQueryByLocalGroup = reinterpret_cast<decltype(StartQueryByLocalGroup)>(LoadFunction(TEXT("StartQueryByLocalGroup")));
-        LoadSceneFromJson = reinterpret_cast<decltype(LoadSceneFromJson)>(LoadFunction(TEXT("LoadSceneFromJson")));
-        SaveSceneToJson = reinterpret_cast<decltype(SaveSceneToJson)>(LoadFunction(TEXT("SaveSceneToJson")));
-        FreeJson = reinterpret_cast<decltype(FreeJson)>(LoadFunction(TEXT("FreeJson")));
-        LoadSceneFromPrefab = reinterpret_cast<decltype(LoadSceneFromPrefab)>(LoadFunction(TEXT("LoadSceneFromPrefab")));
-        ClearRooms = reinterpret_cast<decltype(ClearRooms)>(LoadFunction(TEXT("ClearRooms")));
-        ClearRoom = reinterpret_cast<decltype(ClearRoom)>(LoadFunction(TEXT("ClearRoom")));
-        OnOpenXrEvent = reinterpret_cast<decltype(OnOpenXrEvent)>(LoadFunction(TEXT("OnOpenXrEvent")));
-        TickGlobalContext = reinterpret_cast<decltype(TickGlobalContext)>(LoadFunction(TEXT("TickGlobalContext")));
-        RegisterEventListener = reinterpret_cast<decltype(RegisterEventListener)>(LoadFunction(TEXT("RegisterEventListener")));
-        RaycastRoom = reinterpret_cast<decltype(RaycastRoom)>(LoadFunction(TEXT("RaycastRoom")));
-        RaycastRoomAll = reinterpret_cast<decltype(RaycastRoomAll)>(LoadFunction(TEXT("RaycastRoomAll")));
-        RaycastAnchor = reinterpret_cast<decltype(RaycastAnchor)>(LoadFunction(TEXT("RaycastAnchor")));
-        RaycastAnchorAll = reinterpret_cast<decltype(RaycastAnchorAll)>(LoadFunction(TEXT("RaycastAnchorAll")));
-        IsPositionInRoom = reinterpret_cast<decltype(IsPositionInRoom)>(LoadFunction(TEXT("IsPositionInRoom")));
-        GetCurrentRoom = reinterpret_cast<decltype(GetCurrentRoom)>(LoadFunction(TEXT("GetCurrentRoom")));
-        IsDiscoveryRunning = reinterpret_cast<decltype(IsDiscoveryRunning)>(LoadFunction(TEXT("IsDiscoveryRunning")));
-        GetWorldLockOffset = reinterpret_cast<decltype(GetWorldLockOffset)>(LoadFunction(TEXT("GetWorldLockOffset")));
+        AnchorStoreCreate = reinterpret_cast<decltype(AnchorStoreCreate)>(LoadFunction(TEXT("AnchorStoreCreate")));
+        AnchorStoreCreateWithoutOpenXr = reinterpret_cast<decltype(AnchorStoreCreateWithoutOpenXr)>(LoadFunction(TEXT("AnchorStoreCreateWithoutOpenXr")));
+        AnchorStoreShutdownOpenXr = reinterpret_cast<decltype(AnchorStoreShutdownOpenXr)>(LoadFunction(TEXT("AnchorStoreShutdownOpenXr")));
+        AnchorStoreDestroy = reinterpret_cast<decltype(AnchorStoreDestroy)>(LoadFunction(TEXT("AnchorStoreDestroy")));
+        AnchorStoreSetBaseSpace = reinterpret_cast<decltype(AnchorStoreSetBaseSpace)>(LoadFunction(TEXT("AnchorStoreSetBaseSpace")));
+        AnchorStoreStartDiscovery = reinterpret_cast<decltype(AnchorStoreStartDiscovery)>(LoadFunction(TEXT("AnchorStoreStartDiscovery")));
+        AnchorStoreStartQueryByLocalGroup = reinterpret_cast<decltype(AnchorStoreStartQueryByLocalGroup)>(LoadFunction(TEXT("AnchorStoreStartQueryByLocalGroup")));
+        AnchorStoreLoadSceneFromJson = reinterpret_cast<decltype(AnchorStoreLoadSceneFromJson)>(LoadFunction(TEXT("AnchorStoreLoadSceneFromJson")));
+        AnchorStoreSaveSceneToJson = reinterpret_cast<decltype(AnchorStoreSaveSceneToJson)>(LoadFunction(TEXT("AnchorStoreSaveSceneToJson")));
+        AnchorStoreFreeJson = reinterpret_cast<decltype(AnchorStoreFreeJson)>(LoadFunction(TEXT("AnchorStoreFreeJson")));
+        AnchorStoreLoadSceneFromPrefab = reinterpret_cast<decltype(AnchorStoreLoadSceneFromPrefab)>(LoadFunction(TEXT("AnchorStoreLoadSceneFromPrefab")));
+        AnchorStoreClearRooms = reinterpret_cast<decltype(AnchorStoreClearRooms)>(LoadFunction(TEXT("AnchorStoreClearRooms")));
+        AnchorStoreClearRoom = reinterpret_cast<decltype(AnchorStoreClearRoom)>(LoadFunction(TEXT("AnchorStoreClearRoom")));
+        AnchorStoreOnOpenXrEvent = reinterpret_cast<decltype(AnchorStoreOnOpenXrEvent)>(LoadFunction(TEXT("AnchorStoreOnOpenXrEvent")));
+        AnchorStoreTick = reinterpret_cast<decltype(AnchorStoreTick)>(LoadFunction(TEXT("AnchorStoreTick")));
+        AnchorStoreRegisterEventListener = reinterpret_cast<decltype(AnchorStoreRegisterEventListener)>(LoadFunction(TEXT("AnchorStoreRegisterEventListener")));
+        AnchorStoreRaycastRoom = reinterpret_cast<decltype(AnchorStoreRaycastRoom)>(LoadFunction(TEXT("AnchorStoreRaycastRoom")));
+        AnchorStoreRaycastRoomAll = reinterpret_cast<decltype(AnchorStoreRaycastRoomAll)>(LoadFunction(TEXT("AnchorStoreRaycastRoomAll")));
+        AnchorStoreRaycastAnchor = reinterpret_cast<decltype(AnchorStoreRaycastAnchor)>(LoadFunction(TEXT("AnchorStoreRaycastAnchor")));
+        AnchorStoreRaycastAnchorAll = reinterpret_cast<decltype(AnchorStoreRaycastAnchorAll)>(LoadFunction(TEXT("AnchorStoreRaycastAnchorAll")));
+        AnchorStoreIsDiscoveryRunning = reinterpret_cast<decltype(AnchorStoreIsDiscoveryRunning)>(LoadFunction(TEXT("AnchorStoreIsDiscoveryRunning")));
+        AnchorStoreGetWorldLockOffset = reinterpret_cast<decltype(AnchorStoreGetWorldLockOffset)>(LoadFunction(TEXT("AnchorStoreGetWorldLockOffset")));
         AddVectors = reinterpret_cast<decltype(AddVectors)>(LoadFunction(TEXT("AddVectors")));
         TriangulatePolygon = reinterpret_cast<decltype(TriangulatePolygon)>(LoadFunction(TEXT("TriangulatePolygon")));
         FreeMesh = reinterpret_cast<decltype(FreeMesh)>(LoadFunction(TEXT("FreeMesh")));
@@ -738,46 +522,33 @@ private:
         PerformEnvironmentRaycast = reinterpret_cast<decltype(PerformEnvironmentRaycast)>(LoadFunction(TEXT("PerformEnvironmentRaycast")));
         SetTrackingSpacePoseGetter = reinterpret_cast<decltype(SetTrackingSpacePoseGetter)>(LoadFunction(TEXT("SetTrackingSpacePoseGetter")));
         SetTrackingSpacePoseSetter = reinterpret_cast<decltype(SetTrackingSpacePoseSetter)>(LoadFunction(TEXT("SetTrackingSpacePoseSetter")));
-        ConfigureTrackers = reinterpret_cast<decltype(ConfigureTrackers)>(LoadFunction(TEXT("ConfigureTrackers")));
-        SetTrackersUpdateInterval = reinterpret_cast<decltype(SetTrackersUpdateInterval)>(LoadFunction(TEXT("SetTrackersUpdateInterval")));
-        CameraGetSupportedResolutions = reinterpret_cast<decltype(CameraGetSupportedResolutions)>(LoadFunction(TEXT("CameraGetSupportedResolutions")));
-        CameraFreeSupportedResolutions = reinterpret_cast<decltype(CameraFreeSupportedResolutions)>(LoadFunction(TEXT("CameraFreeSupportedResolutions")));
-        CameraPlay = reinterpret_cast<decltype(CameraPlay)>(LoadFunction(TEXT("CameraPlay")));
-        CameraAcquireLatestImage = reinterpret_cast<decltype(CameraAcquireLatestImage)>(LoadFunction(TEXT("CameraAcquireLatestImage")));
-        CameraReleaseLatestImage = reinterpret_cast<decltype(CameraReleaseLatestImage)>(LoadFunction(TEXT("CameraReleaseLatestImage")));
-        CameraOnApplicationFocused = reinterpret_cast<decltype(CameraOnApplicationFocused)>(LoadFunction(TEXT("CameraOnApplicationFocused")));
-        CameraStop = reinterpret_cast<decltype(CameraStop)>(LoadFunction(TEXT("CameraStop")));
-        ConvertToXrTimeInSeconds = reinterpret_cast<decltype(ConvertToXrTimeInSeconds)>(LoadFunction(TEXT("ConvertToXrTimeInSeconds")));
     }
 
     void UnloadNativeFunctions()
     {
         SetLogPrinter = nullptr;
-        CreateGlobalContext = nullptr;
-        DestroyGlobalContext = nullptr;
-        InitOpenXr = nullptr;
-        ShutdownOpenXr = nullptr;
-        InitUnityInterfaces = nullptr;
-        SetBaseSpace = nullptr;
-        StartDiscovery = nullptr;
-        StartQueryByLocalGroup = nullptr;
-        LoadSceneFromJson = nullptr;
-        SaveSceneToJson = nullptr;
-        FreeJson = nullptr;
-        LoadSceneFromPrefab = nullptr;
-        ClearRooms = nullptr;
-        ClearRoom = nullptr;
-        OnOpenXrEvent = nullptr;
-        TickGlobalContext = nullptr;
-        RegisterEventListener = nullptr;
-        RaycastRoom = nullptr;
-        RaycastRoomAll = nullptr;
-        RaycastAnchor = nullptr;
-        RaycastAnchorAll = nullptr;
-        IsPositionInRoom = nullptr;
-        GetCurrentRoom = nullptr;
-        IsDiscoveryRunning = nullptr;
-        GetWorldLockOffset = nullptr;
+        AnchorStoreCreate = nullptr;
+        AnchorStoreCreateWithoutOpenXr = nullptr;
+        AnchorStoreShutdownOpenXr = nullptr;
+        AnchorStoreDestroy = nullptr;
+        AnchorStoreSetBaseSpace = nullptr;
+        AnchorStoreStartDiscovery = nullptr;
+        AnchorStoreStartQueryByLocalGroup = nullptr;
+        AnchorStoreLoadSceneFromJson = nullptr;
+        AnchorStoreSaveSceneToJson = nullptr;
+        AnchorStoreFreeJson = nullptr;
+        AnchorStoreLoadSceneFromPrefab = nullptr;
+        AnchorStoreClearRooms = nullptr;
+        AnchorStoreClearRoom = nullptr;
+        AnchorStoreOnOpenXrEvent = nullptr;
+        AnchorStoreTick = nullptr;
+        AnchorStoreRegisterEventListener = nullptr;
+        AnchorStoreRaycastRoom = nullptr;
+        AnchorStoreRaycastRoomAll = nullptr;
+        AnchorStoreRaycastAnchor = nullptr;
+        AnchorStoreRaycastAnchorAll = nullptr;
+        AnchorStoreIsDiscoveryRunning = nullptr;
+        AnchorStoreGetWorldLockOffset = nullptr;
         AddVectors = nullptr;
         TriangulatePolygon = nullptr;
         FreeMesh = nullptr;
@@ -790,16 +561,6 @@ private:
         PerformEnvironmentRaycast = nullptr;
         SetTrackingSpacePoseGetter = nullptr;
         SetTrackingSpacePoseSetter = nullptr;
-        ConfigureTrackers = nullptr;
-        SetTrackersUpdateInterval = nullptr;
-        CameraGetSupportedResolutions = nullptr;
-        CameraFreeSupportedResolutions = nullptr;
-        CameraPlay = nullptr;
-        CameraAcquireLatestImage = nullptr;
-        CameraReleaseLatestImage = nullptr;
-        CameraOnApplicationFocused = nullptr;
-        CameraStop = nullptr;
-        ConvertToXrTimeInSeconds = nullptr;
     }
 
     void* LoadFunction(const TCHAR* ProcName);

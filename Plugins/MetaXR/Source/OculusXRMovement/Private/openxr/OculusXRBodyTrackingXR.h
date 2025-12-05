@@ -4,7 +4,6 @@
 
 #include "OculusXRMovementXRIncludes.h"
 #include "IOpenXRExtensionPlugin.h"
-#include "Misc/EngineVersionComparison.h"
 #include "OculusXRMovementTypes.h"
 
 #define LOCTEXT_NAMESPACE "OculusXRMovement"
@@ -30,11 +29,7 @@ namespace XRMovement
 		virtual const void* OnCreateInstance(class IOpenXRHMDModule* InModule, const void* InNext) override;
 		virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext) override;
 		virtual void OnDestroySession(XrSession InSession) override;
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_GameThread(XrSession InSession) override;
-#else
-		virtual void OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers) override;
-#endif
 
 	public:
 		FBodyTrackingXR();
