@@ -1326,7 +1326,7 @@ namespace OculusXRHMD
 			{
 				OvrpLayerSubmit.LayerSubmitFlags |= ovrpLayerSubmitFlag_SpaceWarp;
 				OvrpLayerSubmit.EyeFov.MotionVectorDepthFar = Frame->NearClippingPlane / 100.f;
-				OvrpLayerSubmit.EyeFov.MotionVectorDepthNear = INFINITY;
+				OvrpLayerSubmit.EyeFov.MotionVectorDepthNear = 9999999.0f;
 				OvrpLayerSubmit.EyeFov.MotionVectorOffset = ovrpVector4f{ 0.0f, 0.0f, 0.0f, 0.0f };
 				OvrpLayerSubmit.EyeFov.MotionVectorScale = ovrpVector4f{ 1.0f, 1.0f, 1.0f, 1.0f };
 
