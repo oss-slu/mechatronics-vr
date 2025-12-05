@@ -44,7 +44,7 @@ public:
 
 	/** Reference to overlay material  */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GrabCast", meta = (AllowPrivateAccess = "true"))
-	UMaterialInterface* OverlayMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Script/Engine.Material'/Game/M_GrabbableOutline.M_GrabbableOutline'"));
+	UMaterialInterface* OverlayMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Script/Engine.Material'/Game/Materials/M_GrabbableOutline.M_GrabbableOutline'"));
 
 	
 	/** Ray cast from each hand and check for grabables */	// now uses sphere for more tolerance

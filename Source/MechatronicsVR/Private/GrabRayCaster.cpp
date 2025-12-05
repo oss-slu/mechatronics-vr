@@ -10,6 +10,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "DrawDebugHelpers.h"
+#include "MechatronicsGameMode.h"
+#include "PartActor.h"
 
 // Sets default values for this component's properties
 UGrabRayCaster::UGrabRayCaster()
@@ -50,10 +52,20 @@ void UGrabRayCaster::SuckObjectToSource() const
 			PrimitiveComp->SetEnableGravity(false);
             
 			// Apply the impulse
-			if (MeshComponent && MeshComponent->IsSimulatingPhysics())
-			{
-				MeshComponent->AddImpulse(Impulse);
-			}
+			if (MeshComponent)
+            {
+                if (MeshComponent->IsSimulatingPhysics())
+                {
+                    MeshComponent->AddImpulse(Impulse);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("SuckObjectToSource: Enabling physics and applying impulse"));
+                    MeshComponent->SetSimulatePhysics(true);
+                    MeshComponent->WakeRigidBody();
+                    MeshComponent->AddImpulse(Impulse);
+                }
+            }
             
 			// Re-enable gravity after SuckTime
 			FTimerHandle TimerHandle;
@@ -156,6 +168,24 @@ UGrabComponent* UGrabRayCaster::CheckReachForGrabComponent()
 				else if (MeshComponent && OverlayMaterial)
 				{
 					MeshComponent->SetOverlayMaterial(OverlayMaterial);
+
+					if (APartActor* PartActor = Cast<APartActor>(GrabActor))
+					{
+						if (UWorld* World = GetWorld())
+						{
+							if (AGameModeBase* GameMode = World->GetAuthGameMode())
+							{
+								if (AMechatronicsGameMode* MechGameMode = Cast<AMechatronicsGameMode>(GameMode))
+								{
+									if (ULessonUIManagerComponent* UIManager = MechGameMode->GetUIManager())
+									{
+										UIManager->PauseHighlightForPart(PartActor);
+									}
+								}
+							}
+							
+						}
+					}
 				}
 				return GrabComponent;
 			}

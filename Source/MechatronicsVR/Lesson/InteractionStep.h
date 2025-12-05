@@ -52,7 +52,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Interaction Step|Manual")
 	void ReportInteraction();
 
-	virtual bool CheckCompletion_Implementation() const;
+	virtual bool CheckCompletion_Implementation() const override;
 
 protected:
 	virtual void OnStarted() override;

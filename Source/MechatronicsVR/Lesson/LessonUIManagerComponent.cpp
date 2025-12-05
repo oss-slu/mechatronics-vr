@@ -14,6 +14,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Engine/Engine.h"
+#include "LessonUIActor.h"
 
 // Sets default values for this component's properties
 ULessonUIManagerComponent::ULessonUIManagerComponent()
@@ -48,6 +49,47 @@ ULessonUIManagerComponent::ULessonUIManagerComponent()
 }
 
 
+void ULessonUIManagerComponent::DebugShowWidgetLocation()
+{
+	if (!InstructionWidgetComponent)
+	{
+		UE_LOG(LogTemp, Error, TEXT("DebugShowWidgetLocation: No widget component"));
+		return;
+	}
+    
+	FVector WidgetLocation = InstructionWidgetComponent->GetComponentLocation();
+    
+	// Draw debug sphere at widget location
+	DrawDebugSphere(
+		GetWorld(),
+		WidgetLocation,
+		50.0f,
+		12,
+		FColor::Green,
+		false,
+		5.0f,
+		0,
+		5.0f
+	);
+    
+	// Draw line from player to widget
+	if (APawn* PlayerPawn = GetWorld()->GetFirstPlayerController()->GetPawn())
+	{
+		DrawDebugLine(
+			GetWorld(),
+			PlayerPawn->GetActorLocation(),
+			WidgetLocation,
+			FColor::Yellow,
+			false,
+			5.0f,
+			0,
+			3.0f
+		);
+	}
+    
+	UE_LOG(LogTemp, Warning, TEXT("DebugShowWidgetLocation: Widget at %s"), *WidgetLocation.ToString());
+}
+
 // Called when the game starts
 void ULessonUIManagerComponent::BeginPlay()
 {
@@ -55,11 +97,34 @@ void ULessonUIManagerComponent::BeginPlay()
 
 	// ...
 	UE_LOG(LogTemp, Log, TEXT("LessonUIManagerComponent::BeginPlay - Initializing UI"));
-	CreateUIWidgets();
 	RefreshWidgetReferences();
 
-	UE_LOG(LogTemp, Log, TEXT("LessonUIManagerComponent::BeginPlay - UI Initialized"));
-	
+	// UE_LOG(LogTemp, Log, TEXT("LessonUIManagerComponent::BeginPlay - UI Initialized"));
+	//
+	// if (InstructionWidget && InstructionWidgetComponent)
+	// {
+	// 	GetWorld()->GetTimerManager().SetTimer(DebugTestTimer, [this]()
+	// 	{
+	// 		UE_LOG(LogTemp, Error, TEXT("=== FORCING WIDGET VISIBLE FOR TEST ==="));
+ //        
+	// 		InstructionWidgetComponent->SetVisibility(true);
+	// 		InstructionWidgetComponent->SetRelativeLocation(FVector(200, 0, 0));  // Right in front
+ //        
+	// 		if (UTextBlock* TextBlock = Cast<UTextBlock>(InstructionWidget->GetWidgetFromName("InstructionText")))
+	// 		{
+	// 			TextBlock->SetText(FText::FromString("TEST - CAN YOU SEE ME?"));
+	// 			UE_LOG(LogTemp, Error, TEXT("Set test text"));
+	// 		}
+	// 		else
+	// 		{
+	// 			UE_LOG(LogTemp, Error, TEXT("Could not find TextBlock named 'InstructionText'"));
+	// 		}
+ //        
+	// 		DebugShowWidgetLocation();
+ //        
+	// 	}, 2.0f, false);
+	// }
+	//
 }
 
 void ULessonUIManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -82,103 +147,6 @@ void ULessonUIManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 
 
-void ULessonUIManagerComponent::CreateUIWidgets()
-{
-    if (!GetOwner())
-    {
-        UE_LOG(LogTemp, Error, TEXT("CreateUIWidgets: No owner actor"));
-        return;
-    }
-    
-    UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Creating 3D widget components"));
-    
-    // Create instruction widget component
-    if (InstructionWidgetClass)
-    {
-        InstructionWidgetComponent = NewObject<UWidgetComponent>(GetOwner());
-        if (InstructionWidgetComponent)
-        {
-            InstructionWidgetComponent->SetupAttachment(GetOwner()->GetRootComponent());
-            InstructionWidgetComponent->SetWidgetClass(InstructionWidgetClass);
-            InstructionWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-            InstructionWidgetComponent->SetDrawSize(InstructionWidgetSize);
-            InstructionWidgetComponent->SetRelativeLocation(InstructionWidgetOffset);
-            InstructionWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            InstructionWidgetComponent->RegisterComponent();
-            
-            // Set initial visibility
-            if (InstructionVisibility == ELessonUIVisibility::OnDemand)
-            {
-                InstructionWidgetComponent->SetVisibility(false);
-            }
-            
-            // Get the actual widget instance
-            InstructionWidget = InstructionWidgetComponent->GetUserWidgetObject();
-            
-            UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Created 3D instruction widget"));
-        }
-    }
-    
-    // Create progress widget component
-    if (ProgressWidgetClass)
-    {
-        ProgressWidgetComponent = NewObject<UWidgetComponent>(GetOwner());
-        if (ProgressWidgetComponent)
-        {
-            ProgressWidgetComponent->SetupAttachment(GetOwner()->GetRootComponent());
-            ProgressWidgetComponent->SetWidgetClass(ProgressWidgetClass);
-            ProgressWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-            ProgressWidgetComponent->SetDrawSize(ProgressWidgetSize);
-            ProgressWidgetComponent->SetRelativeLocation(ProgressWidgetOffset);
-            ProgressWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            ProgressWidgetComponent->RegisterComponent();
-            
-            // Set initial visibility
-            if (ProgressVisibility == ELessonUIVisibility::Always)
-            {
-                ProgressWidgetComponent->SetVisibility(true);
-            }
-            else if (ProgressVisibility == ELessonUIVisibility::OnDemand)
-            {
-                ProgressWidgetComponent->SetVisibility(false);
-            }
-            
-            // Get the actual widget instance
-            ProgressWidget = ProgressWidgetComponent->GetUserWidgetObject();
-            
-            UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Created 3D progress widget"));
-        }
-    }
-    
-    // Create lesson HUD component
-    if (LessonHUDClass)
-    {
-        LessonHUDComponent = NewObject<UWidgetComponent>(GetOwner());
-        if (LessonHUDComponent)
-        {
-            LessonHUDComponent->SetupAttachment(GetOwner()->GetRootComponent());
-            LessonHUDComponent->SetWidgetClass(LessonHUDClass);
-            LessonHUDComponent->SetWidgetSpace(EWidgetSpace::World);
-            LessonHUDComponent->SetDrawSize(LessonHUDSize);
-            LessonHUDComponent->SetRelativeLocation(LessonHUDOffset);
-            LessonHUDComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            LessonHUDComponent->RegisterComponent();
-            LessonHUDComponent->SetVisibility(true);
-            
-            // Get the actual widget instance
-            LessonHUD = LessonHUDComponent->GetUserWidgetObject();
-            
-            UE_LOG(LogTemp, Log, TEXT("CreateUIWidgets: Created 3D lesson HUD"));
-        }
-    }
-    
-    // Enable ticking for follow/look-at behavior
-    if (bInstructionFollowsPlayer || bInstructionLooksAtPlayer || bProgressFollowsPlayer || bProgressLooksAtPlayer)
-    {
-        PrimaryComponentTick.bCanEverTick = true;
-        bTickEnabled = true;
-    }
-}
 
 void ULessonUIManagerComponent::DestroyUIWidgets()
 {
@@ -324,26 +292,29 @@ void ULessonUIManagerComponent::ShowInstructionWithIcon(const FText& Instruction
 	UE_LOG(LogTemp, Log, TEXT("ShowInstructionWithIcon: Displayed instruction with icon"));
 }
 
-void ULessonUIManagerComponent::ShowInstructionForPart(const FText& InstructionText, APartActor* TargetPart)
+void ULessonUIManagerComponent::ShowInstructionForPart(const FString& InstructionText, APartActor* TargetPart)
 {
 	if (!TargetPart)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ShowInstructionForPart: Invalid target part"));
 		return;
 	}
-
-	//position widget near the part
-	PositionWidgetNearPart(TargetPart, FVector(150.0f, 0.0f, 100.0f));
-
-	//show the instruction
+    
+	UE_LOG(LogTemp, Warning, TEXT("ShowInstructionForPart: Part=%s"), *TargetPart->GetName());
+    
+	// This will spawn the actor if needed
 	ShowInstruction(InstructionText);
-
-	// optionally highlight the part
+    
+	// Position near the part
+	if (LessonUIActor)
+	{
+		LessonUIActor->PositionNearActor(TargetPart, FVector(150.0f, 0.0f, 100.0f));
+		UE_LOG(LogTemp, Warning, TEXT("ShowInstructionForPart: Positioned near part"));
+	}
+    
+	// Highlight the part
 	HighlightSinglePart(TargetPart, TargetPartColor);
-
-	UE_LOG(LogTemp, Log, TEXT("ShowInstructionForPart: Showing instruction for part %s"), *TargetPart->GetName());
 }
-
 void ULessonUIManagerComponent::HideInstruction()
 {
 	if (InstructionWidget)
@@ -366,7 +337,7 @@ void ULessonUIManagerComponent::HideInstruction()
 	UE_LOG(LogTemp, Log, TEXT("HideInstruction: Hidden instruction widget"));
 }
 
-void ULessonUIManagerComponent::UpdateInstructionWidget(const FText& InstructionText) const
+void ULessonUIManagerComponent::UpdateInstructionWidget(const FString& InstructionText) const
 {
 	ShowInstruction(InstructionText);
 }
@@ -469,15 +440,17 @@ void ULessonUIManagerComponent::HighlightPartsWithType(const TArray<APartActor*>
 		}
 	}
 
+	if (bPulseHighlights && HighlightedActors.Num() > 0)
+	{
+		PrimaryComponentTick.bCanEverTick = true;
+		SetComponentTickEnabled(true);
+	}
+
 	//play sound if enabled
 	if (HighlightSound && PartsToHighlight.Num() > 0)
 	{
 		PlayUISound(HighlightSound);
 	}
-
-	//broadcast event
-	OnPartsHighlighted.Broadcast(PartsToHighlight);
-	UE_LOG(LogTemp, Log, TEXT("HighlightPartsWithType: Highlighted %d parts"), HighlightedActors.Num());
 }
 
 void ULessonUIManagerComponent::HighlightSinglePart(APartActor* PartToHighlight, const FLinearColor& Color)
@@ -488,7 +461,7 @@ void ULessonUIManagerComponent::HighlightSinglePart(APartActor* PartToHighlight,
 		return;
 	}
 
-	ApplyHighlightToActor(PartToHighlight, Color, DefaultHighlightType);
+	ApplyHighlightToActor(PartToHighlight, Color, EHighlightType::Pulse);
 
 	if (!HighlightedActors.Contains(PartToHighlight))
 	{
@@ -526,7 +499,6 @@ void ULessonUIManagerComponent::ApplyHighlightToActor(AActor* Actor, const FLine
 {
 	if (!Actor) return;
 
-	//TODO: replace with part interface implementation from game instance
 	APartActor* Part = Cast<APartActor>(Actor);
 	if (!Part || !Part->Mesh) return;
 
@@ -534,10 +506,9 @@ void ULessonUIManagerComponent::ApplyHighlightToActor(AActor* Actor, const FLine
 	{
 	case EHighlightType::Outline:
 		{
-			// Use custom depth for outline effect (requires post-process volume setup)
-			//TODO: Ensure post-process volume is configured to use custom depth
+			// Use custom depth for outline effect
 			Part->Mesh->SetRenderCustomDepth(true);
-			Part->Mesh->CustomDepthStencilValue = 1; // Ensure this matches your post-process settings
+			Part->Mesh->CustomDepthStencilValue = 1;
 			break;
 		}
 
@@ -545,45 +516,64 @@ void ULessonUIManagerComponent::ApplyHighlightToActor(AActor* Actor, const FLine
 	case EHighlightType::Material:
 	case EHighlightType::Pulse:
 		{
-			//create and apply dynamic material
-			UMaterialInstanceDynamic* DynMaterial = nullptr;
-
+			// Use OVERLAY MATERIAL like GrabRayCaster does
+			// Do EXACTLY what GrabRayCaster does, but with a DYNAMIC instance for pulsing
 			if (HighlightMaterial)
 			{
-				DynMaterial = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
+				UE_LOG(LogTemp, Error, TEXT("ApplyHighlightToActor: Creating dynamic material from template"));
+        
+				// Create dynamic instance from the static template
+				UMaterialInstanceDynamic* DynMaterial = UMaterialInstanceDynamic::Create(HighlightMaterial, this);
+        
+				if (DynMaterial)
+				{
+					// Set initial parameters
+					DynMaterial->SetVectorParameterValue("HighlightColor", Color);
+					DynMaterial->SetScalarParameterValue("HighlightIntensity", HighlightIntensity);
+            
+					// Apply as overlay
+					Part->Mesh->SetOverlayMaterial(DynMaterial);
+            
+					// Store the DYNAMIC instance for pulsing
+					HighlightMaterials.Add(Actor, DynMaterial);
+            
+					UE_LOG(LogTemp, Error, TEXT("ApplyHighlightToActor: Applied dynamic overlay material"));
+				}
+				else
+				{
+					UE_LOG(LogTemp, Error, TEXT("ApplyHighlightToActor: Failed to create dynamic material"));
+				}
 			}
 			else
 			{
-				//create from existing material
-				if (Part->Mesh->GetMaterial(0))
-				{
-					DynMaterial = UMaterialInstanceDynamic::Create(Part->Mesh->GetMaterial(0), this);
-				}
-			}
-
-			if (DynMaterial)
-			{
-				DynMaterial->SetVectorParameterValue("HighlightColor", Color);
-				DynMaterial->SetScalarParameterValue("HighlightIntensity", HighlightIntensity);
-
-				if (HighlightType == EHighlightType::Glow)
-				{
-					DynMaterial->SetScalarParameterValue("GlowIntensity", HighlightIntensity);
-				}
-				// Store original materials
-				for (int32 i = 0; i < Part->Mesh->GetNumMaterials(); i++)
-				{
-					OriginalMaterials.Add(Part->Mesh->GetMaterial(i));
-					Part->Mesh->SetMaterial(i, DynMaterial);
-				}
-                
-				HighlightMaterials.Add(Actor, DynMaterial);
+				UE_LOG(LogTemp, Warning, TEXT("ApplyHighlightToActor: No HighlightMaterial set!"));
 			}
 			break;
 		}
 	}
 }
 
+void ULessonUIManagerComponent::UpdatePulsingHighlights(float DeltaTime)
+{
+	PulseTimer += DeltaTime;
+	float PulseValue = (FMath::Sin(PulseTimer * PulseSpeed) + 1.0f) / 2.0f; // Normalize to 0-1
+	
+	for (auto& Elem : HighlightMaterials)
+	{
+
+		// Skip if this part is currently being grab-highlighted
+		if (GrabHighlightedActors.Contains(Elem.Key))
+		{
+			continue;
+		}
+		// Update intensity based on pulse values
+		if (Elem.Value)
+		{
+			const float CurrentIntensity = FMath::Lerp(PulseMinIntensity, PulseMaxIntensity, PulseValue);
+			Elem.Value->SetScalarParameterValue("HighlightIntensity", CurrentIntensity);
+		}
+	}
+}
 void ULessonUIManagerComponent::RemoveHighlightFromActor(AActor* Actor)
 {
 	if (!Actor) return;
@@ -594,19 +584,13 @@ void ULessonUIManagerComponent::RemoveHighlightFromActor(AActor* Actor)
 	// Remove outline
 	Part->Mesh->SetRenderCustomDepth(false);
 
-	// Restore original materials if changed
-	if (HighlightMaterials.Contains(Actor))
-	{
-		for (int32 i = 0; i < OriginalMaterials.Num(); i++)
-		{
-			if (i < Part->Mesh->GetNumMaterials())
-			{
-				Part->Mesh->SetMaterial(i, OriginalMaterials[i]);
-			}
-		}
-		OriginalMaterials.Empty();
-		HighlightMaterials.Remove(Actor);
-	}
+	// Remove overlay material (like GrabRayCaster does)
+	Part->Mesh->SetOverlayMaterial(nullptr);
+	
+	// Clean up from our tracking
+	HighlightMaterials.Remove(Actor);
+	
+	UE_LOG(LogTemp, Log, TEXT("RemoveHighlightFromActor: Removed highlight from %s"), *Part->GetName());
 }
 
 
@@ -617,18 +601,7 @@ void ULessonUIManagerComponent::CreateHighlightMaterial(const FLinearColor& Colo
 	//TODO: im not sure if this is needed but oh well its here for now
 }
 
-void ULessonUIManagerComponent::UpdatePulsingHighlights(float DeltaTime)
-{
-	PulseTimer += DeltaTime;
-	float PulseValue = (FMath::Sin(PulseTimer * PulseSpeed) + 1.0f) / 2.0f; // Normalize to 0-1
-	for (auto& Elem : HighlightMaterials)
-	{
-		if (Elem.Value)
-		{
-			Elem.Value->SetScalarParameterValue("HighlightIntensity", FMath::Lerp(0.5f, HighlightIntensity, PulseValue));
-		}
-	}
-}
+
 
 void ULessonUIManagerComponent::PulseHighlights()
 {
@@ -733,21 +706,70 @@ void ULessonUIManagerComponent::ShowErrorAnimation()
 
 // === ENHANCED INSTRUCTION FUNCTIONS ===
 
-void ULessonUIManagerComponent::ShowInstruction(const FText& InstructionText) const
+void ULessonUIManagerComponent::ShowInstruction(const FString& InstructionText) const
 {
-	if (InstructionWidget)
-	{
-		// Find the text block in your widget and set its text
-		if (UTextBlock* TextBlock = Cast<UTextBlock>(InstructionWidget->GetWidgetFromName("InstructionText")))
-		{
-			TextBlock->SetText(InstructionText);
-		}
+    UE_LOG(LogTemp, Warning, TEXT("=== ShowInstruction Called ==="));
+    UE_LOG(LogTemp, Warning, TEXT("  - Text: '%s'"), *InstructionText);
+    
+    // Spawn the actor if it doesn't exist
+    if (!LessonUIActor)
+    {
+        if (!LessonUIActorClass)
+        {
+            UE_LOG(LogTemp, Error, TEXT("ShowInstruction: LessonUIActorClass not set!"));
+            return;
+        }
         
-		InstructionWidget->SetVisibility(ESlateVisibility::Visible);
-	}
-}
+        if (!GetWorld())
+        {
+            UE_LOG(LogTemp, Error, TEXT("ShowInstruction: No world!"));
+            return;
+        }
+        
+        UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Spawning LessonUIActor"));
+        
+        // Spawn in front of player
+        FVector SpawnLocation = GetPlayerLocation() + (GetPlayerForwardVector() * 200.0f);
+        SpawnLocation.Z += 50.0f; // Slightly above eye level
+        
+        FRotator SpawnRotation = FRotator::ZeroRotator;
+        
+        FActorSpawnParameters SpawnParams;
+        SpawnParams.Owner = GetOwner();
+        SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        
+        // Need to cast away const since we're modifying the actor pointer
+        ULessonUIManagerComponent* MutableThis = const_cast<ULessonUIManagerComponent*>(this);
+        MutableThis->LessonUIActor = GetWorld()->SpawnActor<ALessonUIActor>(
+            LessonUIActorClass,
+            SpawnLocation,
+            SpawnRotation,
+            SpawnParams
+        );
+        
+        if (MutableThis->LessonUIActor)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Successfully spawned LessonUIActor at %s"), 
+                *SpawnLocation.ToString());
 
-void ULessonUIManagerComponent::ShowInstructionAtLocation(const FText& InstructionText, const FVector& WorldLocation) const
+        	LessonUIActor->SetActorScale3D(FVector(0.15f, 0.15f, 0.15f));
+        	UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Scaled actor to 15%%"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("ShowInstruction: Failed to spawn LessonUIActor"));
+            return;
+        }
+    }
+    
+    // Show the instruction
+    if (LessonUIActor)
+    {
+        LessonUIActor->ShowInstruction(InstructionText);
+        UE_LOG(LogTemp, Warning, TEXT("ShowInstruction: Displayed instruction on actor"));
+    }
+}
+void ULessonUIManagerComponent::ShowInstructionAtLocation(const FString& InstructionText, const FVector& WorldLocation) const
 {
 	// Position the widget at the specified location
 	PositionInstructionWidget(WorldLocation);
@@ -768,7 +790,7 @@ void ULessonUIManagerComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	UpdateLookAtBehavior(DeltaTime);
     
 	// Update pulsing highlights
-	if (HighlightedActors.Num() > 0)
+	if (bPulseHighlights && HighlightedActors.Num() > 0)
 	{
 		UpdatePulsingHighlights(DeltaTime);
 	}
@@ -922,6 +944,24 @@ UImage* ULessonUIManagerComponent::FindImageInWidget(UUserWidget* Widget, const 
 	return Cast<UImage>(Widget->GetWidgetFromName(*ImageName));
 }
 
+void ULessonUIManagerComponent::PauseHighlightForPart(APartActor* Part)
+{
+	if (!Part) return;
+    
+	if (!GrabHighlightedActors.Contains(Part))
+	{
+		GrabHighlightedActors.Add(Part);
+		UE_LOG(LogTemp, Log, TEXT("PauseHighlightForPart: Paused pulsing for %s"), *Part->GetName());
+	}
+}
+
+void ULessonUIManagerComponent::ResumeHighlightForPart(APartActor* Part)
+{
+	if (!Part) return;
+    
+	GrabHighlightedActors.Remove(Part);
+	UE_LOG(LogTemp, Log, TEXT("ResumeHighlightForPart: Resumed pulsing for %s"), *Part->GetName());
+}
 // === QUERY FUNCTIONS ===
 
 bool ULessonUIManagerComponent::IsUIVisible() const
