@@ -35,7 +35,10 @@ namespace OculusXRInput
 		static bool IsHandTrackingEnabled();
 		static bool IsHandDominant(const int32 ControllerIndex, const EOculusXRHandType DeviceHand);
 		static bool IsHandPositionValid(int32 ControllerIndex, EOculusXRHandType DeviceHand);
+		static bool IsHandInteractionProfile(EOculusXRHandType DeviceHand);
 		static void SetControllerDrivenHandPoses(const EOculusXRControllerDrivenHandPoseTypes Type);
+		static bool SetSimultaneousHandsAndControllersEnabled(bool bEnabled);
+		static bool IsSimultaneousHandsAndControllersEnabled();
 
 		// Helper functions
 		static ovrpBoneId ToOvrBone(EOculusXRBone Bone);

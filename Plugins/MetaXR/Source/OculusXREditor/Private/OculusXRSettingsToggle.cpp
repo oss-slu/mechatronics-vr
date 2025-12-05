@@ -1,4 +1,3 @@
-﻿
 // @lint-ignore-every LICENSELINT
 // Copyright Epic Games, Inc. All Rights Reserved.
 
@@ -13,7 +12,7 @@
 #include "Fonts/SlateFontInfo.h"
 #include "HAL/PlatformProcess.h"
 #include "IDetailPropertyRow.h"
-#include "OculusXRHMDModule.h"
+#include "OculusXRTelemetryModule.h"
 #include "OculusXRTelemetry.h"
 #include "Layout/Children.h"
 #include "Layout/Margin.h"
@@ -96,9 +95,9 @@ TSharedRef<IDetailCustomization> FOculusXRSettingsToggle::MakeInstance()
 
 void FOculusXRSettingsToggle::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	if (!ToggleEnabled.IsSet() && FOculusXRHMDModule::Get().IsOVRPluginAvailable() && FOculusXRHMDModule::GetPluginWrapper().IsInitialized())
+	if (!ToggleEnabled.IsSet())
 	{
-		ToggleEnabled = FOculusXRHMDModule::GetPluginWrapper().IsConsentSettingsChangeEnabled(OculusXRTelemetry::UNREAL_TOOL_ID) == ovrpBool_True;
+		ToggleEnabled = OculusXRTelemetry::IsConsentSettingsChangeEnabled();
 	}
 
 	TArray<TWeakObjectPtr<UObject>> Objects;

@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "OculusXRHMDTypes.h"
 #include "OculusXRFunctionLibrary.h"
+#include "OculusXROSVersions.h"
 #include "OculusXRHMDRuntimeSettings.generated.h"
 
 UENUM()
@@ -40,6 +41,18 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Engine SplashScreen")
 	TArray<FOculusXRSplashDesc> SplashDescs;
 
+	/** This toggle enables you to define your own minimum and target Horizon OS versions for your app. Only turn this on if you know you need to specify the OS version due to API compatibility reasons. */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	bool bHorizonOSVersionOverride;
+
+	/** The minimum required Horizon OS version. Modifying this setting requires that Horizon OS SDK Enabled is checked. */
+	UPROPERTY(config, EditAnywhere, Category = General, meta = (DisplayName = "Minimum Horizon OS Version", EditCondition = "bHorizonOSVersionOverride"))
+	FOculusXROSVersion MinOSVersion;
+
+	/** The target Horizon OS version. Modifying this setting requires that Horizon OS SDK Enabled is checked. */
+	UPROPERTY(config, EditAnywhere, Category = General, meta = (DisplayName = "Target Horizon OS Version", EditCondition = "bHorizonOSVersionOverride"))
+	FOculusXROSVersion TargetOSVersion;
+
 	/**
 	This selects the XR API that the engine will use. If unsure, OVRPlugin OpenXR is the recommended API.
 	The OpenXR plugin must also be enabled to use Native OpenXR.
@@ -62,6 +75,10 @@ public:
 	/** Preferred version for XR Simulator */
 	UPROPERTY(Config, EditAnywhere, Category = "Meta XR Simulator", meta = (GetOptions = GetMetaXRSimulatorInstalledVersions, DisplayName = "Meta XR Simulator Version"))
 	FString OculusXRSimulatorPreferredVersion;
+
+	/** Skip following Simulator versions*/
+	UPROPERTY(Config, EditAnywhere, Category = "Meta XR Simulator", meta = (DisplayName = "Skipped versions"))
+	TArray<FString> SkippedVersions;
 
 	/** Whether to spawn notification if new version is available */
 	UPROPERTY(config, EditAnywhere, Category = "Meta XR Simulator", meta = (ToolTip = "Spawn notification if new version is available"))
@@ -210,6 +227,7 @@ public:
 	/** Whether body tracking functionality can be used with the app */
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Body Tracking Enabled", EditCondition = "XrApi == EOculusXRXrApi::OVRPluginOpenXR"))
 	bool bBodyTrackingEnabled;
+
 
 	/** Select a Body Tracking Fidelity */
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Body Tracking Fidelity", EditCondition = "XrApi == EOculusXRXrApi::OVRPluginOpenXR"))

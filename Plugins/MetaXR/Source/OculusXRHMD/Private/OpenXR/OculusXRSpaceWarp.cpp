@@ -8,8 +8,9 @@
 #include "OpenXRCore.h"
 #include "OpenXRHMD_Swapchain.h"
 #include "StereoRenderUtils.h"
+#include "SceneView.h"
 
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH))
 
 DEFINE_LOG_CATEGORY(LogOculusSpaceWarpExtensionPlugin);
 
@@ -79,8 +80,11 @@ namespace OculusXR
 		UE::StereoRenderUtils::FStereoShaderAspects Aspects(GMaxRHIShaderPlatform);
 		bIsMobileMultiViewEnabled = Aspects.IsMobileMultiViewEnabled();
 	}
-
+#if UE_VERSION_OLDER_THAN(5, 6, 0)
 	void FSpaceWarpExtensionPlugin::OnBeginRendering_RenderThread(XrSession InSession)
+#else  // UE_VERSION_OLDER_THAN(5, 6, 0)
+	void FSpaceWarpExtensionPlugin::OnBeginRendering_RenderThread(XrSession InSession, FRDGBuilder& GraphBuilder)
+#endif // UE_VERSION_OLDER_THAN(5, 6, 0)
 	{
 		check(IsInRenderingThread());
 
@@ -259,9 +263,7 @@ namespace OculusXR
 						static_cast<uint32>(bIsMobileMultiViewEnabled ? 2 : 1),
 						1,
 						1,
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 						(bIsMobileMultiViewEnabled) ? ETextureDimension::Texture2DArray : ETextureDimension::Texture2D,
-#endif // defined(WITH_OCULUS_BRANCH)
 						TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | TexCreate_Dynamic,
 						FClearValueBinding::Transparent,
 						TexCreate_None
@@ -280,9 +282,7 @@ namespace OculusXR
 						static_cast<uint32>(bIsMobileMultiViewEnabled ? 2 : 1),
 						1,
 						1,
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 						(bIsMobileMultiViewEnabled) ? ETextureDimension::Texture2DArray : ETextureDimension::Texture2D,
-#endif // defined(WITH_OCULUS_BRANCH)
 						TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | TexCreate_Dynamic,
 						FClearValueBinding::DepthZero,
 						TexCreate_None

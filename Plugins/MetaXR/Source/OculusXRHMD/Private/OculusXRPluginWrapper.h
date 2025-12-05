@@ -217,10 +217,6 @@ struct OculusPluginWrapper
 	OCULUS_DECLARE_ENTRY_POINT(AutoThreadScheduling);
 	OCULUS_DECLARE_ENTRY_POINT(GetGPUFrameTime);
 	OCULUS_DECLARE_ENTRY_POINT(GetViewportStencil);
-	OCULUS_DECLARE_ENTRY_POINT(SetDeveloperTelemetryConsent);
-	OCULUS_DECLARE_ENTRY_POINT(SendEvent);
-	OCULUS_DECLARE_ENTRY_POINT(SendEvent2);
-	OCULUS_DECLARE_ENTRY_POINT(AddCustomMetadata);
 	OCULUS_DECLARE_ENTRY_POINT(SetDeveloperMode);
 	OCULUS_DECLARE_ENTRY_POINT(GetCurrentTrackingTransformPose);
 	OCULUS_DECLARE_ENTRY_POINT(GetTrackingTransformRawPose);
@@ -248,22 +244,12 @@ struct OculusPluginWrapper
 	OCULUS_DECLARE_ENTRY_POINT(RegisterOpenXREventHandler);
 	OCULUS_DECLARE_ENTRY_POINT(UnregisterOpenXREventHandler);
 
-	OCULUS_DECLARE_ENTRY_POINT(SaveUnifiedConsent);
-	OCULUS_DECLARE_ENTRY_POINT(SaveUnifiedConsentWithOlderVersion);
-	OCULUS_DECLARE_ENTRY_POINT(GetUnifiedConsent);
-	OCULUS_DECLARE_ENTRY_POINT(GetConsentTitle);
-	OCULUS_DECLARE_ENTRY_POINT(GetConsentMarkdownText);
-	OCULUS_DECLARE_ENTRY_POINT(GetConsentNotificationMarkdownText);
-	OCULUS_DECLARE_ENTRY_POINT(ShouldShowTelemetryConsentWindow);
-	OCULUS_DECLARE_ENTRY_POINT(ShouldShowTelemetryNotification);
-	OCULUS_DECLARE_ENTRY_POINT(SetNotificationShown);
-	OCULUS_DECLARE_ENTRY_POINT(GetConsentSettingsChangeText);
-	OCULUS_DECLARE_ENTRY_POINT(IsConsentSettingsChangeEnabled);
-
 	OCULUS_DECLARE_ENTRY_POINT(GetNativeXrApiType);
 	OCULUS_DECLARE_ENTRY_POINT(GetLocalDimmingSupported);
 	OCULUS_DECLARE_ENTRY_POINT(SetLocalDimming);
 	OCULUS_DECLARE_ENTRY_POINT(GetCurrentInteractionProfile);
+	OCULUS_DECLARE_ENTRY_POINT(GetCurrentInteractionProfileName);
+	OCULUS_DECLARE_ENTRY_POINT(GetCurrentDetachedInteractionProfile);
 	OCULUS_DECLARE_ENTRY_POINT(GetLayerRecommendedResolution);
 	OCULUS_DECLARE_ENTRY_POINT(IsLayerShapeSupported);
 	OCULUS_DECLARE_ENTRY_POINT(SetEyeBufferSharpenType);
@@ -358,17 +344,6 @@ struct OculusPluginWrapper
 	OCULUS_DECLARE_ENTRY_POINT(GetFaceVisemesState);
 	OCULUS_DECLARE_ENTRY_POINT(SetFaceTrackingVisemesEnabled);
 
-	// QPL
-	OCULUS_DECLARE_ENTRY_POINT(QplMarkerStart);
-	OCULUS_DECLARE_ENTRY_POINT(QplMarkerEnd);
-	OCULUS_DECLARE_ENTRY_POINT(QplMarkerPoint);
-	OCULUS_DECLARE_ENTRY_POINT(QplMarkerPointCached);
-	OCULUS_DECLARE_ENTRY_POINT(QplMarkerAnnotation);
-	OCULUS_DECLARE_ENTRY_POINT(QplCreateMarkerHandle);
-	OCULUS_DECLARE_ENTRY_POINT(QplDestroyMarkerHandle);
-	OCULUS_DECLARE_ENTRY_POINT(OnEditorShutdown);
-	OCULUS_DECLARE_ENTRY_POINT(QplSetConsent);
-
 	// OVR_Plugin_Insight.h
 	OCULUS_DECLARE_ENTRY_POINT(InitializeInsightPassthrough);
 	OCULUS_DECLARE_ENTRY_POINT(ShutdownInsightPassthrough);
@@ -441,6 +416,9 @@ struct OculusPluginWrapper
 
 	OCULUS_DECLARE_ENTRY_POINT(SetControllerDrivenHandPoses);
 	OCULUS_DECLARE_ENTRY_POINT(SetControllerDrivenHandPosesAreNatural);
+	OCULUS_DECLARE_ENTRY_POINT(SetSimultaneousHandsAndControllersEnabled);
+	OCULUS_DECLARE_ENTRY_POINT(IsMultimodalHandsControllersSupported);
+
 
 	static bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper);
 	static void DestroyOculusPluginWrapper(OculusPluginWrapper* wrapper);
