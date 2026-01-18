@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.6",
+	"EngineAssociation": "5.7",
 	"Category": "",
 	"Description": "",
 	"Modules": [
@@ -11,7 +11,6 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"CoreUObject"
-				
 			]
 		}
 	],
@@ -34,7 +33,7 @@
 		},
 		{
 			"Name": "OculusXR",
-			"Enabled": true,
+			"Enabled": false,
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/8313d8d7e7cf4e03a33e79eb757bccba",
 			"SupportedTargetPlatforms": [
 				"Win64",
