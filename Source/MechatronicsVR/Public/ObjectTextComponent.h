@@ -34,7 +34,7 @@ public:
 
     /** Offset above the owning actor (in cm) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Object Text", meta=(ClampMin="0.0"))
-    float HeightOffset = 20.0f;
+    float HeightOffset = 100.0f;
 
     /** Widget Blueprint class to display (e.g., WBP_ObjectLabel) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Object Text")
@@ -42,7 +42,7 @@ public:
 
     /** Draw size of the widget in pixels */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Object Text")
-    FVector2D DrawSize = FVector2D(300.f, 80.f);
+    FVector2D DrawSize = FVector2D(1136.f, 640.f);
 
     /** Pivot for the widget (0..1). (0.5,0) = centered and anchored at top */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Object Text")

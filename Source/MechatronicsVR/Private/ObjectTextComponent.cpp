@@ -34,6 +34,8 @@ void UObjectTextComponent::OnRegister()
         WidgetComponent->SetWidgetSpace(EWidgetSpace::World);
         WidgetComponent->SetTwoSided(true);
         WidgetComponent->SetDrawAtDesiredSize(false);
+
+        WidgetComponent->SetBlendMode(EWidgetBlendMode::Transparent);
     }
     
     ApplyAllSettings();
@@ -121,6 +123,8 @@ void UObjectTextComponent::ApplyAllSettings()
         WidgetComponent->SetWidgetClass(LabelWidgetClass);
     }
 
+    WidgetComponent->InitWidget();
+
     WidgetComponent->SetDrawSize(DrawSize);
     WidgetComponent->SetPivot(Pivot);
     WidgetComponent->SetWorldScale3D(FVector(WorldScale));
@@ -137,7 +141,7 @@ void UObjectTextComponent::UpdateWidgetTransform()
         return;
     }
 
-    // Put widget above the owning component/actor.
+    // Put widget above the owning component/actor
     WidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, HeightOffset));
 }
 
