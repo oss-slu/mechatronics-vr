@@ -107,9 +107,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Quiz")
 	FString GetScoreText() const;
-
-	UFUNCTION(BlueprintNativeEvent, Category = "Lesson|Step")
-	bool CheckCompletion() const;
+	
 	virtual bool CheckCompletion_Implementation() const override;
 
 protected:
