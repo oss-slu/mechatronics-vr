@@ -97,16 +97,16 @@ public:
 	void SubmitAnswer(int32 ChoiceIndex);
 
 	UFUNCTION(BlueprintPure, Category = "Quiz")
-	FQuizQuestion GetCurrentQuestion() const;
+	FQuizQuestion GetCurrentQuestion();
 
 	UFUNCTION(BlueprintPure, Category = "Quiz")
 	int32 GetTotalQuestions() const { return Questions.Num(); }
 
 	UFUNCTION(BlueprintPure, Category = "Quiz")
-	FString GetProgressText() const;
+	FString GetProgressText();
 
 	UFUNCTION(BlueprintPure, Category = "Quiz")
-	FString GetScoreText() const;
+	FString GetScoreText();
 	
 	virtual bool CheckCompletion_Implementation() const override;
 
