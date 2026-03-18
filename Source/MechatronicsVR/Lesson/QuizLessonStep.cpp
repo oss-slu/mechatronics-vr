@@ -31,6 +31,7 @@ void UQuizLessonStep::OnStarted()
 	Score = 0;
 	QuizState = EQuizState::ShowingQuestion;
 	UE_LOG(LogTemp, Log, TEXT("Quiz has started"));
+	OnStepStarted.Broadcast(this);
 }
 void UQuizLessonStep::OnStopped()
 {
