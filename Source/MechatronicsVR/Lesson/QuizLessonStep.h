@@ -78,7 +78,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quiz|Rules")
 	float PassingScorePercent = 70.f;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Quiz|State")
+	UPROPERTY(BlueprintReadWrite, Category = "Quiz|State")
 	EQuizState QuizState = EQuizState::WaitingToStart;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Quiz|State")

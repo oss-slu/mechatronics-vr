@@ -5,6 +5,7 @@
 #include "AssembleStep.h"
 #include "FocusStep.h"
 #include "InteractionStep.h"
+#include "QuizLessonStep.h"
 #include "MechatronicsGameInstance.h"
 #include "AssemblyActor.h"
 #include "EngineUtils.h"
@@ -415,6 +416,11 @@ void ULessonManagerComponent::UpdateStepReferences()
 	if (!CurrentStep)
 		return;
 
+	if (UQuizLessonStep* QuizLessonStep = Cast<UQuizLessonStep>(CurrentStep))
+	{
+		QuizLessonStep->SetWorldContext(GetOwner());
+	}
+	
 	// Update references for specific step types
 	if (UAssembleStep* AssembleStep = Cast<UAssembleStep>(CurrentStep))
 	{

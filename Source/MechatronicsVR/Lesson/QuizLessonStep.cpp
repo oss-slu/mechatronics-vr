@@ -27,6 +27,7 @@ void UQuizLessonStep::OnStarted()
 		return;
 	}
 	// Resetting just in case the step needs to be restarted
+	bIsActive = true;
 	CurrentQuestionIndex = 0;
 	Score = 0;
 	QuizState = EQuizState::ShowingQuestion;
@@ -48,9 +49,11 @@ void UQuizLessonStep::OnReset()
 
 void UQuizLessonStep::SubmitAnswer(int32 ChoiceIndex)
 {
-	if (!bIsActive || QuizState != EQuizState::ShowingQuestion)
+	if (QuizState != EQuizState::ShowingQuestion)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Answer is not ready to be submitted"));
+		UE_LOG(LogTemp, Warning, TEXT("UQuizLessonStep::SubmitAnswer - Not ready | bIsActive: %s | QuizState: %d"),
+			bIsActive ? TEXT("TRUE") : TEXT("FALSE"),
+			(int32)QuizState);
 		return;
 	}
 	if (!Questions.IsValidIndex(ChoiceIndex))
