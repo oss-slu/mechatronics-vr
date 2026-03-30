@@ -150,9 +150,18 @@ public:
 	UFUNCTION(BlueprintPure,Category="Motor")
 	float GetCurrentRPM() const {return MotorSpeed * MaxRPM;}
 
+
+	// Metahuman Professor Properties
+
+	/** Sound to play when brought to professor */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Integration")
+	TObjectPtr<USoundBase> VoiceLine = nullptr;
+
+	/** Facial animation corresponding to sound */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Integration")
+	TObjectPtr<UAnimSequence> VoiceAnimation = nullptr;
+
 protected:
-
-
     
 	// /** Clear snap highlighting for a specific part */
 	// UFUNCTION(BlueprintCallable, Category = "Snap Detection")
