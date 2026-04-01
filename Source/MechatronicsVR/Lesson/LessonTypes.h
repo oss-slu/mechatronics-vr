@@ -13,7 +13,9 @@ enum class ELessonStepType : uint8
 {
 	Assemble    UMETA(DisplayName = "Assembly Step"),
 	Focus       UMETA(DisplayName = "Focus Step"), 
-	Interaction UMETA(DisplayName = "Interaction Step")
+	Interaction UMETA(DisplayName = "Interaction Step"),
+	Quiz		UMETA(DisplayName = "Quiz Step"),
+	Metahuman	UMETA(DisplayName = "Metahuman Step")
 };
 
 UENUM(BlueprintType)

@@ -34,7 +34,7 @@ UWorld* ULessonStep::GetWorld() const
 
 void ULessonStep::StartStep()
 {
-	if (bIsActive)
+	if (!bIsActive)
 	{
 		return;
 	}
@@ -49,11 +49,6 @@ void ULessonStep::StartStep()
 	
 	OnStarted();
 	OnStepStarted.Broadcast(this);
-
-	if (CheckCompletion())
-	{
-		CompleteStep();
-	}
 }
 
 void ULessonStep::CompleteStep()
