@@ -137,7 +137,6 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 		if (StepData.StepInstance)
 		{
 			LessonSteps.Add(StepData.StepInstance);
-			StepData.StepInstance->ResetStep();
         
 			// Clear any existing bindings first
 			StepData.StepInstance->OnStepCompleted.Clear();
