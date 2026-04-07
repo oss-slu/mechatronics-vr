@@ -17,11 +17,9 @@ Unreal Engine can be downloaded [HERE](https://www.unrealengine.com/en-US/downlo
 Visual Studio Build Tools can be downloaded [HERE](https://visualstudio.microsoft.com/downloads/?q=build+tools)
 
 ## Recommended IDE
-Jetbrains for Unreal Engine is the recommended IDE, as we believe it is superior for development in Unreal Engine.
+Jetbrains for Unreal Engine is the recommended IDE
 
 Jetbrains for Unreal Engine can be downloaded [HERE](https://www.jetbrains.com/lp/rider-unreal/)
-
-The remainder of this will assume you are using Rider for Unreal Engine
 
 ## Configuring Visual Studio Build Tools
 
@@ -41,7 +39,7 @@ The remainder of this will assume you are using Rider for Unreal Engine
 git clone <url>
 ```
 - Right click MechatronicsVR.uproject -> Generate Studio Visual Files
-- Open the project in Rider
+- Open MechatronicsVR.sln in an IDE
 - Build the project
 - The first build can take a while, do not be alarmed if it does
 
