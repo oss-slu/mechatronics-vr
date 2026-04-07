@@ -43,6 +43,14 @@ git clone <url>
 - Build the project
 - The first build can take a while, do not be alarmed if it does
 
+## Setting IDE in Engine
+By default, Unreal Engine assumes that Visual Studio is being used. If this is the case, this step can be ignored
+
+Otherwise:
+- Press **Edit** -> **Editor Preferences**
+- Under **General**, navigate to **Source Code**
+- Change **Source Code Editor** to your preffered code editor
+
 ## Troubleshooting
 The most common errors come from incorrect versions of MSVC or .NET, or an incorrect version of Unreal Engine is installed. If the initial build fails:
 - Ensure that the correct version of Unreal Engine is installed
