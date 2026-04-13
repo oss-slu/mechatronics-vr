@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LessonStep.h"
+#include "MetahumanBase.h"
 #include "MetahumanLessonStep.generated.h"
 
 /**
@@ -18,15 +19,15 @@ public:
 
 	/** Reference to professor object */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
-	TSubclassOf<AActor> MetaHumanClass = nullptr;
+	AMetahumanBase* MetahumanRef;
 	
 	/** Sound to play when brought to professor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
-	TObjectPtr<USoundBase> VoiceLine = nullptr;
+	USoundBase* VoiceLine = nullptr;
 
 	/** Facial animation corresponding to sound */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
-	TObjectPtr<UAnimSequence> VoiceAnimation = nullptr;
+	UAnimSequence* VoiceAnimation = nullptr;
 
 	/** Trigger Metahuman voice line with attached assets*/
 	UFUNCTION(BlueprintCallable, Category = "Metahuman Lesson Step")
