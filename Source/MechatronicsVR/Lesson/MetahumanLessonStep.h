@@ -16,10 +16,6 @@ class MECHATRONICSVR_API UMetahumanLessonStep : public ULessonStep
 	GENERATED_BODY()
 public:
 	UMetahumanLessonStep();
-
-	/** Reference to professor object */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
-	AMetahumanBase* MetahumanRef = nullptr;
 	
 	/** Sound to play when brought to professor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
@@ -32,4 +28,7 @@ public:
 	/** Trigger Metahuman voice line with attached assets*/
 	UFUNCTION(BlueprintCallable, Category = "Metahuman Lesson Step")
 	void PlayVoiceLine();
+
+protected:
+	virtual void OnStarted() override;
 };
