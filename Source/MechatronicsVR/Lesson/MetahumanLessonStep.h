@@ -19,7 +19,7 @@ public:
 
 	/** Reference to professor object */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
-	AMetahumanBase* MetahumanRef;
+	AMetahumanBase* MetahumanRef = nullptr;
 	
 	/** Sound to play when brought to professor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
