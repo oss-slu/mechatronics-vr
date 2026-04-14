@@ -34,10 +34,10 @@ UWorld* ULessonStep::GetWorld() const
 
 void ULessonStep::StartStep()
 {
-	if (!bIsActive)
-	{
-		return;
-	}
+	//if (!bIsActive)
+	//{
+	//	return;
+	//}
 
 	bIsActive = true;
 	bStepCompleted = false;

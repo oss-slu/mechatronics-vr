@@ -31,4 +31,5 @@ public:
 
 protected:
 	virtual void OnStarted() override;
+	virtual void OnStopped() override;
 };
