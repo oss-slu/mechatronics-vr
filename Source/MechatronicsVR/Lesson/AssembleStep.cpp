@@ -238,6 +238,8 @@ bool UAssembleStep::IsTargetPart(APartActor* Part) const
     
 	for (TSubclassOf<APartActor> TargetClass : TargetPartClasses)
 	{
+		if (!TargetClass) continue;  // skip null entries in the array
+        
 		if (Part->IsA(TargetClass))
 		{
 			return true;

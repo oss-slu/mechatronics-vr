@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LessonStep.h"
+#include "MetahumanBase.h"
 #include "MetahumanLessonStep.generated.h"
 
 /**
@@ -13,5 +14,22 @@ UCLASS()
 class MECHATRONICSVR_API UMetahumanLessonStep : public ULessonStep
 {
 	GENERATED_BODY()
+public:
+	UMetahumanLessonStep();
 	
+	/** Sound to play when brought to professor */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
+	USoundBase* VoiceLine = nullptr;
+
+	/** Facial animation corresponding to sound */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Metahuman Lesson Step")
+	UAnimSequence* VoiceAnimation = nullptr;
+
+	/** Trigger Metahuman voice line with attached assets*/
+	UFUNCTION(BlueprintCallable, Category = "Metahuman Lesson Step")
+	void PlayVoiceLine();
+
+protected:
+	virtual void OnStarted() override;
+	virtual void OnStopped() override;
 };
