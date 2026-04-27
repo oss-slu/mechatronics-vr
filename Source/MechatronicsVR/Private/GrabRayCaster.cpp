@@ -167,7 +167,7 @@ UGrabComponent* UGrabRayCaster::CheckReachForGrabComponent()
 				}
 				else if (MeshComponent && OverlayMaterial)
 				{
-					MeshComponent->SetOverlayMaterial(OverlayMaterial);
+					//MeshComponent->SetOverlayMaterial(OverlayMaterial);
 
 					if (APartActor* PartActor = Cast<APartActor>(GrabActor))
 					{
@@ -223,7 +223,8 @@ void UGrabRayCaster::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	CheckReachForGrabComponent();
+	// temp not being used
+	//CheckReachForGrabComponent();
 	
 	// ...
 }
