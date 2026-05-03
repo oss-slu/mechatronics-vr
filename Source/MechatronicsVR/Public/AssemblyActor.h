@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "Sound/SoundBase.h"
 #include "AssemblyActor.generated.h"
+
+
 
 class UAssemblyComponent;
 class USnapPointComponent;
@@ -43,6 +46,8 @@ struct FPartConnection
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Part Connection")
 	bool bIsConnected;
 
+	
+	
 	/** Is this connection to a base snap point? */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Part Connection")
 	bool bIsBaseConnection;
@@ -101,6 +106,9 @@ public:
 	/** Get all base snap points on this assembly */
 	UFUNCTION(BlueprintCallable, Category = "Assembly")
 	TArray<USnapPointComponent*> GetBaseSnapPoints() const { return BaseSnapPoints; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assembly|Audio")
+	USoundBase* ConnectionSound;
     
 
     
