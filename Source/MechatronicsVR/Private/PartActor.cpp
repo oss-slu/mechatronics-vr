@@ -279,6 +279,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 			Mesh->SetSimulatePhysics(false);
 			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		}
+		GrabComponent->SetActive(false);
 		HideSnapPreview();
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
@@ -306,6 +307,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 					Mesh->SetSimulatePhysics(false);
 					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 				}
+				GrabComponent->SetActive(false);
 				HideSnapPreview();
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
@@ -498,6 +500,15 @@ void APartActor::OnPartGrabbed()
 	
 	UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed - PreviewMaterial: %s"), 
 		PreviewMaterial ? TEXT("Valid") : TEXT("NULL"));
+
+	//Stops parts from being grabbed if its already in an assembly
+	
+	if (bIsSnapped)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed: %s is already assembled, rejecting grab."), *GetName())
+		GrabComponent->TryRelease();
+		return;
+	}
     
 	
 
