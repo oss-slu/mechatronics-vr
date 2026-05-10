@@ -45,44 +45,7 @@ MechatronicsVR is an educational VR application that allows users to:
 
 ## Getting Started
 
-### Prerequisites
-
-- **Unreal Engine 5.6** (install via Epic Games Launcher)
-- **Visual Studio 2022** with:
-  - Game development with C++ workload
-  - Windows 10/11 SDK
-- **Git** and **Git LFS**
-- **Meta Quest Developer Hub** (for Quest deployment)
-
-### Initial Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/oss-slu/MechatronicsVR.git
-   cd MechatronicsVR
-   ```
-
-2. **Initialize Git LFS**
-   ```bash
-   git lfs install
-   git lfs pull
-   ```
-
-3. **Generate project files**
-   - Right-click `MechatronicsVR.uproject`
-   - Select "Generate Visual Studio project files"
-
-4. **Open in Visual Studio or Rider**
-   - Open `MechatronicsVR.sln`
-   - Set configuration to `Development Editor`
-   - Build and run
-
-### First Build
-
-1. Open the project in Unreal Editor
-2. Allow shaders to compile (this may take several minutes)
-3. Enable the Meta XR plugin if prompted
-4. Test in VR Preview mode
+Please refer to **ONBOARDING.md** for instructions on how to get started
 
 ## Development Workflow
 
