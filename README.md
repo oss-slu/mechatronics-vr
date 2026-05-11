@@ -46,6 +46,8 @@ MechatronicsVR provides an interactive VR environment for learning mechanical as
   - Movement
 - Grip buttons
   - Grabbing Assembly parts
+- R (on a keyboard)
+  - Reset the lesson
 
 ## System Components
 
