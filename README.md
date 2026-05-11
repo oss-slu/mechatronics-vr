@@ -17,6 +17,36 @@ MechatronicsVR provides an interactive VR environment for learning mechanical as
 - **Guided Lessons**: Step-by-step instruction system with progress tracking
 - **Visual Feedback**: Ghost previews and highlighting for assembly guidance
 
+
+## How to Use
+### Prerequisites 
+- Before starting:
+  - Ensure your Headset is connected to your PC through however it connects to the PC (cable, Meta Quest Link, etc.)
+  - Ensure that Steam and SteamVR are installed
+  - If applicable, ensure your headset's desktop application is installed
+
+### Steps
+1. Launch SteamVR, Ensure that SteamVR has finished launching before moving onto the next step
+2. Launch the newest release of MechatronicsVR
+3. Wait for MechatronicsVR to load
+4. Put on your hedset
+### Troubleshooting
+- If perfomance is low
+  - Ensure your GPU drivers are up to date
+  - Make sure to turn off SteamVR home
+- If your headset is not detected in SteamVR
+  - Make sure your headset is actually connected to the PC (headsets such as the Meta Quest need to be connected with Quest Link, not just connected with a cable)
+  - Restart SteamVR
+- If MechatronicsVR did not launch in VR mode
+  - Restart MechatronicsVR after ensuring that SteamVR has fully launched
+## Controls
+- Left Thumbstick
+  - Turning
+- Right thumbstick
+  - Movement
+- Grip buttons
+  - Grabbing Assembly parts
+
 ## System Components
 
 ### VR Interaction
