@@ -1,4 +1,5 @@
-# MechatronicsVR
+<img width="4500" height="1500" alt="mechatronics logo" src="https://github.com/user-attachments/assets/786f1f0d-847e-421e-8259-d7f3af5d582b" />
+
 
 Developed in the Unreal Engine
 
@@ -46,6 +47,8 @@ MechatronicsVR provides an interactive VR environment for learning mechanical as
   - Movement
 - Grip buttons
   - Grabbing Assembly parts
+- R (on a keyboard)
+  - Reset the lesson
 
 ## System Components
 
