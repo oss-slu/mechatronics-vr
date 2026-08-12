@@ -1,8 +1,3 @@
----
-name: Pull Request
-about: Describe changes you made in your commits that are going to be added to the base repository
----
-
 # Pull Request Template
 
 **Addresses #issue_number**
