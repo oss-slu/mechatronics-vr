@@ -2,11 +2,10 @@
 name: BDD Feature Request
 about: Describe a new feature or behavior using Given / When / Then format
 title: "[Feature]: "
-labels: ["feature", "bdd"]
+labels: ''
 assignees: ''
+
 ---
-
-
 
 Given [context or precondition],  
 When [event or action],
