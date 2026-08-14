@@ -4,6 +4,7 @@
 #include "PartActor.h"
 #include "AssemblyComponent.h"
 #include "SnapPointComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 
 // Sets default values
@@ -202,6 +203,13 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 		Parts.Add(PartB);
 	}
 
+
+	if (ConnectionSound)
+	{
+		const FVector SoundLocation = (SnapPointA->GetComponentLocation() + SnapPointB->GetComponentLocation()) * 0.5f;
+		UGameplayStatics::PlaySoundAtLocation(this, ConnectionSound, SoundLocation);
+	}
+	
 	//fire events
 	OnPartsConnected.Broadcast(PartA, PartB);
 

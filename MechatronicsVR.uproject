@@ -24,12 +24,7 @@
 		},
 		{
 			"Name": "OpenXR",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Linux",
-				"Android"
-			]
+			"Enabled": true
 		},
 		{
 			"Name": "OculusXR",
@@ -53,6 +48,14 @@
 				"Mac",
 				"Linux",
 				"Android"
+			]
+		},
+		{
+			"Name": "MetaHuman",
+			"Enabled": true,
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Linux"
 			]
 		}
 	]

@@ -2,8 +2,9 @@
 name: User Story
 about: Template for documenting user stories with acceptance criteria
 title: ''
-labels: 'user story'
+labels: ''
 assignees: ''
+
 ---
 
 ## User Story
