@@ -4,5 +4,4 @@
 
 <br>**\#\# Reporting a Vulnerability**
 
-<br>To report a vulnerability with this project, please submit a security advisory to our internal cybersecurity team\. You can find their repository here: \[https:&#x2F;&#x2F;github\.com&#x2F;oss\-slu&#x2F;oss\_cybersecurity\]\(url\) as well as instructions about the format, specifications, and required information as well as a timeline for contact and updates from the team\. Vulnerabilities submitted to this repoistory may result in some delay as the relevant information gets directed to the cybersecurity team for assessment\.
-
+<br>To report a vulnerability with this project, please submit a security advisory to our internal cybersecurity team\. You can find their repository here: https:&#x2F;&#x2F;github\.com&#x2F;oss\-slu&#x2F;oss\_cybersecurity as well as instructions about the format, specifications, and required information as well as a timeline for contact and updates from the team\. Vulnerabilities submitted directly to this repository may result in some delay as the relevant information gets directed to the cybersecurity team for assessment\.
