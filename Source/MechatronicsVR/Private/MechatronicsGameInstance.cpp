@@ -13,6 +13,8 @@ UMechatronicsGameInstance::UMechatronicsGameInstance()
 	bAllowLessonSkipping = true;
 	bAutoProgressLessons = false;
 	bPersistProgress = true;
+	bEnableGuideArrows = true;
+	SnapGuideStyle = ESnapGuideStyle::Outline;
 	bInitialized = false;
 }
 
@@ -26,6 +28,11 @@ void UMechatronicsGameInstance::Init()
 	//  GameInstance only tracks cross-level progress if needed
 	
 	bInitialized = true;
+}
+
+void UMechatronicsGameInstance::SetGuideArrowsEnabled(bool bEnabled)
+{
+	bEnableGuideArrows = bEnabled;
 }
 
 // === LESSON LOADING ===

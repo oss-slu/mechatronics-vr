@@ -1,83 +1,69 @@
 {
-	"FileVersion": 3,
-	"EngineAssociation": "5.7",
-	"Category": "",
-	"Description": "",
-	"Modules": [
-		{
-			"Name": "MechatronicsVR",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"Engine",
-				"CoreUObject"
-			]
-		}
-	],
-	"Plugins": [
-		{
-			"Name": "ModelingToolsEditorMode",
-			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
-			]
-		},
-		{
-			"Name": "OpenXR",
-			"Enabled": true
-		},
-		{
-			"Name": "OculusXR",
-			"Enabled": false,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/8313d8d7e7cf4e03a33e79eb757bccba",
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Android"
-			]
-		},
-		{
-			"Name": "LiveLinkControlRig",
-			"Enabled": true
-		},
-		{
-			"Name": "AppleARKitFaceSupport",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"IOS",
-				"Win64",
-				"Mac",
-				"Linux",
-				"Android"
-			]
-		},
-		{
-			"Name": "MetaHuman",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Linux"
-			]
-		},
-		{
-			"Name": "RemoteControl",
-			"Enabled": true
-		},
-		{
-			"Name": "MCPUnreal",
-			"Enabled": true
-		},
-		{
-			"Name": "Fab",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64",
-				"Mac",
-				"Linux"
-			]
-		},
-		{
-			"Name": "RemoteControlWebInterface",
-			"Enabled": true
-		}
-	]
+  "FileVersion": 3,
+  "EngineAssociation": "5.7",
+  "Category": "",
+  "Description": "",
+  "Modules": [
+    {
+      "Name": "MechatronicsVR",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "AdditionalDependencies": [
+        "Engine",
+        "CoreUObject"
+      ]
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "ModelingToolsEditorMode",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "OpenXR",
+      "Enabled": true
+    },
+    {
+      "Name": "LiveLinkControlRig",
+      "Enabled": true
+    },
+    {
+      "Name": "AppleARKitFaceSupport",
+      "Enabled": true,
+      "SupportedTargetPlatforms": [
+        "IOS",
+        "Win64",
+        "Mac",
+        "Linux",
+        "Android"
+      ]
+    },
+    {
+      "Name": "MetaHuman",
+      "Enabled": true,
+      "SupportedTargetPlatforms": [
+        "Win64",
+        "Linux"
+      ]
+    },
+    {
+      "Name": "RemoteControl",
+      "Enabled": true
+    },
+    {
+      "Name": "MCPUnreal",
+      "Enabled": true
+    },
+    {
+      "Name": "Fab",
+      "Enabled": true
+    },
+    {
+      "Name": "RemoteControlWebInterface",
+      "Enabled": true
+    }
+  ]
 }

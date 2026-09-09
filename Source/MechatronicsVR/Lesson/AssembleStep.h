@@ -38,6 +38,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assemble Step|Criteria")
 	bool bRequireFullyAssembled = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assemble Step|Guide")
+	ESnapGuideStyle GuideStyle = ESnapGuideStyle::Outline;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assemble Step|Criteria")
 	int32 MinTargetsSatisfied = 0;
 

@@ -453,6 +453,21 @@ void ULessonUIManagerComponent::HighlightPartsWithType(const TArray<APartActor*>
 	}
 }
 
+void ULessonUIManagerComponent::HighlightSinglePartWithType(APartActor* PartToHighlight, EHighlightType HighlightType, const FLinearColor& Color)
+{
+	if (!PartToHighlight)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("HighlightSinglePartWithType: Invalid part"));
+		return;
+	}
+	ApplyHighlightToActor(PartToHighlight, Color, HighlightType);
+	if (!HighlightedActors.Contains(PartToHighlight))
+	{
+		HighlightedActors.Add(PartToHighlight);
+	}
+	UE_LOG(LogTemp, Log, TEXT("HighlightSinglePartWithType: Highlighted part %s with type %s"), *PartToHighlight->GetName(), *UEnum::GetValueAsString(HighlightType));
+}
+
 void ULessonUIManagerComponent::HighlightSinglePart(APartActor* PartToHighlight, const FLinearColor& Color)
 {
 	if (!PartToHighlight)
@@ -460,19 +475,15 @@ void ULessonUIManagerComponent::HighlightSinglePart(APartActor* PartToHighlight,
 		UE_LOG(LogTemp, Warning, TEXT("HighlightSinglePart: Invalid part"));
 		return;
 	}
-
 	ApplyHighlightToActor(PartToHighlight, Color, EHighlightType::Pulse);
-
 	if (!HighlightedActors.Contains(PartToHighlight))
 	{
 		HighlightedActors.Add(PartToHighlight);
 	}
-
 	UE_LOG(LogTemp, Log, TEXT("HighlightSinglePart: Highlighted part %s"), *PartToHighlight->GetName());
 }
 
-void ULessonUIManagerComponent::ClearHighlights()
-{
+void ULessonUIManagerComponent::ClearHighlights(){
 	for (AActor* Actor : HighlightedActors)
 	{
 		RemoveHighlightFromActor(Actor);

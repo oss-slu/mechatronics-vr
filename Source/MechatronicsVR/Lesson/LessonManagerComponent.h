@@ -73,6 +73,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|Settings")
 	bool bAutoAdvanceSteps = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|Visuals")
+	bool bEnableGuideArrows = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|Visuals")
+	ESnapGuideStyle SnapGuideStyle = ESnapGuideStyle::Outline;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|Settings")
 	bool bAllowStepSkipping = false;
 
@@ -101,6 +107,15 @@ public:
 	// === PUBLIC API ===
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
 	bool InitializeLessonFromDataAsset(ULessonDataAsset* LessonData);
+
+	UFUNCTION(BlueprintCallable, Category = "Lesson Manager|Visuals")
+	void SetGuideArrowsEnabled(bool bEnabled) { bEnableGuideArrows = bEnabled; }
+
+	UFUNCTION(BlueprintCallable, Category = "Lesson Manager|Visuals")
+	void SetSnapGuideStyle(ESnapGuideStyle InStyle)
+	{
+		SnapGuideStyle = InStyle;
+	}
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson Manager")
 	bool StartLesson();

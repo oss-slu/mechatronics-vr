@@ -43,6 +43,12 @@ public:
 	bool bAutoProgressLessons = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson Settings")
+	bool bEnableGuideArrows = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson Settings")
+	ESnapGuideStyle SnapGuideStyle = ESnapGuideStyle::Outline;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson Settings")
 	bool bAllowLessonSkipping = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lesson Settings")
@@ -61,6 +67,12 @@ public:
 	// === PUBLIC API ===
 	UFUNCTION(BlueprintCallable, Category = "Lesson System")
 	bool LoadNextLesson();
+
+	UFUNCTION(BlueprintCallable, Category = "Lesson System|Visuals")
+	void SetGuideArrowsEnabled(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Lesson System|Visuals")
+	void SetSnapGuideStyle(ESnapGuideStyle InStyle) { SnapGuideStyle = InStyle; }
 
 	UFUNCTION(BlueprintCallable, Category = "Lesson System")
 	bool LoadPreviousLesson();

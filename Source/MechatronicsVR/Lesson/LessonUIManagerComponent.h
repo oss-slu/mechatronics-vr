@@ -262,6 +262,9 @@ public:
     void HighlightPartsWithType(const TArray<APartActor*>& PartsToHighlight, EHighlightType HighlightType);
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")
+    void HighlightSinglePartWithType(APartActor* PartToHighlight, EHighlightType HighlightType, const FLinearColor& Color = FLinearColor::Green);
+
+    UFUNCTION(BlueprintCallable, Category = "Lesson UI")
     void HighlightSinglePart(APartActor* PartToHighlight, const FLinearColor& Color = FLinearColor::Green);
 
     UFUNCTION(BlueprintCallable, Category = "Lesson UI")

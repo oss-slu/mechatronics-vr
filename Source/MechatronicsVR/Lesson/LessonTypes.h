@@ -27,6 +27,12 @@ enum class EInteractionType : uint8
 	Manual      UMETA(DisplayName="Manual")
 };
 
+UENUM(BlueprintType)
+enum class ESnapGuideStyle : uint8
+{
+	Outline UMETA(DisplayName = "Outline")
+};
+
 USTRUCT(BlueprintType)
 struct FLessonStepData
 {

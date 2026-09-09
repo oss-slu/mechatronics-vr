@@ -3,6 +3,12 @@
     "mcp-unreal": {
       "command": "/home/mudkipindisguise/gopath/bin/mcp-unreal",
       "env": {
+        "MCP_UNREAL_PROJECT": "/mnt/d/Capstone/mechatronics-vr/MechatronicsVR.uproject"
+      }
+    },
+    "mcp-unreal-docs": {
+      "command": "python3 .agents/tools/mcp-unreal-docs.py",
+      "env": {
         "MCP_UNREAL_PROJECT": "D:/Capstone/mechatronics-vr/MechatronicsVR.uproject"
       }
     }

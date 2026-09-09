@@ -32,6 +32,7 @@ ULessonManagerComponent::ULessonManagerComponent()
 	bIsLessonCompleted = false;
 	bAutoAdvanceSteps = true;
 	bAllowStepSkipping = false;
+	SnapGuideStyle = ESnapGuideStyle::Outline;
 	StepTransitionDelay = 1.0f;
 
 	bInitialized = false;
@@ -151,7 +152,7 @@ bool ULessonManagerComponent::InitializeLessonFromDataAsset(ULessonDataAsset* Le
 		}
 	}
 
-	
+
 
 	LinkStepsSequentially();
 	

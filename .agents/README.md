@@ -1,0 +1,1 @@
+# Agent Instructions\n\nThis folder contains repository-specific instructions for AI agents. Read the files in this directory before making code changes. Treat the instructions here as the source of truth for this repository.\n

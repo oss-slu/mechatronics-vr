@@ -4,6 +4,8 @@
 #include "AssembleStep.h"
 #include "AssemblyActor.h"
 #include "PartActor.h"
+#include "MechatronicsVR/Public/SnapPointComponent.h"
+#include "MechatronicsVR/Public/MechatronicsGameMode.h"
 #include "DSP/AudioDebuggingUtilities.h"
 #include "Engine/Engine.h"
 
@@ -24,6 +26,88 @@ UAssembleStep::UAssembleStep()
 void UAssembleStep::SetAssemblyActor(AAssemblyActor* InAssembly)
 {
 	AssemblyActor = InAssembly;
+}
+
+static void ClearGuideHighlights(UAssembleStep* Step)
+{
+	if (!Step || !Step->GetWorld())
+	{
+		return;
+	}
+
+	if (AMechatronicsGameMode* GameMode = Step->GetWorld()->GetAuthGameMode<AMechatronicsGameMode>())
+	{
+		if (ULessonUIManagerComponent* UIManager = GameMode->GetUIManager())
+		{
+			UIManager->ClearHighlights();
+		}
+	}
+}
+
+static void UpdateGuideHighlight(UAssembleStep* Step)
+{
+	if (!Step || !IsValid(Step->AssemblyActor))
+	{
+		ClearGuideHighlights(Step);
+		return;
+	}
+
+	USnapPointComponent* TargetSnap = nullptr;
+	if (Step->TargetPartClasses.Num() > 0)
+	{
+		for (TSubclassOf<APartActor> TargetClass : Step->TargetPartClasses)
+		{
+			if (!TargetClass)
+			{
+				continue;
+			}
+			for (APartActor* Part : Step->AssemblyActor->Parts)
+			{
+				if (IsValid(Part) && Part->IsA(TargetClass))
+				{
+					const TArray<USnapPointComponent*> SnapPoints = Part->GetSnapPoints();
+					for (USnapPointComponent* SnapPoint : SnapPoints)
+					{
+						if (SnapPoint && !SnapPoint->bIsAssembled)
+						{
+							TargetSnap = SnapPoint;
+							break;
+						}
+					}
+					if (TargetSnap)
+					{
+						break;
+					}
+				}
+			}
+			if (TargetSnap)
+			{
+				break;
+			}
+		}
+	}
+
+	if (!TargetSnap && Step->AssemblyActor->GetBaseSnapPoints().Num() > 0)
+	{
+		TargetSnap = Step->AssemblyActor->GetBaseSnapPoints()[0];
+	}
+
+	if (!TargetSnap)
+	{
+		ClearGuideHighlights(Step);
+		return;
+	}
+
+	if (APartActor* TargetPart = Cast<APartActor>(TargetSnap->GetOwner()))
+	{
+		if (AMechatronicsGameMode* GameMode = Step->GetWorld()->GetAuthGameMode<AMechatronicsGameMode>())
+		{
+			if (ULessonUIManagerComponent* UIManager = GameMode->GetUIManager())
+			{
+				UIManager->HighlightSinglePartWithType(TargetPart, EHighlightType::Outline, FLinearColor::Green);
+			}
+		}
+	}
 }
 
 bool UAssembleStep::CheckCompletion_Implementation() const
@@ -54,6 +138,7 @@ void UAssembleStep::OnStarted()
 	}
 	
 	BindAssemblyEvents();
+	UpdateGuideHighlight(this);
 	
 	if (CheckCompletion())
 	{
@@ -65,11 +150,13 @@ void UAssembleStep::OnStarted()
 void UAssembleStep::OnStopped()
 {
 	UnbindAssemblyEvents();
+	ClearGuideHighlights(this);
 }
 
 void UAssembleStep::OnReset()
 {
 	UnbindAssemblyEvents();
+	ClearGuideHighlights(this);
 }
 
 void UAssembleStep::BindAssemblyEvents()
@@ -117,7 +204,7 @@ bool UAssembleStep::AreTargetsPresent(TMap<TSubclassOf<APartActor>, TArray<APart
 
 	for (TSubclassOf<APartActor> TargetClass : TargetPartClasses)
 	{
-		if (!*TargetClass) continue;
+		if (!TargetClass) continue;
 
 		TArray<APartActor*>& Bucket = OutFound.FindOrAdd(TargetClass);
 		for (APartActor* P : Parts)
@@ -176,10 +263,14 @@ bool UAssembleStep::AreTargetsConnected(const TMap<TSubclassOf<APartActor>, TArr
 		if (Instances.Num() == 0) continue;
 		for (APartActor* P : Instances)
 		{
+			if (!IsValid(P)) continue;
 			bool bHasAnyConnection = false;
 			for (const auto& Conn : AssemblyActor->Connections)
 			{
 				if (!Conn.bIsConnected) continue;
+				const bool bPartAValid = !Conn.PartA || IsValid(Conn.PartA);
+				const bool bPartBValid = !Conn.PartB || IsValid(Conn.PartB);
+				if (!bPartAValid && !bPartBValid) continue;
 				if (Conn.PartA == P || Conn.PartB == P)
 				{
 					bHasAnyConnection = true;
@@ -202,45 +293,49 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 	UE_LOG(LogTemp, Error, TEXT("=== HandlePartsConnected Called ==="));
 	UE_LOG(LogTemp, Error, TEXT("  - PartA: %s"), PartA ? *PartA->GetName() : TEXT("NULL (BASE)"));
 	UE_LOG(LogTemp, Error, TEXT("  - PartB: %s"), PartB ? *PartB->GetName() : TEXT("NULL"));
-    
+
 	// Handle base connection (one part is null, meaning base connection)
 	if (!PartA || !PartB)
 	{
-		UE_LOG(LogTemp, Error, TEXT("  - Detected BASE CONNECTION"));
-        
 		APartActor* ConnectedPart = PartA ? PartA : PartB;
-        
-		if (ConnectedPart)
+		if (!IsValid(ConnectedPart))
 		{
-			UE_LOG(LogTemp, Error, TEXT("  - ConnectedPart: %s"), *ConnectedPart->GetName());
-			UE_LOG(LogTemp, Error, TEXT("  - Calling EvaluateConnectionStatus()"));
-            
-			EvaluateConnectionStatus();
-            
-			UE_LOG(LogTemp, Error, TEXT("  - Returned from EvaluateConnectionStatus()"));
+			UE_LOG(LogTemp, Error, TEXT("  - ERROR: Both parts are NULL or invalid!"));
+			return;
 		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("  - ERROR: Both parts are NULL!"));
-		}
+
+		UE_LOG(LogTemp, Error, TEXT("  - Detected BASE CONNECTION for %s"), *ConnectedPart->GetName());
+		UE_LOG(LogTemp, Error, TEXT("  - Calling EvaluateConnectionStatus()"));
+		EvaluateConnectionStatus();
+		UE_LOG(LogTemp, Error, TEXT("  - Returned from EvaluateConnectionStatus()"));
 		return;
 	}
 
-	// Handle normal part-to-part connection
+	// Ignore stale/invalid part-to-part events before updating the guide or evaluating completion.
+	if (!IsValid(PartA) || !IsValid(PartB))
+	{
+		UE_LOG(LogTemp, Error, TEXT("  - Ignoring invalid part-to-part connection"));
+		return;
+	}
+
+	// Detected PART-TO-PART CONNECTION
 	UE_LOG(LogTemp, Error, TEXT("  - Detected PART-TO-PART CONNECTION"));
 	UE_LOG(LogTemp, Log, TEXT("AssembleStep: Parts %s and %s connected"), *PartA->GetName(), *PartB->GetName());
+	UpdateGuideHighlight(this);
 	EvaluateConnectionStatus();
 }
 // Helper function to check if a single part is a target
 bool UAssembleStep::IsTargetPart(APartActor* Part) const
 {
 	if (!Part) return false;
-    
+
 	for (TSubclassOf<APartActor> TargetClass : TargetPartClasses)
 	{
-		if (!TargetClass) continue;  // skip null entries in the array
-        
-		if (Part->IsA(TargetClass))
+		UClass* ClassPtr = TargetClass.Get();
+		// Skip if the class reference is null
+		if (!ClassPtr) continue;
+
+		if (Part->IsA(ClassPtr))
 		{
 			return true;
 		}

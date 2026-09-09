@@ -13,3 +13,6 @@ Saved
 *.suo
 *.xcodeproj
 *.xcworkspace
+
+# LLM doc cache for mcp-unreal-docs
+/.agents/docs_cache/
