@@ -311,6 +311,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 				HideSnapPreview();
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
+				bIsSnapped = true;
 				return true;
 			} 
 			

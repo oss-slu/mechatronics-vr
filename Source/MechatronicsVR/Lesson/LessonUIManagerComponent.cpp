@@ -532,7 +532,7 @@ void ULessonUIManagerComponent::ApplyHighlightToActor(AActor* Actor, const FLine
 					DynMaterial->SetScalarParameterValue("HighlightIntensity", HighlightIntensity);
             
 					// Apply as overlay
-					Part->FindComponentByClass<UStaticMeshComponent>()->SetOverlayMaterial(DynMaterial);
+					Part->Mesh->SetOverlayMaterial(DynMaterial);
             
 					// Store the DYNAMIC instance for pulsing
 					HighlightMaterials.Add(Actor, DynMaterial);
