@@ -76,6 +76,7 @@ APartActor::APartActor()
 	PreviewOpacity = 0.3f;
 	PreviewColor = FLinearColor::Green;
 	bShowingPreview = false;
+	bAllowSnapPreview = true;
 
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -356,18 +357,23 @@ bool APartActor::IsAttachedToMotionController() const
 
 void APartActor::ShowSnapPreview()
 {
+	if (!bAllowSnapPreview)
+	{
+		return;
+	}
+
 	// Part figures out which snap points to use
 	if (!CurrentTargetSnapPoint)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreview: No CurrentPreviewTarget set, returning early."));
 		return;
-		
+
 	}
-    
+
 	// Find which of MY snap points should connect
 	USnapPointComponent* MyBestSnapPoint = GetBestSnapPointFor(CurrentTargetSnapPoint);
-    
-	if (MyBestSnapPoint)	
+
+	if (MyBestSnapPoint)
 	{
 		ShowSnapPreviewInternal(MyBestSnapPoint, CurrentTargetSnapPoint);
 	}
@@ -677,7 +683,7 @@ void APartActor::Tick(float DeltaTime)
 	const float RPM = MotorSpeed * MaxRPM;
 	const float DegreesPerSecond = RPM * 6.0f;
 	const FVector Axis = MotorAxis.GetSafeNormal();
-	
+
 	const FQuat DeltaRot(Axis, FMath::DegreesToRadians(DegreesPerSecond * DeltaTime));
 	Mesh->AddLocalRotation(DeltaRot);
 }
