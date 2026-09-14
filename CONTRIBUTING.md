@@ -131,6 +131,18 @@ private:
 };
 ```
 
+### C++ Formatting
+
+Code under `Source/MechatronicsVR/` is formatted with [clang-format](https://clang.llvm.org/docs/ClangFormat.html) using the repo's `.clang-format`. Pull requests get an automatic formatting check; it only warns, it never blocks a merge.
+
+```bash
+brew install clang-format          # or: pip install clang-format==23.1.1
+                                   # CI pins 23.1.1; a different major version may flag slightly different lines
+
+scripts/check-cpp-format.sh        # check (same script CI runs)
+FIX=1 scripts/check-cpp-format.sh  # format in place
+```
+
 ### Naming Conventions
 
 | Type | Convention | Example |
