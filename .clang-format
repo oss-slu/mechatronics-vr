@@ -1,0 +1,64 @@
+---
+Language: Cpp
+Standard: c++20
+BasedOnStyle: LLVM
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+ColumnLimit: 0
+BreakBeforeBraces: Allman
+PointerAlignment: Left
+ReferenceAlignment: Left
+SortIncludes: Never
+IndentPPDirectives: None
+NamespaceIndentation: All
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortLambdasOnASingleLine: Inline
+KeepEmptyLinesAtTheStartOfBlocks: true
+MaxEmptyLinesToKeep: 2
+SpaceAfterTemplateKeyword: true
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+FixNamespaceComments: false
+ReflowComments: false
+AlignTrailingComments: false
+AlignAfterOpenBracket: DontAlign
+BreakConstructorInitializers: BeforeComma
+ConstructorInitializerIndentWidth: 4
+IndentCaseLabels: true
+StatementMacros:
+  - GENERATED_BODY
+  - GENERATED_UCLASS_BODY
+  - GENERATED_USTRUCT_BODY
+  - IMPLEMENT_MODULE
+  - IMPLEMENT_PRIMARY_GAME_MODULE
+  - DEFINE_LOG_CATEGORY
+  - DECLARE_LOG_CATEGORY_EXTERN
+  - DECLARE_DYNAMIC_MULTICAST_DELEGATE
+  - DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam
+  - DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams
+  - DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams
+  - DECLARE_DYNAMIC_DELEGATE
+  - DECLARE_DYNAMIC_DELEGATE_OneParam
+  - DECLARE_MULTICAST_DELEGATE
+  - DECLARE_MULTICAST_DELEGATE_OneParam
+  - DECLARE_DELEGATE
+  - DECLARE_DELEGATE_OneParam
+  - UPROPERTY
+  - UFUNCTION
+  - UCLASS
+  - USTRUCT
+  - UENUM
+  - UINTERFACE
+  - UMETA
+ForEachMacros:
+  - TActorIterator
+  - TFieldIterator
+  - TObjectIterator
+...

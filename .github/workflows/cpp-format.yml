@@ -1,0 +1,110 @@
+name: C++ Formatting (informational)
+
+# Runs clang-format in check-only mode on first-party C++ under Source/MechatronicsVR.
+# It never fails the pull request: formatting problems surface as warning annotations
+# on the "Files changed" tab and in the job summary.
+# No Unreal Engine, no compilation, no devices involved.
+
+on:
+  pull_request:
+    paths:
+      - "Source/MechatronicsVR/**/*.cpp"
+      - "Source/MechatronicsVR/**/*.h"
+      - ".clang-format"
+      - "scripts/check-cpp-format.sh"
+      - ".github/workflows/cpp-format.yml"
+  workflow_dispatch: # manual run: checks the whole Source/MechatronicsVR tree
+
+permissions:
+  contents: read
+
+jobs:
+  clang-format:
+    name: clang-format check (warnings only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so we can diff against the PR base branch
+
+      - name: Install pinned clang-format
+        # Pinned so every contributor and every CI run measures with the same ruler.
+        # Keep this version in sync with the one named in CONTRIBUTING.md.
+        run: |
+          pip install --quiet clang-format==23.1.1
+          clang-format --version
+
+      - name: Select files to check
+        id: files
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Only C++ files this PR added or modified (not deleted) under the first-party tree.
+            git diff --name-only --diff-filter=AM \
+              "origin/${{ github.base_ref }}...HEAD" -- \
+              'Source/MechatronicsVR/**/*.cpp' 'Source/MechatronicsVR/**/*.h' \
+              'Source/MechatronicsVR/*.cpp'    'Source/MechatronicsVR/*.h' > changed_files.txt
+          else
+            git ls-files -- \
+              'Source/MechatronicsVR/**/*.cpp' 'Source/MechatronicsVR/**/*.h' \
+              'Source/MechatronicsVR/*.cpp'    'Source/MechatronicsVR/*.h' > changed_files.txt
+          fi
+          echo "count=$(wc -l < changed_files.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "Files to check:"; cat changed_files.txt
+
+      - name: Run clang-format (check only)
+        id: check
+        if: steps.files.outputs.count != '0'
+        continue-on-error: true # <- this is what makes the check informational
+        shell: bash
+        run: |
+          mapfile -t FILES < changed_files.txt
+          : > violations.txt
+          FORMAT_LOG=violations.txt scripts/check-cpp-format.sh "${FILES[@]}"
+
+      - name: Annotate and summarize
+        if: steps.files.outputs.count != '0'
+        shell: bash
+        run: |
+          # clang-format --dry-run lines look like:
+          #   Source/MechatronicsVR/Private/PartActor.cpp:163:1: error: code should be clang-formatted [-Wclang-format-violations]
+          # (labelled "error" only because the script passes -Werror; followed by a code line and a caret line we ignore)
+          # Translate each into a GitHub *warning* annotation (::warning file=...,line=...,col=...::message).
+          DIAG='^([^:]+):([0-9]+):([0-9]+): (warning|error): (.*)$'
+          grep -E "$DIAG" violations.txt > diagnostics.txt || true
+          COUNT=$(wc -l < diagnostics.txt | tr -d ' ')
+          sed -E "s/$DIAG/::warning file=\\1,line=\\2,col=\\3,title=clang-format::\\5/" diagnostics.txt
+
+          {
+            echo "## C++ formatting check (informational, non-blocking)"
+            echo
+            if [ "$COUNT" -eq 0 ]; then
+              echo "All checked files are formatted. :white_check_mark:"
+            else
+              echo "**$COUNT** formatting suggestion(s) across the files this PR touches."
+              echo
+              echo "This does **not** block merging. To apply the project style locally:"
+              echo
+              echo '```bash'
+              echo "FIX=1 scripts/check-cpp-format.sh        # or: clang-format -i --style=file <files>"
+              echo '```'
+              echo
+              echo "See CONTRIBUTING.md → *C++ Formatting*."
+              echo
+              echo "<details><summary>Files needing formatting</summary>"
+              echo
+              cut -d: -f1 diagnostics.txt | sort | uniq -c | sort -rn | awk '{printf "- `%s` (%s)\n", $2, $1}'
+              echo
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::notice title=clang-format::$COUNT formatting suggestion(s). Non-blocking - see the job summary."
+          fi
+
+      - name: Nothing to check
+        if: steps.files.outputs.count == '0'
+        run: echo "No first-party C++ files changed in this PR; nothing to check." >> "$GITHUB_STEP_SUMMARY"
