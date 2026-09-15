@@ -83,9 +83,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
 	FLinearColor PreviewColor = FLinearColor::Green;
 
-	/** Currently showing preview? */
+	/** Currently showing preview? (read-only state tracking) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
 	bool bShowingPreview = false;
+
+	/** Allow snap previews to occur (when false, previews are disabled) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	bool bAllowSnapPreview = true;
 
 	UFUNCTION(BlueprintCallable, Category = "Grab State")
 	bool IsAttachedToMotionController() const;

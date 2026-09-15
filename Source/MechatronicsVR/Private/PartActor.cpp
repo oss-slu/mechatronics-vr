@@ -76,6 +76,7 @@ APartActor::APartActor()
 	PreviewOpacity = 0.3f;
 	PreviewColor = FLinearColor::Green;
 	bShowingPreview = false;
+	bAllowSnapPreview = true;
 
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -149,10 +150,16 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
 			const ULessonManagerComponent* LM = GM->FindComponentByClass<ULessonManagerComponent>();
 			if (LM)
 			{
+				// Only proceed if the current step exists and is an Assemble step
 				if (LM->CurrentStep && LM->CurrentStep->StepType == ELessonStepType::Assemble)
 				{
-					const UAssembleStep* AssembleStep = static_cast<const UAssembleStep*>(LM->CurrentStep);
-					if (AssembleStep && !AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
+					const UAssembleStep* AssembleStep = Cast<UAssembleStep>(LM->CurrentStep);
+					if (!AssembleStep)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("%s: CurrentStep exists and is marked Assemble but cast to UAssembleStep failed. Skipping preview."), *GetName());
+						// Fall through and allow preview logic to continue without lesson filtering
+					}
+					else if (!AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
 					{
 						return nullptr;
 					}
@@ -196,35 +203,46 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
             }
         }
     }
+    else if (PartAssembledOnto)
+    {
+        // PartAssembledOnto was set but is not valid
+        UE_LOG(LogTemp, Warning, TEXT("%s: PartAssembledOnto is set but invalid; skipping specified actor search."), *GetName());
+    }
     
-	
+
 		// SECOND: Try the assembly base
-    	// Check assembly's base snap points
-    	TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
-    	for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
-    	{
-    		if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
-    		{
-    			continue;
-    		}
-        
-    		// Check each of my snap points for compatibility with base
-    		for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
-    		{
-    			if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
-    			{
-    				continue;
-    			}
-            
-    			if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) &&			BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
-    			{
-    				// Found compatible base - return it!
-    				UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"),				*GetName(), *BaseSnapPoint->GetName());
-    				return BaseSnapPoint;
-    			}
-    		}
-    	}
-	
+		// Check assembly's base snap points
+		if (!AssemblyActor || !AssemblyActor->IsValidLowLevelFast())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s: No AssemblyActor available for base snap search; skipping."), *GetName());
+		}
+		else
+		{
+			TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
+			for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
+			{
+				if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
+				{
+					continue;
+				}
+			    
+				// Check each of my snap points for compatibility with base
+				for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
+				{
+					if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
+					{
+						continue;
+					}
+			        
+					if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) && BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
+					{
+						// Found compatible base - return it!
+						UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"), *GetName(), *BaseSnapPoint->GetName());
+						return BaseSnapPoint;
+					}
+				}
+			}
+		}	
     return nullptr;  // No compatible target found
 }
 
@@ -311,7 +329,6 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 				HideSnapPreview();
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
-				bIsSnapped = true;
 				return true;
 			} 
 			
@@ -340,18 +357,23 @@ bool APartActor::IsAttachedToMotionController() const
 
 void APartActor::ShowSnapPreview()
 {
+	if (!bAllowSnapPreview)
+	{
+		return;
+	}
+
 	// Part figures out which snap points to use
 	if (!CurrentTargetSnapPoint)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreview: No CurrentPreviewTarget set, returning early."));
 		return;
-		
+
 	}
-    
+
 	// Find which of MY snap points should connect
 	USnapPointComponent* MyBestSnapPoint = GetBestSnapPointFor(CurrentTargetSnapPoint);
-    
-	if (MyBestSnapPoint)	
+
+	if (MyBestSnapPoint)
 	{
 		ShowSnapPreviewInternal(MyBestSnapPoint, CurrentTargetSnapPoint);
 	}
@@ -545,6 +567,11 @@ void APartActor::OnPartReleased()
 
 const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
 {
+	if (!Assembly)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s: Assembly pointer is null when requesting snap points."), *GetName());
+		return TArray<USnapPointComponent*>();
+	}
 	return Assembly->GetSnapPoints();
 }
 
@@ -656,7 +683,7 @@ void APartActor::Tick(float DeltaTime)
 	const float RPM = MotorSpeed * MaxRPM;
 	const float DegreesPerSecond = RPM * 6.0f;
 	const FVector Axis = MotorAxis.GetSafeNormal();
-	
+
 	const FQuat DeltaRot(Axis, FMath::DegreesToRadians(DegreesPerSecond * DeltaTime));
 	Mesh->AddLocalRotation(DeltaRot);
 }
