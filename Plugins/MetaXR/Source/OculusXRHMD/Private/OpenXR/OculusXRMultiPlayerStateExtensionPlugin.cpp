@@ -4,7 +4,7 @@
 #include "OculusXRHMDRuntimeSettings.h"
 
 #if WITH_EDITOR
-#include <Settings\LevelEditorPlaySettings.h>
+#include <Settings/LevelEditorPlaySettings.h>
 #endif
 
 DEFINE_LOG_CATEGORY(LogOculusMultiPlayerStateExtensionPlugin);

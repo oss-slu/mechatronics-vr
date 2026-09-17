@@ -75,6 +75,16 @@ namespace OculusXRHMD
 		}
 	}
 
+	bool InRenderThread(FRHICommandListImmediate& RHICmdList)
+	{
+		return RHICmdList.Bypass() || RHICmdList.IsTopOfPipe();
+	}
+
+	bool InRHIThread(FRHICommandListImmediate& RHICmdList)
+	{
+		return RHICmdList.IsBottomOfPipe();
+	}
+
 	bool ConvertPose_Internal(const FPose& InPose, FPose& OutPose, const FQuat BaseOrientation, const FVector BaseOffset, float WorldToMetersScale)
 	{
 		// apply base orientation correction

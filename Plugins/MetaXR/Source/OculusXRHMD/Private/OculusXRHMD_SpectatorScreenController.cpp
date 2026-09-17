@@ -61,7 +61,7 @@ namespace OculusXRHMD
 #if UE_VERSION_OLDER_THAN(5, 6, 0)
 	void FSpectatorScreenController::RenderSpectatorScreen_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* BackBuffer, FTextureRHIRef RenderTexture, FVector2D WindowSize)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 		if (OculusXRHMD->GetCustomPresent_Internal())
 		{
 			if (SpectatorMode_RenderThread == EMRSpectatorScreenMode::ExternalComposition)
@@ -92,7 +92,7 @@ namespace OculusXRHMD
 	}
 	void FSpectatorScreenController::RenderSpectatorModeUndistorted(FRHICommandListImmediate& RHICmdList, FTextureRHIRef TargetTexture, FTextureRHIRef EyeTexture, FTextureRHIRef OtherTexture, FVector2D WindowSize)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 		FSettings* Settings = OculusXRHMD->GetSettings_RenderThread();
 		FIntRect DestRect(0, 0, TargetTexture->GetSizeX() / 2, TargetTexture->GetSizeY());
 		for (int i = 0; i < 2; ++i)
@@ -105,7 +105,7 @@ namespace OculusXRHMD
 
 	void FSpectatorScreenController::RenderSpectatorModeDistorted(FRHICommandListImmediate& RHICmdList, FTextureRHIRef TargetTexture, FTextureRHIRef EyeTexture, FTextureRHIRef OtherTexture, FVector2D WindowSize)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 		FCustomPresent* CustomPresent = OculusXRHMD->GetCustomPresent_Internal();
 		FTextureRHIRef MirrorTexture = CustomPresent->GetMirrorTexture();
 		if (MirrorTexture)
@@ -118,7 +118,7 @@ namespace OculusXRHMD
 
 	void FSpectatorScreenController::RenderSpectatorModeSingleEye(FRHICommandListImmediate& RHICmdList, FTextureRHIRef TargetTexture, FTextureRHIRef EyeTexture, FTextureRHIRef OtherTexture, FVector2D WindowSize)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 		FSettings* Settings = OculusXRHMD->GetSettings_RenderThread();
 		const FIntRect SrcRect = Settings->EyeRenderViewport[0];
 		const FIntRect DstRect(0, 0, TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
@@ -128,7 +128,7 @@ namespace OculusXRHMD
 
 	void FSpectatorScreenController::RenderSpectatorModeDirectComposition(FRHICommandListImmediate& RHICmdList, FTextureRHIRef TargetTexture, const FTextureRHIRef SrcTexture) const
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 		const FIntRect SrcRect(0, 0, SrcTexture->GetSizeX(), SrcTexture->GetSizeY());
 		const FIntRect DstRect(0, 0, TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
 
@@ -137,7 +137,7 @@ namespace OculusXRHMD
 
 	void FSpectatorScreenController::RenderSpectatorModeExternalComposition(FRHICommandListImmediate& RHICmdList, FTextureRHIRef TargetTexture, const FTextureRHIRef FrontTexture, const FTextureRHIRef BackTexture) const
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 		const FIntRect FrontSrcRect(0, 0, FrontTexture->GetSizeX(), FrontTexture->GetSizeY());
 		const FIntRect FrontDstRect(0, 0, TargetTexture->GetSizeX() / 2, TargetTexture->GetSizeY());
 		const FIntRect BackSrcRect(0, 0, BackTexture->GetSizeX(), BackTexture->GetSizeY());

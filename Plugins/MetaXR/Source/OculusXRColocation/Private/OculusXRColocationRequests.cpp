@@ -16,18 +16,25 @@ namespace OculusXRColocation
 		OnStartCompleteHandle = FOculusXRColocationEventDelegates::StartColocationDiscoveryComplete.AddStatic(
 			&FDiscoverSessionsRequest::OnStartComplete);
 
-		OnSessionFoundHandle = FOculusXRColocationEventDelegates::ColocationDiscoveryResultAvailable.AddStatic(
-			&FDiscoverSessionsRequest::OnResultAvailable);
+		OnDiscoveryCompleteHandle = FOculusXRColocationEventDelegates::ColocationDiscoveryComplete.AddStatic(
+			&FDiscoverSessionsRequest::OnDiscoveryComplete);
 
 		OnStopCompleteHandle = FOculusXRColocationEventDelegates::StopColocationDiscoveryComplete.AddStatic(
 			&FDiscoverSessionsRequest::OnDiscoveryComplete);
 
-		OnDiscoveryCompleteHandle = FOculusXRColocationEventDelegates::StopColocationDiscoveryComplete.AddStatic(
-			&FDiscoverSessionsRequest::OnDiscoveryComplete);
+		OnSessionFoundHandle = FOculusXRColocationEventDelegates::ColocationDiscoveryResultAvailable.AddStatic(
+			&FDiscoverSessionsRequest::OnResultAvailable);
 	}
 
 	FDiscoverSessionsRequest::~FDiscoverSessionsRequest()
 	{
+		FOculusXRColocationEventDelegates::StartColocationDiscoveryComplete.Remove(OnStartCompleteHandle);
+
+		FOculusXRColocationEventDelegates::ColocationDiscoveryComplete.Remove(OnDiscoveryCompleteHandle);
+
+		FOculusXRColocationEventDelegates::StopColocationDiscoveryComplete.Remove(OnStopCompleteHandle);
+
+		FOculusXRColocationEventDelegates::ColocationDiscoveryResultAvailable.Remove(OnSessionFoundHandle);
 	}
 
 	void FDiscoverSessionsRequest::BindOnSessionFound(const FOculusXRColocationSessionFoundDelegate& OnSessionFound)
@@ -56,7 +63,7 @@ namespace OculusXRColocation
 		auto taskPtr = OculusXR::FAsyncRequestSystem::GetRequest<FDiscoverSessionsRequest>(
 			OculusXR::FAsyncRequestBase::RequestId{ RequestId.GetValue() });
 
-		if (!taskPtr.IsValid())
+		if (!taskPtr.IsValid() || Result == EColocationResult::Success_AlreadyDiscovering)
 		{
 			return;
 		}
@@ -161,7 +168,7 @@ namespace OculusXRColocation
 	FStopSessionAdvertisementRequest::~FStopSessionAdvertisementRequest()
 	{
 		FOculusXRColocationEventDelegates::StopColocationAdvertisementComplete.Remove(OnStopCompleteHandle);
-		FOculusXRColocationEventDelegates::StopColocationAdvertisementComplete.Remove(OnCompleteHandle);
+		FOculusXRColocationEventDelegates::ColocationAdvertisementComplete.Remove(OnCompleteHandle);
 	}
 
 	void FStopSessionAdvertisementRequest::OnInitRequest()

@@ -34,7 +34,6 @@ namespace OculusXRHMD
 	void FDynamicResolutionState::SetupMainViewFamily(class FSceneViewFamily& ViewFamily)
 	{
 		check(IsInGameThread());
-		check(ViewFamily.EngineShowFlags.ScreenPercentage == true);
 
 		if (IsEnabled())
 		{
@@ -49,6 +48,7 @@ namespace OculusXRHMD
 			ResolutionFraction = FMath::Clamp(Settings->PixelDensity, MinResolutionFraction, MaxResolutionFraction);
 			ResolutionFractionUpperBound = MaxResolutionFraction;
 
+			ViewFamily.EngineShowFlags.ScreenPercentage = true; // needs to be true to avoid assert in FLegacyScreenPercentageDriver. Will be set to true downstream anyway.
 			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, ResolutionFraction, ResolutionFractionUpperBound));
 		}
 	}

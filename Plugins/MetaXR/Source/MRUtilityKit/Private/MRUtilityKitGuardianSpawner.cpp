@@ -50,18 +50,22 @@ void AMRUKGuardianSpawner::SpawnGuardians(AMRUKRoom* Room)
 	// Remove guardians that are already in this room
 	DestroyGuardians(Room);
 
-	const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	if (!Subsystem)
+	{
+		return;
+	}
 	Subsystem->OnRoomUpdated.AddUniqueDynamic(this, &AMRUKGuardianSpawner::OnRoomUpdated);
 	Subsystem->OnRoomRemoved.AddUniqueDynamic(this, &AMRUKGuardianSpawner::OnRoomRemoved);
 
 	const auto SpawnGuardian = [this](AMRUKAnchor* Anchor, const TArray<FMRUKPlaneUV>& PlaneUVAdjustments) {
 		// Create guardian actor
-		const auto GuardianActor = GetWorld()->SpawnActor<AMRUKGuardian>();
+		AMRUKGuardian* GuardianActor = GetWorld()->SpawnActor<AMRUKGuardian>();
 		GuardianActor->AttachToComponent(Anchor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		GuardianActor->SetActorHiddenInGame(IsHidden());
 
 		// Generate procedural mesh
-		const auto ProceduralMesh = NewObject<UProceduralMeshComponent>(GuardianActor, TEXT("GuardianMesh"));
+		UProceduralMeshComponent* ProceduralMesh = NewObject<UProceduralMeshComponent>(GuardianActor, TEXT("GuardianMesh"));
 		Anchor->GenerateProceduralAnchorMesh(ProceduralMesh, PlaneUVAdjustments, {}, true, false, 0.01);
 		ProceduralMesh->SetMaterial(0, DynamicGuardianMaterial);
 		GuardianActor->CreateGuardian(ProceduralMesh);
@@ -85,7 +89,7 @@ void AMRUKGuardianSpawner::SpawnGuardians(AMRUKRoom* Room)
 	// because of the first step and will therefore be ignored by this code automatically.
 	for (const auto& Anchor : Room->AllAnchors)
 	{
-		if (!Anchor || (Room->FloorAnchor == Anchor) || (Room->CeilingAnchor == Anchor) || Room->IsWallAnchor(Anchor))
+		if (!Anchor || Room->FloorAnchors.Contains(Anchor) || Room->CeilingAnchors.Contains(Anchor) || Room->IsWallAnchor(Anchor))
 		{
 			continue;
 		}
@@ -115,9 +119,18 @@ void AMRUKGuardianSpawner::Tick(float DeltaSeconds)
 
 	if (EnableFade)
 	{
-		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-		const auto CurrentRoom = Subsystem->GetCurrentRoom();
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		if (!Subsystem)
+		{
+			return;
+		}
+		AMRUKRoom* CurrentRoom = Subsystem->GetCurrentRoom();
 		if (!CurrentRoom)
+		{
+			return;
+		}
+
+		if (!GEngine->XRSystem)
 		{
 			return;
 		}
@@ -132,8 +145,8 @@ void AMRUKGuardianSpawner::Tick(float DeltaSeconds)
 		LabelFilter.ExcludedLabels = { FMRUKLabels::Ceiling, FMRUKLabels::Floor };
 		CurrentRoom->TryGetClosestSurfacePosition(HeadsetPosition, SurfacePosition, SurfaceDistance, LabelFilter);
 
-		const auto WorldToMeters = GetWorldSettings()->WorldToMeters;
-		const auto GuardianFade = FMath::Clamp(1.0 - ((SurfaceDistance / WorldToMeters) / GuardianDistance), 0.0, 1.0);
+		const float WorldToMeters = GetWorldSettings()->WorldToMeters;
+		const double GuardianFade = FMath::Clamp(1.0 - ((SurfaceDistance / WorldToMeters) / GuardianDistance), 0.0, 1.0);
 		DynamicGuardianMaterial->SetScalarParameterValue(TEXT("Fade"), GuardianFade);
 	}
 }
@@ -148,7 +161,11 @@ void AMRUKGuardianSpawner::BeginPlay()
 
 	if (SpawnMode == EMRUKSpawnMode::CurrentRoomOnly)
 	{
-		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		if (!Subsystem)
+		{
+			return;
+		}
 		if (Subsystem->SceneLoadStatus == EMRUKInitStatus::Complete)
 		{
 			if (AMRUKRoom* CurrentRoom = Subsystem->GetCurrentRoom())
@@ -164,8 +181,12 @@ void AMRUKGuardianSpawner::BeginPlay()
 	}
 	else if (SpawnMode == EMRUKSpawnMode::AllRooms)
 	{
-		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-		for (auto Room : Subsystem->Rooms)
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		if (!Subsystem)
+		{
+			return;
+		}
+		for (AMRUKRoom* Room : Subsystem->Rooms)
 		{
 			SpawnGuardians(Room);
 		}
@@ -178,7 +199,7 @@ void AMRUKGuardianSpawner::BeginPlay()
 #if WITH_EDITOR
 void AMRUKGuardianSpawner::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const auto PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AMRUKGuardianSpawner, GridDensity))
 	{
 		SetGridDensity(GridDensity);
@@ -193,10 +214,14 @@ void AMRUKGuardianSpawner::PostEditChangeProperty(FPropertyChangedEvent& Propert
 
 void AMRUKGuardianSpawner::OnRoomCreated(AMRUKRoom* Room)
 {
-	if (SpawnMode == EMRUKSpawnMode::CurrentRoomOnly && GetGameInstance()->GetSubsystem<UMRUKSubsystem>()->GetCurrentRoom() != Room)
+	if (SpawnMode == EMRUKSpawnMode::CurrentRoomOnly)
 	{
-		// Skip this room if it is not the current room
-		return;
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		if (!Subsystem || Subsystem->GetCurrentRoom() != Room)
+		{
+			// Skip this room if it is not the current room
+			return;
+		}
 	}
 
 	SpawnGuardians(Room);

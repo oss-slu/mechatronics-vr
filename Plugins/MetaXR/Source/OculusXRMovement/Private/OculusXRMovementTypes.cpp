@@ -8,6 +8,7 @@ FOculusXRBodyJoint::FOculusXRBodyJoint()
 	: LocationFlags(0)
 	, bIsValid(false)
 	, Orientation(FRotator::ZeroRotator)
+	, OrientationQuat(FQuat::Identity)
 	, Position(FVector::ZeroVector)
 {
 }
@@ -23,6 +24,7 @@ FOculusXRBodyState::FOculusXRBodyState()
 
 FOculusXRBodySkeletonBone::FOculusXRBodySkeletonBone()
 	: Orientation(FRotator::ZeroRotator)
+	, OrientationQuat(FQuat::Identity)
 	, Position(FVector::ZeroVector)
 	, BoneId(EOculusXRBoneID::None)
 	, ParentBoneIndex(EOculusXRBoneID::None)

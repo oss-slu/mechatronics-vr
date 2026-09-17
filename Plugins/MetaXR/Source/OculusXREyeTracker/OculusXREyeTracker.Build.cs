@@ -10,7 +10,8 @@ namespace UnrealBuildTool.Rules
             bUseUnity = true;
 
             if (Target.Platform == UnrealTargetPlatform.Win64 ||
-                Target.Platform == UnrealTargetPlatform.Android)
+                Target.Platform == UnrealTargetPlatform.Android ||
+                Target.Platform == UnrealTargetPlatform.Mac)
             {
                 PublicDependencyModuleNames.AddRange(
                     new string[]

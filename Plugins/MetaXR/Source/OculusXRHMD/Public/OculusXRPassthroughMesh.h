@@ -11,17 +11,17 @@ namespace OculusXRHMD
 	class FOculusPassthroughMesh : public FRefCountedObject
 	{
 	public:
-		FOculusPassthroughMesh(const TArray<FVector>& InVertices, const TArray<int32>& InTriangles)
+		FOculusPassthroughMesh(const TArray<FVector3f>& InVertices, const TArray<int32>& InTriangles)
 			: Vertices(InVertices)
 			, Triangles(InTriangles)
 		{
 		}
 
-		const TArray<FVector>& GetVertices() const { return Vertices; };
+		const TArray<FVector3f>& GetVertices() const { return Vertices; };
 		const TArray<int32>& GetTriangles() const { return Triangles; };
 
 	private:
-		TArray<FVector> Vertices;
+		TArray<FVector3f> Vertices;
 		TArray<int32> Triangles;
 	};
 

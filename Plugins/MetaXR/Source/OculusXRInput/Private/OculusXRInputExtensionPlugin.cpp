@@ -225,7 +225,7 @@ namespace OculusXRInput
 					bool IsAboveThreshold = Thumbsticks.Size() > 0.7f;
 					bool IsUpPressed = IsAboveThreshold && Angle >= (1.0f / 8.0f) * PI && Angle <= (7.0f / 8.0f) * PI;
 					bool IsDownPressed = IsAboveThreshold && Angle >= (-7.0f / 8.0f) * PI && Angle <= (-1.0f / 8.0f) * PI;
-					bool IsLeftPressed = IsAboveThreshold && Angle <= (-5.0f / 8.0f) * PI || Angle >= (5.0f / 8.0f) * PI;
+					bool IsLeftPressed = IsAboveThreshold && (Angle <= (-5.0f / 8.0f) * PI || Angle >= (5.0f / 8.0f) * PI);
 					bool IsRightPressed = IsAboveThreshold && Angle >= (-3.0f / 8.0f) * PI && Angle <= (3.0f / 8.0f) * PI;
 
 					SendDerivedDpadButtonPressed(isLeft ? EKeys::OculusTouch_Left_Thumbstick_Up : EKeys::OculusTouch_Right_Thumbstick_Up, IsUpPressed, UserId, DeviceId, CurrentTime);

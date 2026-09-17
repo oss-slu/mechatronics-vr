@@ -7,7 +7,7 @@
 struct FOculusXRMovementFunctionsOVR : public IOculusXRMovementFunctions
 {
 public:
-	virtual bool GetBodyState(FOculusXRBodyState& outOculusXRBodyState, float WorldToMeters) override;
+	virtual bool GetBodyState(FOculusXRBodyState& outOculusXRBodyState) override;
 	virtual bool IsBodyTrackingEnabled() override;
 	virtual bool IsBodyTrackingSupported() override;
 	virtual bool StartBodyTracking() override;
@@ -16,7 +16,7 @@ public:
 	virtual bool RequestBodyTrackingFidelity(EOculusXRBodyTrackingFidelity fidelity) override;
 	virtual bool ResetBodyTrackingCalibration() override;
 	virtual bool SuggestBodyTrackingCalibrationOverride(float height) override;
-	virtual bool GetBodySkeleton(FOculusXRBodySkeleton& outOculusXRBodyState, float WorldToMeters) override;
+	virtual bool GetBodySkeleton(FOculusXRBodySkeleton& outOculusXRBodyState) override;
 
 	virtual bool GetFaceState(FOculusXRFaceState& outOculusXRFaceState) override;
 	virtual bool IsFaceTrackingEnabled() override;
@@ -29,7 +29,7 @@ public:
 	virtual bool IsFaceTrackingVisemesEnabled() override;
 	virtual bool IsFaceTrackingVisemesSupported() override;
 
-	virtual bool GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState, float WorldToMeters) override;
+	virtual bool GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState) override;
 	virtual bool IsEyeTrackingEnabled() override;
 	virtual bool IsEyeTrackingSupported() override;
 	virtual bool StartEyeTracking() override;

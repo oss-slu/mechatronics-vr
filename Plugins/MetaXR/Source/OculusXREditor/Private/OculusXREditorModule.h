@@ -21,7 +21,7 @@ class FOculusXREditorModule : public IOculusXREditorModule
 {
 public:
 	FOculusXREditorModule()
-		: bModuleValid(false){};
+		: bModuleValid(false) {};
 
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
@@ -33,18 +33,11 @@ public:
 
 	void PluginOpenSetupToolWindow();
 	FReply PluginClickFn(bool text);
-	void OpenPluginSettings() const;
 
 	void PluginOpenPlatWindow();
 
 	/** Meta XR Simulator */
 	void ToggleOpenXRRuntime();
-	void CheckForXRSimUpdate(bool bCheckSkippedVersion = false);
-	void UpdateXRSimToLatest();
-	bool CanUpdatedToLatest();
-	void CreateSESSubMenus(FMenuBuilder& MenuBuilder);
-	void StopSESServer();
-	void LaunchRoom(int32 roomIndex);
 
 public:
 	static const FName OculusPlatToolTabName;

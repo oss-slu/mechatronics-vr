@@ -13,12 +13,12 @@
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidPlatformMisc.h"
+#include "Android/AndroidJNI.h"
 #endif
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
 #if PLATFORM_WINDOWS
 #include "OculusXRSimulator.h"
-#include "OculusXRSyntheticEnvironmentServer.h"
 #endif
 
 #if !PLATFORM_ANDROID
@@ -53,6 +53,57 @@ namespace
 #endif // !PLATFORM_ANDROID
 
 const FName IOculusXRHMDModule::NAME_OculusXRHMD(TEXT("OculusXRHMD"));
+
+#if PLATFORM_ANDROID
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
+
+jmethodID AndroidThunkJava_LaunchQuestSystemUXURL;
+
+DECLARE_DELEGATE_OneParam(FAndroidLaunchURLDelegate, const FString&);
+extern CORE_API FAndroidLaunchURLDelegate OnAndroidLaunchURL;
+
+static FAndroidLaunchURLDelegate OriginalOnAndroidLaunchURL;
+
+// Allow LaunchURL to launch systemux:// intents
+// see https://developers.meta.com/horizon/documentation/unreal/ps-system-deep-linking/
+static void InterceptLaunchURL(const FString& URL)
+{
+	static const TCHAR* Prefix = TEXT("systemux://");
+	static const size_t PrefixLen = FCString::Strlen(Prefix);
+	if (URL.StartsWith(Prefix))
+	{
+		// Split into an Intent and a URI.
+		// For example, systemux://store/item/[id] would be split into
+		//     Intent = systemux://store
+		//     URI = /item/[id]
+		FString Intent = URL;
+		FString URI;
+		FStringView Payload = MakeStringView(Intent).RightChop(PrefixLen);
+		int32 UriStartInPayload = 0;
+		if (Payload.FindChar('/', UriStartInPayload))
+		{
+			URI = Payload.RightChop(UriStartInPayload);
+			Intent.LeftInline(PrefixLen + UriStartInPayload);
+		}
+
+		if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+		{
+			UE_LOG(LogHMD, Display, TEXT("OculusXR: Launching systemux intent \"%s\" with URI \"%s\""), *Intent, *URI);
+
+			auto Arg0 = FJavaHelper::ToJavaString(Env, Intent);
+			auto Arg1 = FJavaHelper::ToJavaString(Env, URI);
+			if (FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, AndroidThunkJava_LaunchQuestSystemUXURL, *Arg0, *Arg1))
+			{
+				// Successfully launched, don't fall through to the original implementation
+				return;
+			}
+		}
+	}
+
+	// Fall through to the original implementation
+	OriginalOnAndroidLaunchURL.ExecuteIfBound(URL);
+}
+#endif
 
 //-------------------------------------------------------------------------------------------------
 // FOculusXRHMDModule
@@ -118,6 +169,18 @@ void FOculusXRHMDModule::StartupModule()
 		const int32_t AcquireOnAnyThread = 1;
 		OpenXRAcquireModeCVar->Set(AcquireOnAnyThread);
 	}
+
+#if PLATFORM_ANDROID
+	if (AndroidThunkCpp_IsOculusMobileApplication())
+	{
+		if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+		{
+			AndroidThunkJava_LaunchQuestSystemUXURL = FJavaWrapper::FindMethod(Env, FJavaWrapper::GameActivityClassID, "AndroidThunkJava_LaunchQuestSystemUXURL", "(Ljava/lang/String;Ljava/lang/String;)Z", true);
+			OriginalOnAndroidLaunchURL = OnAndroidLaunchURL;
+			OnAndroidLaunchURL = FAndroidLaunchURLDelegate::CreateStatic(&InterceptLaunchURL);
+		}
+	}
+#endif
 }
 
 void FOculusXRHMDModule::ShutdownModule()
@@ -150,10 +213,6 @@ OculusXR::FExtensionPluginManager& FOculusXRHMDModule::GetExtensionPluginManager
 {
 	return ExtensionPluginManager;
 }
-
-#if PLATFORM_ANDROID
-extern bool AndroidThunkCpp_IsOculusMobileApplication();
-#endif
 
 FString FOculusXRHMDModule::GetModuleKeyName() const
 {
@@ -487,48 +546,10 @@ bool FOculusXRHMDModule::IsSimulatorInstalled()
 #endif
 }
 
-void FOculusXRHMDModule::CheckForXRSimUpdate(bool bCheckSkippedVersion)
-{
-#if PLATFORM_WINDOWS
-	FMetaXRSimulator::Get().FetchAvailableVersions(bCheckSkippedVersion);
-#endif
-}
-
-void FOculusXRHMDModule::UpdateXRSimToLatest()
-{
-#if PLATFORM_WINDOWS
-	FMetaXRSimulator::Get()
-		.InstallLatestVersion();
-#endif
-}
-
-bool FOculusXRHMDModule::CanUpdatedToLatest()
-{
-#if PLATFORM_WINDOWS
-	return !FMetaXRSimulator::Get().IsLatestVersionInstalled();
-#else
-	return false;
-#endif
-}
-
 void FOculusXRHMDModule::ToggleOpenXRRuntime()
 {
 #if PLATFORM_WINDOWS
 	FMetaXRSimulator::Get().ToggleOpenXRRuntime();
-#endif
-}
-
-void FOculusXRHMDModule::LaunchEnvironment(int32 EnvironmentIndex)
-{
-#if PLATFORM_WINDOWS
-	FMetaXRSES::LaunchEnvironment(EnvironmentIndex);
-#endif
-}
-
-void FOculusXRHMDModule::StopServer()
-{
-#if PLATFORM_WINDOWS
-	FMetaXRSES::StopServer();
 #endif
 }
 
@@ -548,7 +569,10 @@ void* FOculusXRHMDModule::GetOVRPluginHandle()
 	}
 #elif PLATFORM_ANDROID
 	OVRPluginHandle = FPlatformProcess::GetDllHandle(TEXT("libOVRPlugin.so"));
-#endif // PLATFORM_ANDROID
+#elif PLATFORM_MAC
+	FString BinariesPath = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("OculusXR"))->GetBaseDir(), TEXT("/Source/ThirdParty/OVRPlugin/OVRPlugin/Lib/Mac/OpenXR"));
+	OVRPluginHandle = FPlatformProcess::GetDllHandle(*(BinariesPath / "OVRPlugin.dylib"));
+#endif // PLATFORM_MAC
 
 	return OVRPluginHandle;
 }

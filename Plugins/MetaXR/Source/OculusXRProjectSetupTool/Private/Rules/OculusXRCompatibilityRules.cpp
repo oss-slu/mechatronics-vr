@@ -20,7 +20,7 @@
 namespace
 {
 	constexpr int32 MinimumAndroidAPILevel = 32; // With Quest 1 support ending in Jan 2025, API level 29 is no longer supported.
-	constexpr int32 TargetAndroidAPILevel = 32;	 // Target API 32 or higher is required to submit to the Meta Quest Store. See https://developer.oculus.com/blog/meta-quest-apps-android-12l-june-30/
+	constexpr int32 TargetAndroidAPILevel = 34;	 // Target API 34 or higher is required to submit to the Meta Quest Store starting March 1, 2026.
 	constexpr char AndroidNDKVersionNumber[] = "25.1.8937393";
 
 // SDK Max API level is determined by reviewing SetupAndroid.bat for each UE version.

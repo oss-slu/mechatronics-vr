@@ -16,7 +16,7 @@ struct OCULUSXRMOVEMENT_API FOculusXRAnimCurveMapping
 {
 	GENERATED_BODY()
 
-	FOculusXRAnimCurveMapping(){};
+	FOculusXRAnimCurveMapping() {};
 
 	FOculusXRAnimCurveMapping(const std::initializer_list<FName> CurveNamesList)
 		: CurveNames(CurveNamesList)

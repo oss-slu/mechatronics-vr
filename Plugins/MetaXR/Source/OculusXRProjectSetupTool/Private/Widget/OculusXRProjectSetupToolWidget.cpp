@@ -111,16 +111,16 @@ void SOculusXRProjectSetupToolWidget::BuildLayout(const TSharedPtr<SVerticalBox>
 		.AutoHeight()
 			[SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
-					  .AutoHeight()
-					  .Padding(FMargin(18.0f, 20.0f, 18.0f, 16.0f))
-						  [SNew(SWarningOrErrorBox)
-								  .Visibility(this, &SOculusXRProjectSetupToolWidget::OnRestartEditorNoticeVisibility)
-								  .MessageStyle(EMessageStyle::Warning)
-								  .Message(LOCTEXT("PluginSettingsRestartNotice", "You must restart Unreal Editor for your changes to take effect."))
-									  [SNew(SButton)
-											  .OnClicked(this, &SOculusXRProjectSetupToolWidget::OnRestartEditorButtonClicked)
-											  .TextStyle(FAppStyle::Get(), "NormalText")
-											  .Text(LOCTEXT("PluginSettingsRestartEditor", "Restart Now"))]]];
+					.AutoHeight()
+					.Padding(FMargin(18.0f, 20.0f, 18.0f, 16.0f))
+						[SNew(SWarningOrErrorBox)
+								.Visibility(this, &SOculusXRProjectSetupToolWidget::OnRestartEditorNoticeVisibility)
+								.MessageStyle(EMessageStyle::Warning)
+								.Message(LOCTEXT("PluginSettingsRestartNotice", "You must restart Unreal Editor for your changes to take effect."))
+									[SNew(SButton)
+											.OnClicked(this, &SOculusXRProjectSetupToolWidget::OnRestartEditorButtonClicked)
+											.TextStyle(FAppStyle::Get(), "NormalText")
+											.Text(LOCTEXT("PluginSettingsRestartEditor", "Restart Now"))]]];
 }
 
 /**
@@ -202,11 +202,11 @@ void SOculusXRProjectSetupToolWidget::BuildTitleSectionLayout(const TSharedPtr<S
 					.OnClicked(this, &SOculusXRProjectSetupToolWidget::OnReportIssueClicked)
 						[SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()
-								  .AutoWidth()
-								  .HAlign(HAlign_Center)
-									  [SNew(SImage)
-											  .Image(FOculusXRProjectSetupToolModule::GetSlateStyle()->GetBrush("ProjectSetupTool.FeedbackIcon"))
-											  .ColorAndOpacity(FSlateColor::UseForeground())]]];
+								.AutoWidth()
+								.HAlign(HAlign_Center)
+									[SNew(SImage)
+											.Image(FOculusXRProjectSetupToolModule::GetSlateStyle()->GetBrush("ProjectSetupTool.FeedbackIcon"))
+											.ColorAndOpacity(FSlateColor::UseForeground())]]];
 
 	ButtonWidget->AddSlot()
 		.HAlign(HAlign_Center)
@@ -223,11 +223,11 @@ void SOculusXRProjectSetupToolWidget::BuildTitleSectionLayout(const TSharedPtr<S
 					.ButtonContent()
 						[SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()
-								  .AutoWidth()
-								  .HAlign(HAlign_Center)
-									  [SNew(SImage)
-											  .Image(FAppStyle::Get().GetBrush("Icons.Toolbar.Settings"))
-											  .ColorAndOpacity(FSlateColor::UseForeground())]]];
+								.AutoWidth()
+								.HAlign(HAlign_Center)
+									[SNew(SImage)
+											.Image(FAppStyle::Get().GetBrush("Icons.Toolbar.Settings"))
+											.ColorAndOpacity(FSlateColor::UseForeground())]]];
 
 	// Top level container for the whole row
 	const TSharedPtr<SHorizontalBox> RowWidget = SNew(SHorizontalBox);
@@ -294,19 +294,19 @@ void SOculusXRProjectSetupToolWidget::BuildFilterSectionLayout(const TSharedPtr<
 											.OnClicked(this, &SOculusXRProjectSetupToolWidget::OnPlatformFilterChanged, Platform)
 												[SNew(SHorizontalBox)
 													+ SHorizontalBox::Slot()
-														  .Padding(0, 3, 3, 3)
-															  [SNew(SImage)
-																	  .Image(
-																		  FOculusXRProjectSetupToolModule::GetSlateStyle()
-																			  ->GetBrush(OculusXRPSTUtils::GetDisplayName(
-																				  Platform)))
-																	  .ColorAndOpacity(FSlateColor::UseForeground())]
+														.Padding(0, 3, 3, 3)
+															[SNew(SImage)
+																	.Image(
+																		FOculusXRProjectSetupToolModule::GetSlateStyle()
+																			->GetBrush(OculusXRPSTUtils::GetDisplayName(
+																				Platform)))
+																	.ColorAndOpacity(FSlateColor::UseForeground())]
 													+ SHorizontalBox::Slot()
-														  .Padding(3, 0, 0, 0)
-														  .AutoWidth()
-														  .VAlign(VAlign_Center)
-															  [SNew(STextBlock)
-																	  .Text(FText::FromString(OculusXRPSTUtils::GetDisplayName(Platform)))]]]]];
+														.Padding(3, 0, 0, 0)
+														.AutoWidth()
+														.VAlign(VAlign_Center)
+															[SNew(STextBlock)
+																	.Text(FText::FromString(OculusXRPSTUtils::GetDisplayName(Platform)))]]]]];
 	}
 
 	// Add into the root container
@@ -394,11 +394,11 @@ TSharedPtr<SVerticalBox> SOculusXRProjectSetupToolWidget::BuildRulesContainerLay
 						.ButtonContent()
 							[SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
-									  .AutoWidth()
-									  .HAlign(HAlign_Center)
-										  [SNew(SImage)
-												  .Image(FAppStyle::Get().GetBrush("PropertyWindow.Button_Ellipsis"))
-												  .ColorAndOpacity(FSlateColor::UseForeground())]]];
+									.AutoWidth()
+									.HAlign(HAlign_Center)
+										[SNew(SImage)
+												.Image(FAppStyle::Get().GetBrush("PropertyWindow.Button_Ellipsis"))
+												.ColorAndOpacity(FSlateColor::UseForeground())]]];
 	}
 
 	// Splitter so each row can contain Name | Description | Buttons
@@ -589,11 +589,11 @@ void SOculusXRProjectSetupToolWidget::BuildRowItemLayout(const TSharedPtr<SVerti
 					.ButtonContent()
 						[SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()
-								  .AutoWidth()
-								  .HAlign(HAlign_Center)
-									  [SNew(SImage)
-											  .Image(FAppStyle::Get().GetBrush("PropertyWindow.Button_Ellipsis"))
-											  .ColorAndOpacity(FSlateColor::UseForeground())]]];
+								.AutoWidth()
+								.HAlign(HAlign_Center)
+									[SNew(SImage)
+											.Image(FAppStyle::Get().GetBrush("PropertyWindow.Button_Ellipsis"))
+											.ColorAndOpacity(FSlateColor::UseForeground())]]];
 
 	// Splitter so each row can contain Name | Description | Buttons
 	const TSharedPtr<SSplitter> Splitter = SNew(SSplitter)
@@ -637,16 +637,16 @@ void SOculusXRProjectSetupToolWidget::BuildRowItemLayout(const TSharedPtr<SVerti
 								.MinDesiredHeight(26.0f)
 									[SNew(SHorizontalBox)
 										+ SHorizontalBox::Slot()
-											  .HAlign(HAlign_Fill)
-											  .VAlign(VAlign_Fill)
-												  [SNew(SBorder)
-														  .BorderImage(FAppStyle::Get().GetBrush("DetailsView.Highlight"))
-														  .Padding(0)
-															  [SNew(SBorder)
-																	  .BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
-																	  .BorderBackgroundColor(FAppStyle::Get().GetSlateColor("Colors.Panel"))
-																	  .Padding(0)
-																		  [RowWidget.ToSharedRef()]]]]]];
+											.HAlign(HAlign_Fill)
+											.VAlign(VAlign_Fill)
+												[SNew(SBorder)
+														.BorderImage(FAppStyle::Get().GetBrush("DetailsView.Highlight"))
+														.Padding(0)
+															[SNew(SBorder)
+																	.BorderImage(FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle"))
+																	.BorderBackgroundColor(FAppStyle::Get().GetSlateColor("Colors.Panel"))
+																	.Padding(0)
+																		[RowWidget.ToSharedRef()]]]]]];
 }
 
 /**

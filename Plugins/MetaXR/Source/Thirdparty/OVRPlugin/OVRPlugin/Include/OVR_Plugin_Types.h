@@ -26,10 +26,11 @@
 #define OVRP_STRINGIFY(x) OVRP_STRINGIFYIMPL(x)
 #endif
 
-// Note: OVRP_MINOR_VERSION == OCULUS_SDK_VERSION + 32
+// Note: OVRP_MINOR_VERSION == OCULUS_SDK_VERSION + 32 for OVRP_MINOR_VERSION < 200
+// Otherwise, OVRP_MINOR_VERSION == OCULUS_SDK_VERSION
 
 #define OVRP_MAJOR_VERSION 1
-#define OVRP_MINOR_VERSION 113
+#define OVRP_MINOR_VERSION 205
 #define OVRP_PATCH_VERSION 0
 
 #define OVRP_VERSION OVRP_MAJOR_VERSION, OVRP_MINOR_VERSION, OVRP_PATCH_VERSION
@@ -273,6 +274,11 @@ typedef enum {
 
 
 
+
+
+
+
+
   ovrpInitializeFlag_EnumSize = 0x7fffffff
 
 } ovrpInitializeFlags;
@@ -299,7 +305,7 @@ typedef enum {
   ovrpEye_None = -1,
   ovrpEye_Left = 0,
   ovrpEye_Right = 1,
-  ovrpEye_Count,
+  ovrpEye_Count = 2,
   ovrpEye_EnumSize = 0x7fffffff
 } ovrpEye;
 
@@ -350,6 +356,11 @@ typedef enum {
 
   ovrpNode_ControllerLeft = 12,
   ovrpNode_ControllerRight = 13,
+
+
+
+
+
   ovrpNode_Count,
   ovrpNode_EnumSize = 0x7fffffff
 } ovrpNode;
@@ -421,7 +432,11 @@ typedef enum {
   ovrpSystemHeadset_Meta_Quest_Pro, // Meta Quest Pro
   ovrpSystemHeadset_Meta_Quest_3, // Meta Quest 3
   ovrpSystemHeadset_Meta_Quest_3S, // Meta Quest 3S
+
+
+
   ovrpSystemHeadset_Placeholder_13,
+
   ovrpSystemHeadset_Placeholder_14,
   ovrpSystemHeadset_Placeholder_15,
   ovrpSystemHeadset_Placeholder_16,
@@ -441,7 +456,11 @@ typedef enum {
   ovrpSystemHeadset_Meta_Link_Quest_Pro, // Meta Quest Pro connected through Link
   ovrpSystemHeadset_Meta_Link_Quest_3, // Meta Quest 3 connected through Link
   ovrpSystemHeadset_Meta_Link_Quest_3S, // Meta Quest 3S connected through Link
+
+
+
   ovrpSystemHeadset_PC_Placeholder_4106,
+
   ovrpSystemHeadset_PC_Placeholder_4107,
   ovrpSystemHeadset_PC_Placeholder_4108,
   ovrpSystemHeadset_PC_Placeholder_4109,
@@ -1007,47 +1026,43 @@ typedef struct {
   ovrpUInt32* SamplesConsumed;
 } ovrpHapticsPcmVibration;
 
+typedef struct {
+  ovrpInt64 Time; // in nanoseconds
+  float Value; // normalized, between 0.0 and 1.0
+} ovrpHapticsParametricPoint;
 
+typedef struct {
+  ovrpInt64 Time; // in nanoseconds
+  float Amplitude; // normalized, between 0.0 and 1.0
+  float Frequency; // normalized, between 0.0 and 1.0
+} ovrpHapticsParametricTransient;
 
+typedef enum {
+  ovrpParametricStreamFrameType_None = 0,
+  ovrpParametricStreamFrameType_FirstFrame = 1,
+  ovrpParametricStreamFrameType_IntermediateFrame = 2,
+  ovrpParametricStreamFrameType_LastFrame = 3,
+  ovrpParametricStreamFrameType_MaxEnum = 0x7FFFFFFF
+} ovrpHapticsParametricStreamFrameType;
 
+typedef struct {
+  ovrpUInt32 AmplitudePointCount;
+  const ovrpHapticsParametricPoint* AmplitudePoints;
+  ovrpUInt32 FrequencyPointCount;
+  const ovrpHapticsParametricPoint* FrequencyPoints;
+  ovrpUInt32 TransientCount;
+  const ovrpHapticsParametricTransient* Transients;
+  float MinFrequencyHz;
+  float MaxFrequencyHz;
+  ovrpHapticsParametricStreamFrameType StreamFrameType;
+} ovrpHapticsParametricVibration;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+typedef struct {
+  ovrpInt64 IdealFrameSubmissionRate; // in nanoseconds
+  ovrpInt64 MinimumFirstFrameDuration; // in nanoseconds
+  float MinFrequencyHz;
+  float MaxFrequencyHz;
+} ovrpHapticsParametricProperties;
 
 typedef enum ovrpHapticsConstants_ {
   ovrpHapticsConstants_MaxSamples = 4000,
@@ -1239,6 +1254,9 @@ typedef enum {
   ovrpShape_Fisheye = 9,
   ovrpShape_KeyboardHandsPassthrough = 10,
   ovrpShape_KeyboardMaskedHandsPassthrough = 11,
+
+
+
   ovrpShape_EnumSize = 0xF
 } ovrpShape;
 
@@ -1341,19 +1359,31 @@ typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Cylinder;
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Cubemap;
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_InsightPassthrough;
 
-typedef struct {
-  OVRP_LAYER_DESC_TYPE;
-  ovrpFovf Fov[ovrpEye_Count];
-  ovrpRectf VisibleRect[ovrpEye_Count];
-  ovrpSizei MaxViewportSize;
-  // added for 1.17
-  ovrpTextureFormat DepthFormat;
+#define OVRP_LAYER_DESC_EYE_FOV                \
+  struct {                                     \
+    OVRP_LAYER_DESC_TYPE;                      \
+    ovrpFovf Fov[ovrpEye_Count];               \
+    ovrpRectf VisibleRect[ovrpEye_Count];      \
+    ovrpSizei MaxViewportSize;                 \
+    /* added for 1.17 */                       \
+    ovrpTextureFormat DepthFormat;             \
+    /* added for 1.49 */                       \
+    ovrpTextureFormat MotionVectorFormat;      \
+    ovrpTextureFormat MotionVectorDepthFormat; \
+    ovrpSizei MotionVectorTextureSize;         \
+  }
 
-  // added for 1.49
-  ovrpTextureFormat MotionVectorFormat;
-  ovrpTextureFormat MotionVectorDepthFormat;
-  ovrpSizei MotionVectorTextureSize;
-} ovrpLayerDesc_EyeFov;
+typedef OVRP_LAYER_DESC_EYE_FOV ovrpLayerDesc_EyeFov;
+
+
+
+
+
+
+
+
+
+
 
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_OffcenterCubemap;
 typedef OVRP_LAYER_DESC_TYPE ovrpLayerDesc_Equirect;
@@ -1371,6 +1401,9 @@ typedef union {
   ovrpLayerDesc_ScaledEquirect ScaledEquirect;
   ovrpLayerDesc_Fisheye Fisheye;
   ovrpLayerDesc_InsightPassthrough InsightPassthrough;
+
+
+
 } ovrpLayerDescUnion;
 
 #undef OVRP_LAYER_DESC
@@ -1487,21 +1520,39 @@ typedef struct {
 
 typedef OVRP_LAYER_SUBMIT_TYPE ovrpLayerSubmit_Cubemap;
 
-typedef struct {
-  OVRP_LAYER_SUBMIT_TYPE;
-  // added in 1.18
-  ovrpOctilinearLayout OctilinearLayout[ovrpEye_Count];
-  float DepthNear;
-  float DepthFar;
-  // added in 1.44
-  ovrpFovf Fov[ovrpEye_Count];
-  // added in 1.49
-  float MotionVectorDepthNear;
-  float MotionVectorDepthFar;
-  ovrpVector4f MotionVectorScale;
-  ovrpVector4f MotionVectorOffset;
-  ovrpPosef AppSpaceDeltaPose;
-} ovrpLayerSubmit_EyeFov;
+#define OVRP_LAYER_SUBMIT_EYE_FOV                         \
+  struct {                                                \
+    OVRP_LAYER_SUBMIT_TYPE;                               \
+    /* added in 1.18 */                                   \
+    ovrpOctilinearLayout OctilinearLayout[ovrpEye_Count]; \
+    float DepthNear;                                      \
+    float DepthFar;                                       \
+    /* added in 1.44 */                                   \
+    ovrpFovf Fov[ovrpEye_Count];                          \
+    /* added in 1.49 */                                   \
+    float MotionVectorDepthNear;                          \
+    float MotionVectorDepthFar;                           \
+    ovrpVector4f MotionVectorScale;                       \
+    ovrpVector4f MotionVectorOffset;                      \
+    ovrpPosef AppSpaceDeltaPose;                          \
+  }
+
+typedef OVRP_LAYER_SUBMIT_EYE_FOV ovrpLayerSubmit_EyeFov;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 typedef OVRP_LAYER_SUBMIT_TYPE ovrpLayerSubmit_OffcenterCubemap;
 typedef OVRP_LAYER_SUBMIT_TYPE ovrpLayerSubmit_Equirect;
@@ -1529,6 +1580,9 @@ typedef union {
   ovrpLayerSubmit_Equirect Equirect;
   ovrpLayerSubmit_ScaledEquirect ScaledEquirect;
   ovrpLayerSubmit_Fisheye Fisheye;
+
+
+
 } ovrpLayerSubmitUnion;
 
 typedef enum {
@@ -2344,22 +2398,9 @@ typedef enum {
 
 
 
-
-
-
-
-
-
-
-
-
 typedef struct ovrpHandTrackingState_ {
   // Microgesture prediction
   ovrpMicrogestureType Microgesture;
-
-
-
-
 
 
 
@@ -2553,6 +2594,10 @@ typedef enum ovrpEventType_ {
 
 
   ovrpEventType_ReferenceSpaceChangePending = 1160,
+
+
+
+
 } ovrpEventType;
 
 // biggest event that OVRPlugin can use
@@ -2976,9 +3021,7 @@ typedef enum {
 
   // XR_META_dynamic_object_tracker
   ovrpSpaceComponentType_DynamicObject = 1000288007,
-
-
-
+  ovrpSpaceComponentType_RoomMesh = 1000553000,
 
 
 
@@ -3302,30 +3345,6 @@ typedef struct ovrpTriangleMesh_ {
   int* indices;
 } ovrpTriangleMesh;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 typedef enum {
   ovrpInteractionProfile_None = 0,
   ovrpInteractionProfile_Touch = 1,
@@ -3334,6 +3353,10 @@ typedef enum {
 
 
   ovrpInteractionProfile_TouchPlus = 4,
+
+
+
+  ovrpInteractionProfile_ExtHandInteraction = 6,
   ovrpInteractionProfile_EnumSize = 0x7fffffff
 } ovrpInteractionProfile;
 
@@ -3512,45 +3535,39 @@ typedef struct ovrpEventDataBoundaryVisibilityChanged_ {
   ovrpBoundaryVisibility BoundaryVisibility;
 } ovrpEventDataBoundaryVisibilityChanged;
 
+// align XrSemanticLabelMETA values with OVRSemanticLabels.cs Classification enum
+// arvr/projects/integrations/Unity/UOIAssets/Assets/Oculus/VR/Scripts/OVRAnchor/OVRAnchorComponents/OVRSemanticLabels.cs
+typedef enum {
+  ovrpSemanticLabel_Floor = 0,
+  ovrpSemanticLabel_Ceiling = 1,
+  ovrpSemanticLabel_WallFace = 2,
+  ovrpSemanticLabel_DoorFrame = 5,
+  ovrpSemanticLabel_WindowFrame = 6,
+  ovrpSemanticLabel_InvisibleWallFace = 15,
+  ovrpSemanticLabel_Unknown = 17,
+  ovrpSemanticLabel_InnerWallFace = 18,
+} ovrpSemanticLabel;
 
+typedef struct ovrpRoomFace_ {
+  ovrpUuid uuid;
+  ovrpUuid parentUuid;
+  ovrpSemanticLabel semanticLabel;
+} ovrpRoomFace;
 
+typedef struct ovrpRoomFaceIndices_ {
+  ovrpUInt32 indexCapacityInput;
+  ovrpUInt32 indexCountOutput;
+  ovrpUInt32* indices;
+} ovrpRoomFaceIndices;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+typedef struct ovrpRoomMesh_ {
+  ovrpUInt32 vertexCapacityInput;
+  ovrpUInt32 vertexCountOutput;
+  ovrpVector3f* vertices;
+  ovrpUInt32 faceCapacityInput;
+  ovrpUInt32 faceCountOutput;
+  ovrpRoomFace* faces;
+} ovrpRoomMesh;
 
 typedef struct ovrpEnvironmentDepthTextureDesc_ {
   ovrpSizei TextureSize;
@@ -3937,6 +3954,7 @@ typedef struct ovrpFutureCompletion_ {
 } ovrpFutureCompletion;
 
 typedef void (*ovrpOpenXrEventHandler)(void* data, void* context);
+typedef void (*ovrpShutdownEventHandler)(void* context);
 
 typedef enum {
   ovrpApertureType_Immersive,
@@ -3965,6 +3983,19 @@ typedef struct ovrpEventDataReferenceSpaceChangePending_ {
 typedef enum {
   ovrpAllowRecentering = 1 << 0,
 } ovrpExternalSpaceFlags;
+
+typedef struct ovrpDynamicPerformanceInfo {
+  float GpuFidelity;
+  float CpuFidelity;
+} ovrpDynamicPerformanceInfo;
+
+
+
+
+
+
+
+
 
 
 

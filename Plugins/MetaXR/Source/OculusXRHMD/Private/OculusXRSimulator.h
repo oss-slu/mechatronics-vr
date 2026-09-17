@@ -25,32 +25,12 @@ public:
 
 	bool IsSimulatorActivated();
 	void ToggleOpenXRRuntime();
-	FString GetPackagePath() const;
-	bool IsSimulatorInstalled();
-	TArray<FString> GetInstalledVersions() const;
-	void FetchAvailableVersions(bool bCheckSkippedVersion);
-	void InstallLatestVersion();
-	bool IsLatestVersionInstalled();
+	bool IsSimulatorInstalled() const;
 
 private:
-	struct FMetaXRSimulatorVersion
-	{
-		FString DownloadUrl;
-		FString Version;
-		double UrlValidity;
-	};
-
-	void SpawnNotificationToUpdateIfAvailable(bool bCheckSkippedVersion);
+	static void SpawnNotificationToInstallXRSim();
 	FMetaXRSimulator();
 	~FMetaXRSimulator() = default;
-	FString GetSimulatorJsonPath();
-	void InstallSimulator(const FString& URL, const FString& Version, TFunction<void()> OnSuccess);
-	static FString GetPluginVersion();
-	void UnzipSimulator(const FString& Path, const FString& TargetPath, const TSharedPtr<SNotificationItem>& Notification, TFunction<void()> OnSuccess);
-
-	const FString InstallationPath;
-
-	TArray<FMetaXRSimulatorVersion> AvailableVersions;
-	TOptional<FMetaXRSimulatorVersion> MaxAvailableVersion;
+	FString GetSimulatorJsonPath() const;
 };
 #endif

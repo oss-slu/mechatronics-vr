@@ -38,7 +38,7 @@ public:
 	/**
 	 * Reset the rotation values of the eyes to their initial rotation
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Oculus|Movement")
+	UFUNCTION(BlueprintCallable, Category = "OculusXR|Movement")
 	void ClearRotationValues();
 
 	/**
@@ -83,9 +83,6 @@ public:
 
 private:
 	bool InitializeEyes();
-
-	// One meter in unreal world units.
-	float WorldToMeters;
 
 	// Per eye, eye tracking data
 	TStaticArray<FOculusXREyeTrackingData, static_cast<uint32>(EOculusXREye::COUNT)> PerEyeData;

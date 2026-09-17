@@ -6,23 +6,28 @@
 #include "MRUtilityKit.h"
 #include "OculusXRAnchorTypes.h"
 #include "OculusXRHMDRuntimeSettings.h"
-#include "OculusXRAnchorTypes.h"
 
-MRUKShared::MrukUuid ToMrukShared(const FOculusXRUUID& Uuid);
+MRUKShared::Uuid ToMrukShared(const FOculusXRUUID& Uuid);
 
-FOculusXRUUID ToUnreal(const MRUKShared::MrukUuid& Uuid);
+MRUKShared::SceneModel ToMrukShared(EMRUKSceneModel SceneModel);
 
-FBox3d ToUnreal(const UWorld* World, const MRUKShared::MrukVolume& Volume);
+EMRUKSceneModel ToUnreal(MRUKShared::SceneModel SceneModel);
 
-FBox2d ToUnreal(const UWorld* World, const MRUKShared::MrukPlane& Plane);
+FOculusXRUUID ToUnreal(const MRUKShared::Uuid& Uuid);
+
+FBox3d ToUnreal(const UWorld* World, const MRUKShared::Volume& Volume);
+
+FBox2d ToUnreal(const UWorld* World, const MRUKShared::Plane& Plane);
 
 TArray<FVector2D> ToUnreal(const UWorld* World, const FVector2f* const Boundary, uint32_t BoundaryCount);
 
-FString ToUnreal(MRUKShared::MrukLabel Label);
+FString ToUnreal(MRUKShared::Label Label);
+
+MRUKShared::Label LabelToMrukShared(const FString& Label);
 
 uint32_t ToMrukSharedSurfaceTypes(int32 ComponentTypes);
 
-MRUKShared::MrukLabelFilter ToMrukShared(const FMRUKLabelFilter LabelFilter);
+MRUKShared::LabelFilter ToMrukShared(const FMRUKLabelFilter LabelFilter);
 
 FVector UnitVectorToUnreal(const FVector3f& UnitVector);
 
@@ -32,10 +37,10 @@ FVector PositionToUnreal(const FVector3f& Position, const float WorldToMeters);
 
 FVector3f PositionToMrukShared(const FVector& Position, const float WorldToMeters);
 
-FQuat ToUnreal(const MRUKShared::MrukQuatf& Q);
+FQuat ToUnreal(const MRUKShared::Quatf& Q);
 
-MRUKShared::MrukQuatf ToMrukShared(const FQuat& Q);
+MRUKShared::Quatf ToMrukShared(const FQuat& Q);
 
-FTransform ToUnreal(const MRUKShared::MrukPosef& Pose, const float WorldToMeters);
+FTransform ToUnreal(const MRUKShared::Posef& Pose, const float WorldToMeters);
 
-MRUKShared::MrukPosef ToMrukShared(const FTransform& Transform, const float WorldToMeters);
+MRUKShared::Posef ToMrukShared(const FTransform& Transform, const float WorldToMeters);

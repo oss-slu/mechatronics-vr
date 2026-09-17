@@ -2,20 +2,18 @@
 
 #pragma once
 
-#include <functional>
-#include <mutex>
-
-#include "khronos/openxr/openxr.h"
 #include "IOpenXRExtensionPlugin.h"
 #include "OculusXRHMDTypes.h"
 #include "Shader.h"
 #include "Misc/EngineVersionComparison.h"
+#include "khronos/openxr/openxr.h"
 
 class FMRUKOpenXrExtensionPlugin : public IOpenXRExtensionPlugin
 {
 public:
 	void (*OpenXrEventHandler)(void* Data, void* Context) = nullptr;
 	void* Context = nullptr;
+	class UMRUKSubsystem* MrukSubsystem = nullptr;
 
 	void RegisterAsOpenXRExtension();
 
@@ -24,4 +22,6 @@ public:
 	virtual bool GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
 
 	virtual void OnEvent(XrSession InSession, const XrEventDataBaseHeader* InHeader) override;
+
+	virtual void PostCreateSession(XrSession InSession) override;
 };

@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "OculusXRHMDTypes.h"
 #include "OculusXRHMD_Settings.h"
+#include "IStereoLayers.h"
 #include "OpenXR/IOculusXRExtensionPlugin.h"
+
+class IOpenXRHMD;
 
 namespace OculusXR
 {
@@ -30,12 +33,16 @@ namespace OculusXR
 		virtual void OnBeginRendering_GameThread(XrSession InSession, FSceneViewFamily& InViewFamily, TArrayView<const uint32> VisibleLayers) override;
 #endif
 
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+		virtual void OnCreateLayer(uint32 LayerId) override;
+		virtual void OnDestroyLayer(uint32 LayerId) override;
+		virtual void OnSetLayerDesc(uint32 LayerId) override;
+#endif
+
 #if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void UpdateCompositionLayers(XrSession InSession, TArray<XrCompositionLayerBaseHeader*>& Headers) override;
 #else
 		virtual void UpdateCompositionLayers_RHIThread(XrSession InSession, TArray<XrCompositionLayerBaseHeader*>& Headers) override;
-#endif
 #endif
 		void SetEnableLocalDimming(bool Enable);
 		void SetEyeBufferSharpenType(EOculusXREyeBufferSharpenType EyeBufferSharpenType);
@@ -43,11 +50,15 @@ namespace OculusXR
 
 	private:
 		void UpdatePixelDensity(const XrCompositionLayerBaseHeader* LayerHeader);
+		bool LayerNeedsPokeAHole(const IStereoLayers::FLayerDesc& LayerDesc);
+		AActor* CreatePokeAHoleActor(uint32 LayerId, const IStereoLayers::FLayerDesc& LayerDesc);
+		void UpdatePokeAHoleActor(AActor* PokeAHoleActor, const IStereoLayers::FLayerDesc& LayerDesc);
 
 		XrSession Session;
 		bool bExtLocalDimmingAvailable;
 		bool bExtCompositionLayerSettingsAvailable;
 		bool bRecommendedResolutionExtensionAvailable;
+		bool bExtCompositionLayerInvertedAlphaAvailable;
 
 		XrLocalDimmingModeMETA LocalDimmingMode_RHIThread;
 		XrLocalDimmingFrameEndInfoMETA LocalDimmingExt_RHIThread;
@@ -59,7 +70,7 @@ namespace OculusXR
 			FColorScaleInfo()
 				: ColorScale{ 1.0f, 1.0f, 1.0f, 1.0f }
 				, ColorOffset{ 0.0f, 0.0f, 0.0f, 0.0f }
-				, bApplyColorScaleAndOffsetToAllLayers(false){};
+				, bApplyColorScaleAndOffsetToAllLayers(false) {};
 			FLinearColor ColorScale;
 			FLinearColor ColorOffset;
 			bool bApplyColorScaleAndOffsetToAllLayers;
@@ -74,6 +85,10 @@ namespace OculusXR
 		OculusXRHMD::FSettingsPtr Settings_GameThread;
 		XrTime PredictedDisplayTime_RHIThread;
 		float MaxPixelDensity_RenderThread;
+
+		bool bSupportDepthComposite;
+		TMap<uint32, TWeakObjectPtr<AActor>> LayerActorMap;
+		TArray<uint32> PokeAHoleLayerIndices_RHIThread;
 	};
 
 } // namespace OculusXR

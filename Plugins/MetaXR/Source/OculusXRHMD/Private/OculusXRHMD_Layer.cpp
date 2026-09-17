@@ -11,7 +11,6 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "HeadMountedDisplayTypes.h" // for LogHMD
 #include "OculusXRHMD.h"
-#include "XRThreadUtils.h"
 #include "Engine/RendererSettings.h"
 #include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
@@ -42,7 +41,7 @@ namespace OculusXRHMD
 	{
 		if (IsInGameThread())
 		{
-			ExecuteOnRenderThread([OvrpLayerId = this->OvrpLayerId, DeferredDeletion = this->DeferredDeletion]() {
+			RunOnRenderingThreadAndWait([OvrpLayerId = this->OvrpLayerId, DeferredDeletion = this->DeferredDeletion](FRHICommandListImmediate& RHICmdList) {
 				DeferredDeletion->AddOVRPLayerToDeferredDeletionQueue(OvrpLayerId);
 			});
 		}
@@ -203,7 +202,7 @@ namespace OculusXRHMD
 				TArray<FLinearColor> VertexColors;
 				TArray<FProcMeshTangent> Tangents;
 
-				BuildPokeAHoleMesh(Vertices, Triangles, UV0);
+				BuildPokeAHoleMesh(Desc, Vertices, Triangles, UV0);
 				PokeAHoleComponentPtr->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, false);
 
 				FOculusXRHMD* OculusXRHMD = static_cast<FOculusXRHMD*>(GEngine->XRSystem->GetHMDDevice());
@@ -251,23 +250,23 @@ namespace OculusXRHMD
 	};
 #endif
 
-	void FLayer::BuildPokeAHoleMesh(TArray<FVector>& Vertices, TArray<int32>& Triangles, TArray<FVector2D>& UV0)
+	void FLayer::BuildPokeAHoleMesh(const IStereoLayers::FLayerDesc& LayerDesc, TArray<FVector>& Vertices, TArray<int32>& Triangles, TArray<FVector2D>& UV0)
 	{
-		if (Desc.HasShape<FQuadLayer>())
+		if (LayerDesc.HasShape<FQuadLayer>())
 		{
 			const float QuadScale = 0.99;
 
 #if UE_VERSION_OLDER_THAN(5, 6, 0)
-			FIntPoint TexSize = Desc.Texture.IsValid() ? Desc.Texture->GetTexture2D()->GetSizeXY() : Desc.LayerSize;
+			FIntPoint TexSize = LayerDesc.Texture.IsValid() ? LayerDesc.Texture->GetTexture2D()->GetSizeXY() : LayerDesc.LayerSize;
 #else
-			FTextureRHIRef TextureRHI = GetTextureRHI(Desc.TextureObj);
-			FIntPoint TexSize = TextureRHI.IsValid() && TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D ? TextureRHI->GetSizeXY() : Desc.LayerSize;
+			FTextureRHIRef TextureRHI = GetTextureRHI(LayerDesc.TextureObj);
+			FIntPoint TexSize = TextureRHI.IsValid() && TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D ? TextureRHI->GetSizeXY() : LayerDesc.LayerSize;
 #endif
 
 			float AspectRatio = TexSize.X ? (float)TexSize.Y / (float)TexSize.X : 3.0f / 4.0f;
 
-			float QuadSizeX = Desc.QuadSize.X;
-			float QuadSizeY = (Desc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO) ? Desc.QuadSize.X * AspectRatio : Desc.QuadSize.Y;
+			float QuadSizeX = LayerDesc.QuadSize.X;
+			float QuadSizeY = (LayerDesc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO) ? LayerDesc.QuadSize.X * AspectRatio : LayerDesc.QuadSize.Y;
 
 			Vertices.Init(FVector::ZeroVector, 4);
 			Vertices[0] = FVector(0.0, -QuadSizeX / 2, -QuadSizeY / 2) * QuadScale;
@@ -284,24 +283,14 @@ namespace OculusXRHMD
 			Triangles.Reserve(6);
 			AppendFaceIndices(0, 1, 2, 3, Triangles, false);
 		}
-		else if (Desc.HasShape<FCylinderLayer>())
+		else if (LayerDesc.HasShape<FCylinderLayer>())
 		{
-			const FCylinderLayer& CylinderProps = Desc.GetShape<FCylinderLayer>();
+			const FCylinderLayer& CylinderProps = LayerDesc.GetShape<FCylinderLayer>();
 			const float CylinderScale = 0.99;
-
-#if UE_VERSION_OLDER_THAN(5, 6, 0)
-			FIntPoint TexSize = Desc.Texture.IsValid() ? Desc.Texture->GetTexture2D()->GetSizeXY() : Desc.LayerSize;
-#else
-			FTextureRHIRef TextureRHI = GetTextureRHI(Desc.TextureObj);
-			FIntPoint TexSize = TextureRHI.IsValid() && TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D ? TextureRHI->GetSizeXY() : Desc.LayerSize;
-#endif
-			float AspectRatio = TexSize.X ? (float)TexSize.Y / (float)TexSize.X : 3.0f / 4.0f;
-
-			float CylinderHeight = (Desc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO) ? CylinderProps.OverlayArc * AspectRatio : CylinderProps.Height;
 
 			const FVector XAxis = FVector(1, 0, 0);
 			const FVector YAxis = FVector(0, 1, 0);
-			const FVector HalfHeight = FVector(0, 0, CylinderHeight / 2);
+			const FVector HalfHeight = FVector(0, 0, CylinderProps.Height / 2);
 
 			const float ArcAngle = CylinderProps.OverlayArc / CylinderProps.Radius;
 			const int Sides = (int)((ArcAngle * 180) / (PI * 5)); // one triangle every 10 degrees of cylinder for a good-cheap approximation
@@ -334,7 +323,7 @@ namespace OculusXRHMD
 				}
 			}
 		}
-		else if (Desc.HasShape<FCubemapLayer>())
+		else if (LayerDesc.HasShape<FCubemapLayer>())
 		{
 			const float CubemapScale = 1000;
 			Vertices.Init(FVector::ZeroVector, 8);
@@ -373,13 +362,21 @@ namespace OculusXRHMD
 		PassthoughPokeComponentPtr->RegisterComponent();
 
 		const TArray<int32>& Triangles = PassthroughMesh->GetTriangles();
-		const TArray<FVector>& Vertices = PassthroughMesh->GetVertices();
+		const TArray<FVector3f>& Vertices = PassthroughMesh->GetVertices();
+
+		TArray<FVector> VerticesDoublePrecision;
+		VerticesDoublePrecision.Reserve(Vertices.Num());
+		for (const FVector3f& Vert : Vertices)
+		{
+			VerticesDoublePrecision.Add(FVector(Vert));
+		}
+
 		TArray<FVector> Normals;
 		TArray<FVector2D> UV0;
 		TArray<FLinearColor> VertexColors;
 		TArray<FProcMeshTangent> Tangents;
 
-		PassthoughPokeComponentPtr->CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, false);
+		PassthoughPokeComponentPtr->CreateMeshSection_LinearColor(0, VerticesDoublePrecision, Triangles, Normals, UV0, VertexColors, Tangents, false);
 
 		FOculusXRHMD* OculusXRHMD = static_cast<FOculusXRHMD*>(GEngine->XRSystem->GetHMDDevice());
 		UMaterial* PokeAHoleMaterial = OculusXRHMD->GetResourceHolder()->PokeAHoleMaterial;
@@ -439,7 +436,7 @@ namespace OculusXRHMD
 				}
 			}
 
-			for (FString Entry : ItemsToRemove)
+			for (const FString& Entry : ItemsToRemove)
 			{
 				FPassthroughPokeActor* PassthroughPokeActor = PassthroughPokeActorMap->Find(Entry);
 				if (PassthroughPokeActor)
@@ -498,7 +495,7 @@ namespace OculusXRHMD
 
 	bool FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* CustomPresent, FDeferredDeletionQueue* DeferredDeletion, FRHICommandListImmediate& RHICmdList, const FLayer* InLayer)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		if (Id == 0)
 		{
@@ -661,7 +658,7 @@ namespace OculusXRHMD
 			TArray<ovrpTextureHandle> MotionVectorDepthTextures;
 			ovrpSizei MotionVectorDepthTextureSize;
 
-			ExecuteOnRHIThread([&]() {
+			RHICmdList.EnqueueLambda([&](FRHICommandListImmediate& RHICmdList) { // Note [&] capture requires immediate flush afterwards
 				// UNDONE Do this in RenderThread once OVRPlugin allows FOculusXRHMDModule::GetPluginWrapper().SetupLayer to be called asynchronously
 				int32 TextureCount;
 				if (OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().SetupLayer(CustomPresent->GetOvrpDevice(), OvrpLayerDesc.Base, (int*)&OvrpLayerId)) && OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().GetLayerTextureStageCount(OvrpLayerId, &TextureCount)))
@@ -750,6 +747,7 @@ namespace OculusXRHMD
 					bLayerCreated = true;
 				}
 			});
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread); // Note this is required for [&] capture
 
 			if (bLayerCreated)
 			{
@@ -770,18 +768,18 @@ namespace OculusXRHMD
 						NumSamplesTileMem = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
 					}
 
-					ERHIResourceType ResourceType;
+					FCustomPresent::ETextureType ResourceType;
 					if (OvrpLayerDesc.Shape == ovrpShape_Cubemap || OvrpLayerDesc.Shape == ovrpShape_OffcenterCubemap)
 					{
-						ResourceType = RRT_TextureCube;
+						ResourceType = FCustomPresent::ETextureType::TextureCube;
 					}
 					else if (OvrpLayerDesc.Layout == ovrpLayout_Array)
 					{
-						ResourceType = RRT_Texture2DArray;
+						ResourceType = FCustomPresent::ETextureType::Texture2DArray;
 					}
 					else
 					{
-						ResourceType = RRT_Texture2D;
+						ResourceType = FCustomPresent::ETextureType::Texture2D;
 					}
 
 					const bool bNeedsSRGBFlag = bNeedsTexSrgbCreate || CustomPresent->IsSRGB(OvrpLayerDesc.Format);
@@ -806,7 +804,7 @@ namespace OculusXRHMD
 						ColorTextureBinding = FClearValueBinding::Black;
 					}
 
-					SwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, ColorTextures, ColorTexCreateFlags, *FString::Printf(TEXT("Oculus Color Swapchain %d"), OvrpLayerId));
+					SwapChain = CustomPresent->CreateSwapChain_RenderThread(RHICmdList, SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, ColorTextures, ColorTexCreateFlags, *FString::Printf(TEXT("Oculus Color Swapchain %d"), OvrpLayerId));
 
 #if PLATFORM_WINDOWS
 #if UE_VERSION_OLDER_THAN(5, 5, 0)
@@ -847,11 +845,11 @@ namespace OculusXRHMD
 
 					if (bHasDepth)
 					{
-						DepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, DepthTextures, DepthTexCreateFlags, *FString::Printf(TEXT("Oculus Depth Swapchain %d"), OvrpLayerId));
+						DepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(RHICmdList, SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, DepthTextures, DepthTexCreateFlags, *FString::Printf(TEXT("Oculus Depth Swapchain %d"), OvrpLayerId));
 					}
 					if (bValidFoveationTextures)
 					{
-						FoveationSwapChain = CustomPresent->CreateSwapChain_RenderThread(FoveationTextureSize.w, FoveationTextureSize.h, PF_R8G8, FClearValueBinding::White, 1, 1, 1, ResourceType, FoveationTextures, TexCreate_Foveation, *FString::Printf(TEXT("Oculus Foveation Swapchain %d"), OvrpLayerId));
+						FoveationSwapChain = CustomPresent->CreateSwapChain_RenderThread(RHICmdList, FoveationTextureSize.w, FoveationTextureSize.h, PF_R8G8, FClearValueBinding::White, 1, 1, 1, ResourceType, FoveationTextures, TexCreate_Foveation, *FString::Printf(TEXT("Oculus Foveation Swapchain %d"), OvrpLayerId));
 					}
 					else
 					{
@@ -862,11 +860,11 @@ namespace OculusXRHMD
 					{
 						EPixelFormat MvPixelFormat = PF_FloatRGBA;
 						ETextureCreateFlags MVTexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable;
-						MotionVectorSwapChain = CustomPresent->CreateSwapChain_RenderThread(MotionVectorTextureSize.w, MotionVectorTextureSize.h, MvPixelFormat, FClearValueBinding::Black, 1, 1, 1, ResourceType, MotionVectorTextures, MVTexCreateFlags, *FString::Printf(TEXT("Oculus MV Swapchain %d"), OvrpLayerId));
+						MotionVectorSwapChain = CustomPresent->CreateSwapChain_RenderThread(RHICmdList, MotionVectorTextureSize.w, MotionVectorTextureSize.h, MvPixelFormat, FClearValueBinding::Black, 1, 1, 1, ResourceType, MotionVectorTextures, MVTexCreateFlags, *FString::Printf(TEXT("Oculus MV Swapchain %d"), OvrpLayerId));
 						if (MotionVectorDepthTextures.Num() && MotionVectorDepthTextures[0] != (unsigned long long)nullptr)
 						{
 							ETextureCreateFlags MVDepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_DepthStencilTargetable;
-							MotionVectorDepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(MotionVectorDepthTextureSize.w, MotionVectorDepthTextureSize.h, PF_DepthStencil, FClearValueBinding::DepthZero, 1, 1, 1, ResourceType, MotionVectorDepthTextures, MVDepthTexCreateFlags, *FString::Printf(TEXT("Oculus MV Depth Swapchain %d"), OvrpLayerId));
+							MotionVectorDepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(RHICmdList, MotionVectorDepthTextureSize.w, MotionVectorDepthTextureSize.h, PF_DepthStencil, FClearValueBinding::DepthZero, 1, 1, 1, ResourceType, MotionVectorDepthTextures, MVDepthTexCreateFlags, *FString::Printf(TEXT("Oculus MV Depth Swapchain %d"), OvrpLayerId));
 						}
 						else
 						{
@@ -881,11 +879,11 @@ namespace OculusXRHMD
 
 					if (OvrpLayerDesc.Layout == ovrpLayout_Stereo)
 					{
-						RightSwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, RightColorTextures, ColorTexCreateFlags, *FString::Printf(TEXT("Oculus Right Color Swapchain %d"), OvrpLayerId));
+						RightSwapChain = CustomPresent->CreateSwapChain_RenderThread(RHICmdList, SizeX, SizeY, ColorFormat, ColorTextureBinding, NumMips, NumSamples, NumSamplesTileMem, ResourceType, RightColorTextures, ColorTexCreateFlags, *FString::Printf(TEXT("Oculus Right Color Swapchain %d"), OvrpLayerId));
 
 						if (bHasDepth)
 						{
-							RightDepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, RightDepthTextures, DepthTexCreateFlags, *FString::Printf(TEXT("Oculus Right Depth Swapchain %d"), OvrpLayerId));
+							RightDepthSwapChain = CustomPresent->CreateSwapChain_RenderThread(RHICmdList, SizeX, SizeY, DepthFormat, DepthTextureBinding, 1, NumSamples, NumSamplesTileMem, ResourceType, RightDepthTextures, DepthTexCreateFlags, *FString::Printf(TEXT("Oculus Right Depth Swapchain %d"), OvrpLayerId));
 						}
 					}
 
@@ -994,7 +992,7 @@ namespace OculusXRHMD
 
 	void FLayer::UpdatePassthrough_RenderThread(FCustomPresent* CustomPresent, FRHICommandListImmediate& RHICmdList, const FGameFrame* Frame)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 		if (Desc.HasShape<FReconstructedLayer>())
 		{
 			const FReconstructedLayer& ReconstructedLayerProps = Desc.GetShape<FReconstructedLayer>();
@@ -1047,7 +1045,7 @@ namespace OculusXRHMD
 				}
 			}
 
-			for (FString Entry : ItemsToRemove)
+			for (const FString& Entry : ItemsToRemove)
 			{
 				FPassthroughMesh* PassthroughMesh = UserDefinedGeometryMap->Find(Entry);
 				if (PassthroughMesh)
@@ -1109,7 +1107,7 @@ namespace OculusXRHMD
 
 	void FLayer::UpdateTexture_RenderThread(const FSettings* Settings, FCustomPresent* CustomPresent, FRHICommandListImmediate& RHICmdList)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		if (bUpdateTexture && SwapChain.IsValid())
 		{
@@ -1270,9 +1268,8 @@ namespace OculusXRHMD
 				case ovrpShape_Cylinder:
 				{
 					const FCylinderLayer& CylinderProps = Desc.GetShape<FCylinderLayer>();
-					float CylinderHeight = (Desc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO) ? CylinderProps.OverlayArc * AspectRatio : CylinderProps.Height;
 					OvrpLayerSubmit.Cylinder.ArcWidth = CylinderProps.OverlayArc * Scale.x;
-					OvrpLayerSubmit.Cylinder.Height = CylinderHeight * Scale.x;
+					OvrpLayerSubmit.Cylinder.Height = CylinderProps.Height * Scale.x;
 					OvrpLayerSubmit.Cylinder.Radius = CylinderProps.Radius * Scale.x;
 				}
 				break;
@@ -1469,31 +1466,20 @@ namespace OculusXRHMD
 		bUpdateTexture = false;
 	}
 
-	void FLayer::AddPassthroughMesh_RenderThread(const TArray<FVector>& Vertices, const TArray<int32>& Triangles, FMatrix Transformation, uint64_t& OutMeshHandle, uint64_t& OutInstanceHandle)
+	void FLayer::AddPassthroughMesh_RenderThread(const TArray<FVector3f>& Vertices, const TArray<int32>& Triangles, FMatrix Transformation, uint64_t& OutMeshHandle, uint64_t& OutInstanceHandle)
 	{
 		CheckInRenderThread();
 
 		uint64_t MeshHandle = 0;
 		uint64_t InstanceHandle = 0;
 
-		// Explicit conversion is needed since FVector contains double elements.
-		// Converting Vertices.Data() to float* causes issues when memory is parsed.
-		TArray<float> VertexData;
-		VertexData.SetNumUninitialized(Vertices.Num() * 3);
-
-		size_t i = 0;
-		for (const FVector& vertex : Vertices)
-		{
-			VertexData[i++] = vertex.X;
-			VertexData[i++] = vertex.Y;
-			VertexData[i++] = vertex.Z;
-		}
-
+		static_assert(sizeof(Vertices[0]) == 3 * sizeof(float));
+		static_assert(sizeof(Triangles[0]) == sizeof(int));
 		if (OVRP_FAILURE(FOculusXRHMDModule::GetPluginWrapper().CreateInsightTriangleMesh(
 				OvrpLayerId,
-				VertexData.GetData(),
+				const_cast<float*>(reinterpret_cast<const float*>(Vertices.GetData())),
 				Vertices.Num(),
-				(int*)Triangles.GetData(),
+				const_cast<int32_t*>(Triangles.GetData()),
 				Triangles.Num() / 3,
 				&MeshHandle)))
 		{

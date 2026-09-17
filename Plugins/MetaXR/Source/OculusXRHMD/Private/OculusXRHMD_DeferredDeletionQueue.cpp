@@ -5,7 +5,6 @@
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 #include "OculusXRHMDPrivate.h"
-#include "XRThreadUtils.h"
 #include "OculusXRHMDModule.h"
 #include "Misc/EngineVersionComparison.h"
 
@@ -37,7 +36,7 @@ namespace OculusXRHMD
 		DeferredDeletionArray.Add(Entry);
 	}
 
-	void FDeferredDeletionQueue::HandleLayerDeferredDeletionQueue_RenderThread(bool bDeleteImmediately)
+	void FDeferredDeletionQueue::HandleLayerDeferredDeletionQueue_RenderThread(FRHICommandListImmediate& RHICmdList, bool bDeleteImmediately)
 	{
 		// Traverse list backwards so the swap switches to elements already tested
 		for (int32 Index = DeferredDeletionArray.Num() - 1; Index >= 0; --Index)
@@ -58,7 +57,7 @@ namespace OculusXRHMD
 			{
 				if (bDeleteImmediately || GOculusXRHMDLayerDeletionFrameNumber > Entry->FrameEnqueued + NUM_FRAMES_TO_WAIT_FOR_OVRP_LAYER_DELETE)
 				{
-					ExecuteOnRHIThread_DoNotWait([OvrpLayerId = Entry->OvrpLayerId]() {
+					RHICmdList.EnqueueLambda([OvrpLayerId = Entry->OvrpLayerId](FRHICommandListImmediate& RHICmdList) {
 						UE_LOG(LogHMD, Warning, TEXT("Destroying layer %d"), OvrpLayerId);
 						FOculusXRHMDModule::GetPluginWrapper().DestroyLayer(OvrpLayerId);
 					});

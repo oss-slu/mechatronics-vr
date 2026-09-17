@@ -7,8 +7,8 @@
 struct FOculusXRMovementFunctionsOpenXR : public IOculusXRMovementFunctions
 {
 public:
-	virtual bool GetBodyState(FOculusXRBodyState& outState, float WorldToMeters) override;
-	virtual bool GetBodySkeleton(FOculusXRBodySkeleton& outSkeleton, float WorldToMeters) override;
+	virtual bool GetBodyState(FOculusXRBodyState& outState) override;
+	virtual bool GetBodySkeleton(FOculusXRBodySkeleton& outSkeleton) override;
 
 	virtual bool IsBodyTrackingSupported() override;
 	virtual bool IsBodyTrackingEnabled() override;
@@ -34,7 +34,7 @@ public:
 	virtual bool IsFaceTrackingVisemesEnabled() override;
 	virtual bool IsFaceTrackingVisemesSupported() override;
 
-	virtual bool GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState, float WorldToMeters) override;
+	virtual bool GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState) override;
 	virtual bool IsEyeTrackingEnabled() override;
 	virtual bool IsEyeTrackingSupported() override;
 	virtual bool StartEyeTracking() override;

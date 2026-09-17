@@ -6,22 +6,6 @@
 // Collection of rules related to plugins. Can be extended as needed
 namespace OculusXRPluginRules
 {
-	class FUseRecommendedXRAPIRule final : public ISetupRule
-	{
-	public:
-		FUseRecommendedXRAPIRule()
-			: ISetupRule("Plugin_UseRecommendedXRAPI",
-				  NSLOCTEXT("OculusXRPluginRules", "UseRecommendedXRAPI_DisplayName", "Use Recommended XR API"),
-				  NSLOCTEXT("OculusXRPluginRules", "UseRecommendedXRAPI_Description", "It is currently recommended to use OVRPlugin + OpenXR for the XR API"),
-				  ESetupRuleCategory::Plugins,
-				  ESetupRuleSeverity::Warning) {}
-
-		virtual bool IsApplied() const override;
-
-	protected:
-		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
-	};
-
 	class FDisableOculusVRRule final : public ISetupRule
 	{
 	public:
@@ -78,11 +62,27 @@ namespace OculusXRPluginRules
 		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
 	};
 
+	class FUseOpenXRBackendRule final : public ISetupRule
+	{
+	public:
+		FUseOpenXRBackendRule()
+			: ISetupRule("Plugin_UseOpenXRBackend",
+				  NSLOCTEXT("OculusXRPluginRules", "UseOpenXRBackend_DisplayName", "Switch XR API backend to Epic Native OpenXR"),
+				  NSLOCTEXT("OculusXRPluginRules", "UseOpenXRBackend_Description", "The 'Meta XR with OVRPlugin' XR API backend is deprecated and will be removed in a future release. Switch to 'Epic Native OpenXR'."),
+				  ESetupRuleCategory::Plugins,
+				  ESetupRuleSeverity::Warning) {}
+
+		virtual bool IsApplied() const override;
+
+	protected:
+		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
+	};
+
 	// All defined plugin rules. Add new rules to this table for them to be auto-registered
 	inline TArray<SetupRulePtr> PluginRules_Table{
-		MakeShared<FUseRecommendedXRAPIRule>(),
 		MakeShared<FDisableOculusVRRule>(),
 		MakeShared<FDisableSteamVRRule>(),
-		MakeShared<FUseHorizonOSSDKRule>()
+		MakeShared<FUseHorizonOSSDKRule>(),
+		MakeShared<FUseOpenXRBackendRule>()
 	};
 } // namespace OculusXRPluginRules

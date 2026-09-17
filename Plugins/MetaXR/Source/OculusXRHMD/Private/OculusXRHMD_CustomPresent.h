@@ -36,17 +36,28 @@ namespace OculusXRHMD
 	class FCustomPresent : public FXRRenderBridge
 	{
 	public:
+		enum class ETextureType
+		{
+			Texture2D,
+			Texture2DArray,
+			TextureCube,
+		};
+
 		FCustomPresent(class FOculusXRHMD* InOculusXRHMD, ovrpRenderAPIType InRenderAPI, EPixelFormat InDefaultPixelFormat, bool InSupportsSRGB);
 
 		// FXRRenderBridge/FRHICustomPresent
 		virtual bool NeedsNativePresent() override;
+#if UE_VERSION_OLDER_THAN(5, 5, 0)
 		virtual bool Present(int32& SyncInterval) override;
+#else
+		virtual bool Present(IRHICommandContext& RHICmdContext, int32& SyncInterval) override;
+#endif
 		virtual void FinishRendering_RHIThread();
 
 		ovrpRenderAPIType GetRenderAPI() const { return RenderAPI; }
 		virtual bool IsUsingCorrectDisplayAdapter() const { return true; }
 
-		void UpdateMirrorTexture_RenderThread();
+		void UpdateMirrorTexture_RenderThread(FRHICommandListImmediate& RHICmdList);
 		void ReleaseResources_RHIThread();
 		void Shutdown();
 
@@ -66,12 +77,14 @@ namespace OculusXRHMD
 		virtual int GetSystemRecommendedMSAALevel() const;
 		virtual int GetLayerFlags() const { return 0; }
 
-		virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags TexCreateFlags) = 0;
-		FXRSwapChainPtr CreateSwapChain_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName);
-		TArray<FTextureRHIRef> CreateSwapChainTextures_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName);
+		virtual FTextureRHIRef CreateTexture_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags TexCreateFlags) = 0;
+		FXRSwapChainPtr CreateSwapChain_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName);
+		TArray<FTextureRHIRef> CreateSwapChainTextures_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName);
 
 		void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* DstTexture, FRHITexture* SrcTexture, FIntRect DstRect = FIntRect(), FIntRect SrcRect = FIntRect(), bool bAlphaPremultiply = false, bool bNoAlphaWrite = false, bool bInvertY = true, bool sRGBSource = false, bool bInvertAlpha = false);
 		OCULUSXRHMD_API static void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, IRendererModule* RendererModule, FRHITexture* DstTexture, FRHITexture* SrcTexture, FStaticFeatureLevel FeatureLevel, bool bUsingVulkan, FIntRect DstRect = FIntRect(), FIntRect SrcRect = FIntRect(), bool bAlphaPremultiply = false, bool bNoAlphaWrite = false, bool bInvertY = true, bool sRGBSource = false, bool bInvertAlpha = false);
+
+		static OCULUSXRHMD_API void AddInvertTextureAlphaPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRDGTextureRef TempTexture, const FIntRect& ViewportRect, FStaticFeatureLevel FeatureLevel, FStaticShaderPlatform ShaderPlatform);
 
 		void SubmitGPUCommands_RenderThread(FRHICommandListImmediate& RHICmdList);
 		virtual void SubmitGPUFrameTime(float GPUFrameTime) {}

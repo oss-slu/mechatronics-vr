@@ -11,7 +11,7 @@
 #include "OculusXRTelemetry.h"
 #include "Tasks/Task.h"
 
-constexpr const char* RESERVED_MESH_SEGMENT_TAG = "ReservedMeshSegment";
+constexpr const char* ReservedMeshSegmentTag = "ReservedMeshSegment";
 
 UMRUKDestructibleMeshComponent::UMRUKDestructibleMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: UProceduralMeshComponent(ObjectInitializer)
@@ -75,7 +75,7 @@ void UMRUKDestructibleMeshComponent::TickComponent(float DeltaTime, ELevelTick T
 		const FAttachmentTransformRules TransformRules{ EAttachmentRule::KeepRelative, false };
 		ProcMesh->AttachToComponent(GetOwner()->GetRootComponent(), TransformRules);
 		ProcMesh->RegisterComponent();
-		ProcMesh->ComponentTags.AddUnique(RESERVED_MESH_SEGMENT_TAG);
+		ProcMesh->ComponentTags.AddUnique(ReservedMeshSegmentTag);
 		GetOwner()->AddInstanceComponent(ProcMesh);
 		ProcMesh->CreateMeshSection(0, ReservedMeshSegment.Positions, ReservedMeshSegment.Indices, {}, {}, {}, {}, true);
 		if (GlobalMeshMaterial)
@@ -145,7 +145,7 @@ void AMRUKDestructibleGlobalMesh::CreateDestructibleMesh(AMRUKRoom* Room)
 
 void AMRUKDestructibleGlobalMesh::RemoveGlobalMeshSegment(UPrimitiveComponent* Mesh)
 {
-	if (!Mesh->ComponentTags.Contains(RESERVED_MESH_SEGMENT_TAG))
+	if (!Mesh->ComponentTags.Contains(ReservedMeshSegmentTag))
 	{
 		// Only remove mesh segments that are allowed to be destroyed
 		Mesh->DestroyComponent();
@@ -175,7 +175,7 @@ void AMRUKDestructibleGlobalMeshSpawner::BeginPlay()
 	else if (SpawnMode == EMRUKSpawnMode::AllRooms)
 	{
 		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-		for (auto Room : Subsystem->Rooms)
+		for (const auto& Room : Subsystem->Rooms)
 		{
 			AddDestructibleGlobalMesh(Room);
 		}

@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #include "OculusXRFunctionLibraryOpenXR.h"
+#include "OculusXRFunctionLibrary.h"
 
-#include "OpenXR\OculusXRXRFunctions.h"
-#include "OculusXRHMD.h"
-#include "IOpenXRHMD.h"
-#include "OpenXR\OculusXROpenXRUtilities.h"
+#include "OpenXR/OculusXRXRFunctions.h"
+#include "OculusXRHMDModule.h"
+#include "OpenXR/OculusXROpenXRUtilities.h"
 #include "IOpenXRHMD.h"
 #include "IOpenXRHMDModule.h"
 #include "OpenXRBlueprintFunctionLibrary.h"
@@ -92,9 +92,9 @@ namespace OculusXRHMD
 	{
 		TArray<IMotionController*> MotionControllers;
 		MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
+		static const FName MotionControllerName("OpenXR");
 		for (auto MotionController : MotionControllers)
 		{
-			FName MotionControllerName("OpenXR");
 			if (MotionController != nullptr && MotionController->GetMotionControllerDeviceTypeName() == MotionControllerName)
 			{
 				return MotionController;
@@ -266,6 +266,7 @@ namespace OculusXRHMD
 
 	void FOculusXRFunctionLibraryOpenXR::SetFoveatedRenderingLevel(EOculusXRFoveatedRenderingLevel level, bool isDynamic)
 	{
+#if UE_VERSION_OLDER_THAN(5, 7, 0) || defined(WITH_OCULUS_BRANCH)
 		if (IConsoleVariable* FoveationLevelCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("xr.OpenXRFBFoveationLevel")))
 		{
 			FoveationLevelCVar->Set(static_cast<int>(level));
@@ -274,6 +275,7 @@ namespace OculusXRHMD
 		{
 			FoveationDynamicCVar->Set(isDynamic);
 		}
+#endif
 	}
 
 	EOculusXRFoveatedRenderingLevel FOculusXRFunctionLibraryOpenXR::GetFoveatedRenderingLevel()
@@ -326,12 +328,36 @@ namespace OculusXRHMD
 
 	void FOculusXRFunctionLibraryOpenXR::EnablePositionTracking(bool bPositionTracking)
 	{
+#ifdef WITH_OCULUS_BRANCH
+		IXRTrackingSystem* TrackingSystem = OculusXR::GetOpenXRTrackingSystem();
+		if (TrackingSystem != nullptr)
+		{
+			IOpenXRHMD* OpenXRHMD = TrackingSystem->GetIOpenXRHMD();
+			if (OpenXRHMD != nullptr)
+			{
+				OpenXRHMD->SetTrackingPositionEnabled(IXRTrackingSystem::HMDDeviceId, bPositionTracking);
+			}
+		}
+#else
 		NOT_IMPLEMENTED();
+#endif // WITH_OCULUS_BRANCH
 	}
 
 	void FOculusXRFunctionLibraryOpenXR::EnableOrientationTracking(bool bOrientationTracking)
 	{
+#ifdef WITH_OCULUS_BRANCH
+		IXRTrackingSystem* TrackingSystem = OculusXR::GetOpenXRTrackingSystem();
+		if (TrackingSystem != nullptr)
+		{
+			IOpenXRHMD* OpenXRHMD = TrackingSystem->GetIOpenXRHMD();
+			if (OpenXRHMD != nullptr)
+			{
+				OpenXRHMD->SetTrackingOrientationEnabled(IXRTrackingSystem::HMDDeviceId, bOrientationTracking);
+			}
+		}
+#else
 		NOT_IMPLEMENTED();
+#endif // WITH_OCULUS_BRANCH
 	}
 
 	void FOculusXRFunctionLibraryOpenXR::SetColorScaleAndOffset(FLinearColor ColorScale, FLinearColor ColorOffset, bool bApplyToAllLayers)
@@ -582,6 +608,28 @@ namespace OculusXRHMD
 	void FOculusXRFunctionLibraryOpenXR::UnregisterOpenXrEventHandler(void (*OpenXrEventHandler)(void* data, void* context))
 	{
 		ensureMsgf(false, TEXT("UnregisterOpenXrEventHandler is only available with OvrPlugin"));
+	}
+
+	void FOculusXRFunctionLibraryOpenXR::BeginProfilingRegion(const FString& RegionName)
+	{
+		UE_LOG(LogHMD, Log, TEXT("BeginProfilingRegion: %s"), *RegionName);
+
+		OculusXR::FDebugUtilsExtensionPlugin& DebugUtilsPlugin = FOculusXRHMDModule::Get().GetExtensionPluginManager().GetDebugUtilsExtensionPlugin();
+		if (!DebugUtilsPlugin.BeginProfilingRegion(RegionName))
+		{
+			UE_LOG(LogHMD, Warning, TEXT("BeginProfilingRegion failed for region: %s"), *RegionName);
+		}
+	}
+
+	void FOculusXRFunctionLibraryOpenXR::EndProfilingRegion()
+	{
+		UE_LOG(LogHMD, Log, TEXT("EndProfilingRegion"));
+
+		OculusXR::FDebugUtilsExtensionPlugin& DebugUtilsPlugin = FOculusXRHMDModule::Get().GetExtensionPluginManager().GetDebugUtilsExtensionPlugin();
+		if (!DebugUtilsPlugin.EndProfilingRegion())
+		{
+			UE_LOG(LogHMD, Warning, TEXT("EndProfilingRegion failed"));
+		}
 	}
 
 } // namespace OculusXRHMD

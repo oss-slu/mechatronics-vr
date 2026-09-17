@@ -45,6 +45,10 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRoomCreated, AMRUKRoom*, Room);
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRoomUpdated, AMRUKRoom*, Room);
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRoomRemoved, AMRUKRoom*, Room);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTrackablesConfigured, bool, Success);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTrackableAdded, class AMRUKTrackable*, Trackable);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTrackableUpdated, class AMRUKTrackable*, Trackable);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTrackableRemoved, class AMRUKTrackable*, Trackable);
 
 	/**
 	 * The status of the scene loading. When loading from device this is an asynchronous process
@@ -78,6 +82,28 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "MR Utility Kit")
 	FOnRoomRemoved OnRoomRemoved;
 
+	UPROPERTY(BlueprintAssignable, Category = "MR Utility Kit")
+	FOnTrackablesConfigured OnTrackablesConfigured;
+
+	/**
+	 * An event that gets fired when a trackable is detected and localized.
+	 * Trackables are dynamic objects like keyboards and QR codes that can be tracked in the environment.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "MR Utility Kit")
+	FOnTrackableAdded OnTrackableAdded;
+
+	/**
+	 * An event that gets fired when a trackable's properties are updated.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "MR Utility Kit")
+	FOnTrackableUpdated OnTrackableUpdated;
+
+	/**
+	 * An event that gets fired when a trackable is no longer detected.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "MR Utility Kit")
+	FOnTrackableRemoved OnTrackableRemoved;
+
 	/**
 	 * An event that will trigger when the capture flow completed.
 	 * The Success parameter indicates whether the scene was captured successfully or not.
@@ -90,6 +116,12 @@ public:
 	 */
 	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
 	TArray<TObjectPtr<AMRUKRoom>> Rooms;
+
+	/**
+	 * A list of trackables that have been discovered.
+	 */
+	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
+	TMap<FMRUKTrackableKey, TObjectPtr<AMRUKTrackable>> Trackables;
 
 	/**
 	 * When world locking is enabled the position of the VR Pawn will be adjusted each frame to ensure
@@ -148,14 +180,14 @@ public:
 	 * If the scene is already loaded the scene will be updated with the changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
-	void LoadSceneFromJsonString(const FString& String);
+	void LoadSceneFromJsonString(const FString& String, EMRUKSceneModel SceneModel = EMRUKSceneModel::V1);
 
 	/**
 	 * Load rooms and anchors from the device.
 	 * If the scene is already loaded the scene will be updated with the changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
-	void LoadSceneFromDevice();
+	void LoadSceneFromDevice(EMRUKSceneModel SceneModel = EMRUKSceneModel::V1);
 
 
 	/**
@@ -262,10 +294,76 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
 	bool LaunchSceneCapture();
 
+	/**
+	 * This function creates an environment raycaster, which is used to perform raycasting operations
+	 * against the device depth. Unlike Raycast() and RaycastAll(), no space setup is required for
+	 * performing these raycasts. It initializes the necessary components and resources required for
+	 * the raycasting process. The environment raycaster may take a few frames to initialize. During
+	 * this time, its status can be checked using the EnvironmentRaycasterStatus() function. Alternatively,
+	 * you can directly call RaycastEnvironment(), which will return a status of NotReady if the
+	 * raycaster is not yet ready.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
+	void CreateEnvironmentRaycaster();
+
+	/**
+	 * Destroy the environment raycaster.
+	 * This function is responsible for cleaning up and releasing any resources
+	 * associated with the environment raycaster. It should be called when the
+	 * raycaster is no longer needed to ensure proper resource management and
+	 * avoid memory leaks.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
+	void DestroyEnvironmentRaycaster();
+
+	/**
+	 * Get the status of the environment raycaster.
+	 * This function returns the current status of the environment raycaster,
+	 * which indicates whether the raycaster is ready to perform raycasting operations,
+	 * is still initializing, or has encountered an error.
+	 * @return The current status of the environment raycaster.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
+	EMRUKEnvironmentRaycasterStatus EnvironmentRaycasterStatus() const;
+
+	/**
+	 * Perform a raycast in the environment using the device's depth information.
+	 *
+	 * This function casts a ray from the specified origin in the given direction and returns
+	 * the first hit encountered within the specified maximum distance. It is necessary to call
+	 * CreateEnvironmentRaycaster() before using this function to ensure that the environment
+	 * raycaster is properly initialized. After raycasting is finished, DestroyEnvironmentRaycaster()
+	 * can be called to clean up any resources associated with the raycaster.
+	 *
+	 * The status of the returned FMRUKEnvironmentRaycastHit can be checked to determine if the
+	 * raycast was successful.
+	 *
+	 * @param Origin      The starting point of the ray in world space.
+	 * @param Direction   The direction in which the ray is cast.
+	 * @param MaxDistance The maximum distance the ray should travel. Defaults to 0, which is treated as infinity.
+	 * @return            A structure containing information about the raycast hit, if any.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
+	FMRUKEnvironmentRaycastHit RaycastEnvironment(const FVector& Origin, const FVector& Direction, float MaxDistance = 0);
+
+	/**
+	 * Configure which types of trackables to track. This enables or disables keyboard and QR code tracking.
+	 * @param Configuration The tracker configuration specifying which types of trackables to enable.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
+	void ConfigureTrackers(const FMRUKTrackerConfiguration& Configuration);
+
+	/**
+	 * Disables and stops all trackers.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
+	void DisableTrackers();
+
 public:
 	void Initialize(FSubsystemCollectionBase& Collection) override;
 	void Deinitialize() override;
 	AMRUKRoom* SpawnRoom();
+	void InitializeOpenXR();
 
 	void UnregisterRoom(AMRUKRoom* Room);
 	// Calculate the bounds of an Actor class and return it, the result is saved in a cache for faster lookup.
@@ -303,6 +401,6 @@ private:
 
 	TMap<TSubclassOf<AActor>, FBox> ActorClassBoundsCache;
 
-	bool EnableOpenXr = true;
-	uint64_t OpenXrBaseSpace = 0;
+	bool bOpenXRInitialized = false;
+	uint64 OpenXrBaseSpace = 0;
 };
