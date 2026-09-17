@@ -91,6 +91,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
 	bool bAllowSnapPreview = true;
 
+	/** Allow snap placement arrows to occur (when false, arrows are disabled) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	bool bShowSnapArrow = true;
+
+	/** Color of the snap placement arrow */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	FLinearColor SnapArrowColor = FLinearColor::Yellow;
+
+	/** Scale factor for arrow head size */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	float SnapArrowSize = 5.0f;
+
+	/** Currently showing snap arrow? (read-only state tracking) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
+	bool bShowingSnapArrow = false;
+
 	UFUNCTION(BlueprintCallable, Category = "Grab State")
 	bool IsAttachedToMotionController() const;
 
@@ -105,6 +121,13 @@ public:
 	/** Hide the snap preview */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
 	void HideSnapPreview();
+
+	/** Show arrow indicating snap placement direction */
+	void ShowSnapArrow();
+	void ShowSnapArrowInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint);
+
+	/** Hide the snap arrow */
+	void HideSnapArrow();
 
 	// /** Calculate where this part should be positioned when snapped */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")

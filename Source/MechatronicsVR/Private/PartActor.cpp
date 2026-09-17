@@ -394,7 +394,7 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 	{
 		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Setting PreviewMesh static me+sh to %s"), *Mesh->GetStaticMesh()->GetName());
 		PreviewMesh->SetStaticMesh(Mesh->GetStaticMesh());
-		
+
 		// DETACH the preview mesh, so it doesn't move with the part!
 		// Completely reset the preview mesh transform
 		// Check if already detached
@@ -408,9 +408,9 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Preview mesh already detached"));
 		}
-        
+
 		const FTransform SnapTransform = CalculateSnapTransform(SourceSnapPoint, TargetSnapPoint);
-        
+
 
 		PreviewMesh->SetWorldLocation(SnapTransform.GetLocation());
 		PreviewMesh->SetWorldRotation(SnapTransform.GetRotation());
@@ -461,9 +461,16 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		bShowingPreview = true;
 		CurrentTargetSnapPoint = TargetSnapPoint;
 
-		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreview: Showing preview for %s at snap point %s to target %s"), 
-		  *GetName(), 
-		  *SourceSnapPoint->GetName(), 
+		// Store snap points for arrow visualization
+		MySnapPoint = SourceSnapPoint;
+		CandidateSnapPoint = TargetSnapPoint;
+
+		// Show arrow if enabled
+		ShowSnapArrowInternal(SourceSnapPoint, TargetSnapPoint);
+
+		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreview: Showing preview for %s at snap point %s to target %s"),
+		  *GetName(),
+		  *SourceSnapPoint->GetName(),
 		  *TargetSnapPoint->GetName());
 	}
 	else
@@ -483,6 +490,55 @@ void APartActor::HideSnapPreview()
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Log, TEXT("HideSnapPreview: Hiding preview for %s"), *GetName());
 	}
+
+	HideSnapArrow();
+}
+
+void APartActor::ShowSnapArrow()
+{
+	if (!bShowSnapArrow)
+	{
+		return;
+	}
+
+	if (!MySnapPoint || !CandidateSnapPoint)
+	{
+		return;
+	}
+
+	ShowSnapArrowInternal(MySnapPoint, CandidateSnapPoint);
+}
+
+void APartActor::ShowSnapArrowInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint)
+{
+	if (!SourceSnapPoint || !TargetSnapPoint || !GetWorld())
+	{
+		return;
+	}
+
+	bShowingSnapArrow = true;
+
+	// Get world positions of snap points
+	const FVector SourceLocation = SourceSnapPoint->GetComponentLocation();
+	const FVector TargetLocation = TargetSnapPoint->GetComponentLocation();
+
+	// Draw directional arrow from source (back) to target (front)
+	DrawDebugDirectionalArrow(
+		GetWorld(),
+		SourceLocation,
+		TargetLocation,
+		SnapArrowSize,
+		SnapArrowColor.ToFColor(true),
+		false,
+		-1.0f,
+		0,
+		2.0f
+	);
+}
+
+void APartActor::HideSnapArrow()
+{
+	bShowingSnapArrow = false;
 }
 
 FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint) const
@@ -677,6 +733,25 @@ void APartActor::BeginPlay()
 void APartActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// Draw arrow every frame if snap arrow is showing
+	if (bShowingSnapArrow && MySnapPoint && CandidateSnapPoint && GetWorld())
+	{
+		const FVector SourceLocation = MySnapPoint->GetComponentLocation();
+		const FVector TargetLocation = CandidateSnapPoint->GetComponentLocation();
+
+		DrawDebugDirectionalArrow(
+			GetWorld(),
+			SourceLocation,
+			TargetLocation,
+			SnapArrowSize,
+			SnapArrowColor.ToFColor(true),
+			false,
+			-1.0f,
+			0,
+			2.0f
+		);
+	}
 
 	if (!(bIsMotorized && MotorSpeed > KINDA_SMALL_NUMBER && Mesh)) return;
 
