@@ -4,6 +4,7 @@
 #pragma once
 #include "OculusXRHMDPrivate.h"
 #include "IXRLoadingScreen.h"
+#include "Misc/EngineVersionComparison.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -53,7 +54,11 @@ namespace OculusXRHMD
 			FTicker(FSplash* InSplash)
 				: FTickableObjectRenderThread(false, true), pSplash(InSplash) {}
 
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 			virtual void Tick(float DeltaTime) override { pSplash->Tick_RenderThread(DeltaTime); }
+#else
+			virtual void Tick(FRHICommandListImmediate& RHICmdList, float DeltaTime) override { pSplash->Tick_RenderThread(DeltaTime); }
+#endif
 			virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FSplash, STATGROUP_Tickables); }
 			virtual bool IsTickable() const override { return true; }
 

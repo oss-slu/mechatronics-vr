@@ -10,33 +10,33 @@ void MRUKTriangulatePolygon(const TArray<TArray<FVector2f>>& Polygons, TArray<FV
 	Vertices.Empty();
 	Indices.Empty();
 
-	auto MRUKShared = MRUKShared::GetInstance();
-	if (!MRUKShared)
+	MRUKShared* SharedInstance = MRUKShared::GetInstance();
+	if (!SharedInstance)
 	{
 		UE_LOG(LogMRUK, Error, TEXT("MRUK shared library is not available. To use this functionality make sure the library is included"));
 		return;
 	}
 
-	TArray<MRUKShared::MrukPolygon2f> ConvertedPolygons;
+	TArray<MRUKShared::Polygon2f> ConvertedPolygons;
 	ConvertedPolygons.Reserve(Polygons.Num());
-	for (const auto& Polygon : Polygons)
+	for (const TArray<FVector2f>& Polygon : Polygons)
 	{
 		ConvertedPolygons.Push({ Polygon.GetData(), static_cast<uint32_t>(Polygon.Num()) });
 	}
 
-	auto Mesh = MRUKShared->TriangulatePolygon(ConvertedPolygons.GetData(), ConvertedPolygons.Num());
+	MRUKShared::Mesh2f Mesh = SharedInstance->TriangulatePolygon(ConvertedPolygons.GetData(), ConvertedPolygons.Num());
 
 	Vertices.Reserve(Mesh.numVertices);
 	Indices.Reserve(Mesh.numIndices);
 
-	for (uint32_t i = 0; i < Mesh.numVertices; ++i)
+	for (uint32 i = 0; i < Mesh.numVertices; ++i)
 	{
 		Vertices.Push(FVector2D(Mesh.vertices[i]));
 	}
-	for (uint32_t i = 0; i < Mesh.numIndices; ++i)
+	for (uint32 i = 0; i < Mesh.numIndices; ++i)
 	{
 		Indices.Push(Mesh.indices[i]);
 	}
 
-	MRUKShared->FreeMesh(&Mesh);
+	SharedInstance->FreeMesh(&Mesh);
 }

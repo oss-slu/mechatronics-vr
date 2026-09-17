@@ -867,8 +867,8 @@ namespace OculusXRInput
 
 				// Compute bone capsules using non-hierarchial bone poses
 				for (int i = 0, OutIndex = 0;
-					 i < XR_FB_HAND_TRACKING_CAPSULE_COUNT && OutIndex < static_cast<int32>(EHandSkeletonConstants::MaxBoneCapsules);
-					 ++i)
+					i < XR_FB_HAND_TRACKING_CAPSULE_COUNT && OutIndex < static_cast<int32>(EHandSkeletonConstants::MaxBoneCapsules);
+					++i)
 				{
 					const EHandBoneId HandBoneId = MapXrHandJointToBone(CapsuleState.capsules[i].joint);
 

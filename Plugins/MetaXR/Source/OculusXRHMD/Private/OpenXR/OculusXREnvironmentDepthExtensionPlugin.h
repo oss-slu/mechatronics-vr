@@ -8,6 +8,7 @@
 #include "khronos/openxr/openxr.h"
 #include "IOpenXRExtensionPlugin.h"
 #include "OculusXRHMDTypes.h"
+#include "OculusXRHMD_CustomPresent.h"
 #include "Shader.h"
 #include "Misc/EngineVersionComparison.h"
 
@@ -103,8 +104,8 @@ namespace OculusXR
 		bool bHandsRemovalSupported = false;
 		bool bEnvironmentDepthRunning = false;
 
-		std::function<FTextureRHIRef(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding, uint32 InNumMips,
-			uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, TextureHandle InTexture,
+		std::function<FTextureRHIRef(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding, uint32 InNumMips,
+			uint32 InNumSamples, uint32 InNumSamplesTileMem, OculusXRHMD::FCustomPresent::ETextureType InResourceType, TextureHandle InTexture,
 			ETextureCreateFlags InTexCreateFlags)>
 			CreateTexture_RenderThread_Fn;
 
@@ -136,8 +137,8 @@ namespace OculusXR
 		XrStructureType GetEnvironmentDepthSwapchainImageType() const;
 		bool ComputeEnvironmentDepthParameters_RenderThread(FVector2f& DepthFactors, FMatrix44f ScreenToDepth[EYE_COUNT],
 			FMatrix44f DepthViewProj[EYE_COUNT], int& SwapchainIndex);
-		TArray<FTextureRHIRef> CreateSwapChainTextures_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat,
-			const FClearValueBinding& InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType,
+		TArray<FTextureRHIRef> CreateSwapChainTextures_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat,
+			const FClearValueBinding& InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, OculusXRHMD::FCustomPresent::ETextureType InResourceType,
 			const TArray<TextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName) const;
 		void PrepareAndRenderHardOcclusions_RenderThread(FRHICommandList& RHICmdList, FSceneView& InView);
 	};

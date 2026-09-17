@@ -12,14 +12,14 @@
 
 #define LOCTEXT_NAMESPACE "OculusXRMovement"
 
-bool OculusXRMovement::GetBodyState(FOculusXRBodyState& outOculusXRBodyState, float WorldToMeters)
+bool OculusXRMovement::GetBodyState(FOculusXRBodyState& outOculusXRBodyState)
 {
-	return GetOculusXRMovementFunctionsImpl()->GetBodyState(outOculusXRBodyState, WorldToMeters);
+	return GetOculusXRMovementFunctionsImpl()->GetBodyState(outOculusXRBodyState);
 }
 
-bool OculusXRMovement::GetBodySkeleton(FOculusXRBodySkeleton& outOculusXRBodyState, float WorldToMeters)
+bool OculusXRMovement::GetBodySkeleton(FOculusXRBodySkeleton& outOculusXRBodyState)
 {
-	return GetOculusXRMovementFunctionsImpl()->GetBodySkeleton(outOculusXRBodyState, WorldToMeters);
+	return GetOculusXRMovementFunctionsImpl()->GetBodySkeleton(outOculusXRBodyState);
 }
 
 bool OculusXRMovement::IsBodyTrackingEnabled()
@@ -139,9 +139,9 @@ bool OculusXRMovement::StopFaceTracking()
 	return GetOculusXRMovementFunctionsImpl()->StopFaceTracking();
 }
 
-bool OculusXRMovement::GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState, float WorldToMeters)
+bool OculusXRMovement::GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState)
 {
-	return GetOculusXRMovementFunctionsImpl()->GetEyeGazesState(outOculusXREyeGazesState, WorldToMeters);
+	return GetOculusXRMovementFunctionsImpl()->GetEyeGazesState(outOculusXREyeGazesState);
 }
 
 bool OculusXRMovement::IsEyeTrackingEnabled()

@@ -26,7 +26,7 @@ namespace OculusXRHMD
 		// Implementation of FCustomPresent, called by Plugin itself
 		virtual bool IsUsingCorrectDisplayAdapter() const override;
 		virtual void* GetOvrpDevice() const override;
-		virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags) override;
+		virtual FTextureRHIRef CreateTexture_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags) override;
 	};
 
 	FD3D12CustomPresent::FD3D12CustomPresent(FOculusXRHMD* InOculusXRHMD)
@@ -54,7 +54,7 @@ namespace OculusXRHMD
 		{
 			TRefCountPtr<ID3D12Device> D3DDevice;
 
-			ExecuteOnRenderThread([&D3DDevice]() {
+			RunOnRenderingThreadAndWait([&D3DDevice](FRHICommandListImmediate& RHICmdList) {
 				D3DDevice = (ID3D12Device*)RHIGetNativeDevice();
 			});
 
@@ -74,21 +74,21 @@ namespace OculusXRHMD
 		return GetID3D12DynamicRHI()->RHIGetCommandQueue();
 	}
 
-	FTextureRHIRef FD3D12CustomPresent::CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags)
+	FTextureRHIRef FD3D12CustomPresent::CreateTexture_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
 		switch (InResourceType)
 		{
-			case RRT_Texture2D:
+			case ETextureType::Texture2D:
 				return DynamicRHI->RHICreateTexture2DFromResource(InFormat, InTexCreateFlags, InBinding, (ID3D12Resource*)InTexture).GetReference();
 
-			case RRT_Texture2DArray:
+			case ETextureType::Texture2DArray:
 				return DynamicRHI->RHICreateTexture2DArrayFromResource(InFormat, InTexCreateFlags, InBinding, (ID3D12Resource*)InTexture).GetReference();
 
-			case RRT_TextureCube:
+			case ETextureType::TextureCube:
 				return DynamicRHI->RHICreateTextureCubeFromResource(InFormat, InTexCreateFlags | TexCreate_TargetArraySlicesIndependently, InBinding, (ID3D12Resource*)InTexture).GetReference();
 
 			default:

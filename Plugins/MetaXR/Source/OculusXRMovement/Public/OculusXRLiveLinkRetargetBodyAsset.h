@@ -38,7 +38,7 @@ struct OCULUSXRMOVEMENT_API FOculusXRBoneCorrection
 	GENERATED_BODY()
 
 	FOculusXRBoneCorrection()
-		: PositionOffset(FVector::ZeroVector), RotationOffset(FRotator::ZeroRotator){};
+		: PositionOffset(FVector::ZeroVector), RotationOffset(FRotator::ZeroRotator) {};
 
 	/**
 	 * Position offset in local space.
@@ -58,7 +58,7 @@ struct OCULUSXRMOVEMENT_API FOculusXRBoneCorrectionSet
 {
 	GENERATED_BODY()
 
-	FOculusXRBoneCorrectionSet(){};
+	FOculusXRBoneCorrectionSet() {};
 
 	/**
 	 * Set of bones to which the correction will be applied.

@@ -1,0 +1,43 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates.
+
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+
+float4x4 Transform[2];
+float4 TransformPositionHigh[2];
+
+void MainVS(
+	in float3 InPosition : ATTRIBUTE0
+	, out float4 OutPosition : SV_POSITION
+#if INSTANCED_STEREO
+	, in uint InstanceId : SV_InstanceID
+#if MOBILE_MULTI_VIEW
+	, out uint LayerIndex : SV_RenderTargetArrayIndex
+#else
+	, out uint ViewportIndex : SV_ViewPortArrayIndex
+#endif
+#elif MOBILE_MULTI_VIEW
+	, in uint ViewId : SV_ViewID
+#endif
+)
+{
+#if INSTANCED_STEREO
+	uint ViewId = InstanceId & 1;
+#if MOBILE_MULTI_VIEW
+	LayerIndex = ViewId;
+#else
+	ViewportIndex = ViewId;
+#endif
+#elif !MOBILE_MULTI_VIEW
+	uint ViewId = 0;
+#endif
+
+	FDFInverseMatrix ObjectToClip = MakeDFInverseMatrix(TransformPositionHigh[ViewId].xyz, Transform[ViewId]);
+	OutPosition = DFMultiplyDemote(DFPromote(float4(InPosition, 1.0)), ObjectToClip);
+}
+
+void MainPS(out half4 OutColor : SV_Target0)
+{
+	// Because UE uses inverted alpha, 1 is transparent
+	OutColor = half4(0, 0, 0, 1);
+}

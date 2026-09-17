@@ -185,7 +185,7 @@ namespace OculusXRHMD
 
 		if (!bIsShown)
 		{
-			ExecuteOnRenderThread([this]() {
+			RunOnRenderingThreadAndWait([this](FRHICommandListImmediate& RHICmdList) {
 				if (Ticker.IsValid())
 				{
 					Ticker->Unregister();
@@ -204,7 +204,7 @@ namespace OculusXRHMD
 		{
 			Ticker = MakeShareable(new FTicker(this));
 
-			ExecuteOnRenderThread([this]() {
+			RunOnRenderingThreadAndWait([this](FRHICommandListImmediate& RHICmdList) {
 				LastTimeInSeconds = FPlatformTime::Seconds();
 				Ticker->Register();
 			});
@@ -213,7 +213,7 @@ namespace OculusXRHMD
 
 	void FSplash::RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		FScopeLock ScopeLock(&RenderThreadLock);
 
@@ -305,7 +305,7 @@ namespace OculusXRHMD
 			XLayers[LayerIndex] = XLayers[LayerIndex]->Clone();
 		}
 
-		ExecuteOnRHIThread_DoNotWait([this, XSettings, XFrame, XLayers]() {
+		RHICmdList.EnqueueLambda([this, XSettings, XFrame, XLayers](FRHICommandListImmediate& RHICmdList) {
 			ovrpResult ResultT;
 
 			if (XFrame->ShowFlags.Rendering)
@@ -398,14 +398,14 @@ namespace OculusXRHMD
 
 		if (bInitialized)
 		{
-			ExecuteOnRenderThread([this]() {
+			RunOnRenderingThreadAndWait([this](FRHICommandListImmediate& RHICmdList) {
 				if (Ticker)
 				{
 					Ticker->Unregister();
 					Ticker = nullptr;
 				}
 
-				ExecuteOnRHIThread([this]() {
+				RunOnRHIThreadAndWait(RHICmdList, [this](FRHICommandListImmediate& RHICmdList) {
 					SplashLayers.Reset();
 					Layers_RenderThread.Reset();
 					Layers_RenderThread_Input.Reset();

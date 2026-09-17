@@ -171,7 +171,7 @@ void UOculusXRBodyTrackingComponent::TickComponent(float DeltaTime, enum ELevelT
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (UOculusXRMovementFunctionLibrary::TryGetBodyState(BodyState, WorldToMeters))
+	if (UOculusXRMovementFunctionLibrary::TryGetBodyState(BodyState))
 	{
 		if (BodyState.IsActive && BodyState.Confidence > ConfidenceThreshold)
 		{

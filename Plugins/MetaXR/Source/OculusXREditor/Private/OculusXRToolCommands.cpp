@@ -25,12 +25,6 @@ void FOculusToolCommands::RegisterCommands()
 	UI_COMMAND(OpenPlatWindow, "Meta XR Platform Window", "Show Meta XR Platform Window", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(ToggleMetaXRSim, "Meta XR Simulator", "Activate/Deactivate Meta XR Simulator", EUserInterfaceActionType::ToggleButton, FInputChord());
-
-	UI_COMMAND(CheckForUpdateXRSim, "Check For Updates", "Check If Meta XR Simulator Update Is Available.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(UpdateXRSim, "Update To Latest Version", "Update Meta XR Simulator To Latest Version.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(StopServer, "Stop Server", "Stop Server", EUserInterfaceActionType::Button, FInputChord());
-
-	UI_COMMAND(OpenSettings, "Open Settings", "Open Meta XR Simulator Settings", EUserInterfaceActionType::Button, FInputChord());
 }
 
 void FOculusToolCommands::ShowOculusTool()

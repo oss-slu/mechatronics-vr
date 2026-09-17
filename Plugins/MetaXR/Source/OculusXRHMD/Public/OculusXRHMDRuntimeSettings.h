@@ -17,7 +17,7 @@ enum class EOculusXRSupportedDevices : uint8
 	Quest2 = 1 UMETA(DisplayName = "Meta Quest 2"),
 	QuestPro = 2 UMETA(DisplayName = "Meta Quest Pro"),
 	Quest3 = 3 UMETA(DisplayName = "Meta Quest 3"),
-	Quest3S = 4 UMETA(DisplayName = "Meta Quest 3S")
+	Quest3S = 4 UMETA(DisplayName = "Meta Quest 3S"),
 };
 
 /**
@@ -54,7 +54,8 @@ public:
 	FOculusXROSVersion TargetOSVersion;
 
 	/**
-	This selects the XR API that the engine will use. If unsure, OVRPlugin OpenXR is the recommended API.
+	This selects the XR API that the engine will use. Epic Native OpenXR is the recommended API;
+	the OVRPlugin backend is deprecated and will be removed in a future release.
 	The OpenXR plugin must also be enabled to use Native OpenXR.
 	*/
 	UPROPERTY(config, EditAnywhere, Category = General, meta = (DisplayName = "XR API", ConfigRestartRequired = true))
@@ -71,18 +72,6 @@ public:
 	/** Whether the app uses emulated thumbstick dpad inputs (ex: thumbstick up) when using Epic's Native OpenXR. */
 	UPROPERTY(config, EditAnywhere, Category = General, meta = (EditCondition = "XrApi == EOculusXRXrApi::NativeOpenXR"))
 	bool bThumbstickDpadEmulationEnabled;
-
-	/** Preferred version for XR Simulator */
-	UPROPERTY(Config, EditAnywhere, Category = "Meta XR Simulator", meta = (GetOptions = GetMetaXRSimulatorInstalledVersions, DisplayName = "Meta XR Simulator Version"))
-	FString OculusXRSimulatorPreferredVersion;
-
-	/** Skip following Simulator versions*/
-	UPROPERTY(Config, EditAnywhere, Category = "Meta XR Simulator", meta = (DisplayName = "Skipped versions"))
-	TArray<FString> SkippedVersions;
-
-	/** Whether to spawn notification if new version is available */
-	UPROPERTY(config, EditAnywhere, Category = "Meta XR Simulator", meta = (ToolTip = "Spawn notification if new version is available"))
-	bool bNotifyWhenNewVersionIsAvailable = true;
 
 	/** Whether Dash is supported by the app, which will keep the app in foreground when the User presses the oculus button (needs the app to handle input focus loss!) */
 	UPROPERTY(config, EditAnywhere, Category = PC)
@@ -212,6 +201,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Scene Support"))
 	bool bSceneSupportEnabled;
 
+	/** Whether PassthroughCameraAccess can be used with the app */
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Passthrough Camera Access Support"))
+	bool bPassthroughCameraAccessEnabled;
+
 	/** Can boundary visibility be toggled in app */
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Boundary Visibility Support"))
 	bool bBoundaryVisibilitySupportEnabled;
@@ -273,14 +266,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Tile Turn Off", EditCondition = "false"))
 	bool bTileTurnOffEnabled;
 
-	/** Whether Shader Binary Cache is enabled in app */
-	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Shader Binary Cache"))
-	bool bSupportSBC;
-
-	/** Shader Binary Cache path used to save shader cache*/
-	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (DisplayName = "Shader Binary Cache Path", EditCondition = "bSupportSBC"))
-	FString SBCPath;
-
 	/**
 	 * When world locking is enabled the position of the VR Pawn will be adjusted each frame to ensure
 	 * the room anchors are where they should be relative to the camera position. This is necessary to
@@ -289,13 +274,18 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "MR Utility Kit")
 	bool EnableWorldLock = true;
 
+	/**
+	 * When "Sceneless World Locking" is enabled the world locking feature is enabled even when
+	 * there is no scene loaded. The underlying mechanism spawns a spatial anchor to world lock against.
+	 * It is recommended to keep this disabled if working on non MR-apps.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "MR Utility Kit")
+	bool bUseScenelessWorldLocking = false;
+
 private:
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-
-	UFUNCTION()
-	TArray<FString> GetMetaXRSimulatorInstalledVersions() const;
 #endif // WITH_EDITOR
 	virtual void PostInitProperties() override;
 

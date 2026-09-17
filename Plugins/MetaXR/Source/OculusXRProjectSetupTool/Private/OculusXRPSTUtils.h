@@ -6,6 +6,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Styling/SlateStyle.h"
 #include "Brushes/SlateImageBrush.h"
+#include <string>
 
 #define OCULUSXR_UPDATE_SETTINGS(SettingsClass, PropertyName, PropertyValue) \
 	{                                                                        \
@@ -94,9 +95,17 @@ namespace OculusXRPSTUtils
 		return "";
 	}
 
+	// Returns a string representation of the platform flags.
+	// Note: Uses thread_local storage to avoid a dangling pointer issue.
+	// The original code used TCHAR_TO_ANSI which creates a temporary that would be
+	// destroyed before the caller could use it. This worked in practice because all
+	// callers (e.g., AddAnnotation for telemetry) consume the string immediately
+	// within the same expression, so the temporary hadn't been overwritten yet.
+	// However, clang correctly flags this as undefined behavior with -Werror.
 	inline const char* ToString(ESetupRulePlatform Platform)
 	{
-		FString Result = "";
+		static thread_local std::string Result;
+		Result = "";
 		if ((Platform & ESetupRulePlatform::MetaLink) == ESetupRulePlatform::MetaLink)
 			Result += " PC Link";
 		if ((Platform & ESetupRulePlatform::MetaQuest_2) == ESetupRulePlatform::MetaQuest_2)
@@ -105,7 +114,7 @@ namespace OculusXRPSTUtils
 			Result += " Quest 3";
 		if ((Platform & ESetupRulePlatform::MetaQuest_Pro) == ESetupRulePlatform::MetaQuest_Pro)
 			Result += " Quest Pro";
-		return TCHAR_TO_ANSI(*Result);
+		return Result.c_str();
 	}
 
 	inline const char* GetDisplayName(ESetupRulePlatform Platform)

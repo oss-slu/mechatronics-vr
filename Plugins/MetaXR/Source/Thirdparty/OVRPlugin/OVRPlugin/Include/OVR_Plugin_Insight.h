@@ -93,23 +93,6 @@ OVRP_EXPORT ovrpResult ovrp_DestroyPassthroughColorLut(ovrpPassthroughColorLut c
 OVRP_EXPORT ovrpResult
 ovrp_UpdatePassthroughColorLut(ovrpPassthroughColorLut colorLut, ovrpPassthroughColorLutData data);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 OVRP_EXPORT ovrpResult ovrp_GetPassthroughPreferences(ovrpPassthroughPreferences* preferences);
 
 #ifdef __cplusplus

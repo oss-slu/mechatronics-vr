@@ -27,7 +27,6 @@
 #include "SceneViewExtension.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMeshActor.h"
-#include "XRThreadUtils.h"
 #include "ProceduralMeshComponent.h"
 #include "Shader.h"
 #include "GlobalShader.h"
@@ -37,6 +36,24 @@
 
 namespace OculusXRHMD
 {
+	// TODO Audit uses of this function, the flush is expensive.
+	template <typename L>
+	void RunOnRHIThreadAndWait(FRHICommandListImmediate& RHICmdList, L&& Lambda)
+	{
+		check(RHICmdList.IsTopOfPipe());
+		RHICmdList.EnqueueLambda(MoveTemp(Lambda));
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+	}
+
+	// TODO Audit uses of this function, the flush is expensive.
+	template <typename L>
+	void RunOnRenderingThreadAndWait(L&& Lambda)
+	{
+		check(IsInGameThread());
+		ENQUEUE_RENDER_COMMAND(OculusXRHMD_RunOnRenderingThreadAndWait)(MoveTemp(Lambda));
+		FlushRenderingCommands();
+	}
+
 	class FHardOcclusionsPS : public FGlobalShader
 	{
 		DECLARE_SHADER_TYPE(FHardOcclusionsPS, Global);
@@ -268,7 +285,9 @@ namespace OculusXRHMD
 		virtual float GetPixelDenity() const override;
 		virtual void SetPixelDensity(const float NewPixelDensity) override;
 		virtual FIntPoint GetIdealRenderTargetSize() const override;
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 		virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) override;
+#endif
 #if !UE_VERSION_OLDER_THAN(5, 5, 0)
 		virtual void GetMotionControllerState(UObject* WorldContext, const EXRSpaceType XRSpaceType, const EControllerHand Hand, const EXRControllerPoseType XRControllerPoseType, FXRMotionControllerState& MotionControllerState) override;
 #endif
@@ -323,10 +342,15 @@ namespace OculusXRHMD
 		virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InTexFlags, ETextureCreateFlags InTargetableTextureFlags, FTextureRHIRef& OutTargetableTexture, FTextureRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 		virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InTexFlags, ETextureCreateFlags TargetableTextureFlags, FTextureRHIRef& OutTargetableTexture, FTextureRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 		virtual bool AllocateShadingRateTexture(uint32 Index, uint32 RenderSizeX, uint32 RenderSizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InTexFlags, ETextureCreateFlags InTargetableTextureFlags, FTextureRHIRef& OutTexture, FIntPoint& OutTextureSize) override;
-#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
+#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)) && UE_VERSION_OLDER_THAN(5, 7, 0)
 		virtual bool GetRecommendedVelocityTextureSize(FIntPoint& OutTextureSize) override;
 		virtual bool AllocateVelocityTexture(uint32 Index, const FIntPoint& Size, uint8 Format, uint32 NumMips, ETextureCreateFlags TexFlags, FTextureRHIRef& OutTexture, uint32 NumSamples = 1) override;
 		virtual bool AllocateVelocityDepthTexture(uint32 Index, const FIntPoint& Size, uint8 Format, uint32 NumMips, ETextureCreateFlags TexFlags, FTextureRHIRef& OutTexture, uint32 NumSamples = 1) override;
+#endif
+#if !UE_VERSION_OLDER_THAN(5, 7, 0)
+		virtual bool GetRecommendedMotionVectorTextureSize(FIntPoint& OutTextureSize) override;
+		virtual bool GetMotionVectorTexture(uint32 Index, const FIntPoint& Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FTextureRHIRef& OutTexture, uint32 NumSamples) override;
+		virtual bool GetMotionVectorDepthTexture(uint32 Index, const FIntPoint& Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, FTextureRHIRef& OutTexture, uint32 NumSamples) override;
 #endif
 #if defined(WITH_OCULUS_BRANCH)
 		virtual bool FindEnvironmentDepthTexture_RenderThread(FTextureRHIRef& OutTexture, FTextureRHIRef& OutMinMaxTexture, FVector2f& OutDepthFactors, FMatrix44f OutScreenToDepthMatrices[2], FMatrix44f OutDepthViewProjMatrices[2]) override;
@@ -570,12 +594,12 @@ namespace OculusXRHMD
 		const FRotator GetSplashRotation() const { return SplashRotation; }
 		void SetSplashRotationToForward();
 
-		OCULUSXRHMD_API void StartGameFrame_GameThread();				// Called from OnStartGameFrame or from FOculusXRInput::SendControllerEvents (first actual call of the frame)
-		void FinishGameFrame_GameThread();								// Called from OnEndGameFrame
-		void StartRenderFrame_GameThread();								// Called from BeginRenderViewFamily
-		void FinishRenderFrame_RenderThread(FRDGBuilder& GraphBuilder); // Called from PostRenderViewFamily_RenderThread
-		void StartRHIFrame_RenderThread();								// Called from PreRenderViewFamily_RenderThread
-		void FinishRHIFrame_RHIThread();								// Called from FinishRendering_RHIThread
+		OCULUSXRHMD_API void StartGameFrame_GameThread();					   // Called from OnStartGameFrame or from FOculusXRInput::SendControllerEvents (first actual call of the frame)
+		void FinishGameFrame_GameThread();									   // Called from OnEndGameFrame
+		void StartRenderFrame_GameThread();									   // Called from BeginRenderViewFamily
+		void FinishRenderFrame_RenderThread(FRDGBuilder& GraphBuilder);		   // Called from PostRenderViewFamily_RenderThread
+		void StartRHIFrame_RenderThread(FRHICommandListImmediate& RHICmdList); // Called from PreRenderViewFamily_RenderThread
+		void FinishRHIFrame_RHIThread();									   // Called from FinishRendering_RHIThread
 
 		void GetSuggestedCpuAndGpuPerformanceLevels(EOculusXRProcessorPerformanceLevel& CpuPerfLevel, EOculusXRProcessorPerformanceLevel& GpuPerfLevel);
 		void SetSuggestedCpuAndGpuPerformanceLevels(EOculusXRProcessorPerformanceLevel CpuPerfLevel, EOculusXRProcessorPerformanceLevel GpuPerfLevel);

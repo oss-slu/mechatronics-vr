@@ -8,7 +8,7 @@
 #include "MRUtilityKitSceneDataProvider.generated.h"
 
 UCLASS(ClassGroup = MRUtilityKit, meta = (DisplayName = "MR Utility Kit Scene Data Provider"))
-/*
+/**
  * This actor is used to provide scene data to the MR Utility Kit when running in editor.
  * You can also use it to not load a room from device.
  * Use RandomRoom to load a random room from the list of rooms.

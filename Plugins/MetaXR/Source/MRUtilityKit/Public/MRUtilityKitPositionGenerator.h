@@ -24,7 +24,7 @@ struct FMRUKRandomSpawnSettings
 	EMRUKRoomFilter RoomFilter = EMRUKRoomFilter::CurrentRoomOnly;
 
 	/**
-	 * When an actor instance is reference here, this actor will be moved around.
+	 * When an actor instance is referenced here, this actor will be moved around.
 	 * If you'd need to spawn new actors, use ActorClass.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit")
@@ -113,7 +113,7 @@ public:
 	/**
 	 * Generates a set of random positions on the surface of a given spawn location, while ensuring that the generated positions
 	 * are at least `MinDistanceToEdge` away from any edges and follow the other settings specified in `SpawnSettings` in the
-	 * give room.
+	 * given room.
 	 * @param Room The room where the positions should be generated in.
 	 * @param OutTransforms An array of transforms representing the generated positions.
 	 * @return A boolean value indicating whether valid positions were found. If no valid positions could be found, `OutTransforms` will be empty.

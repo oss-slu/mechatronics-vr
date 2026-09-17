@@ -10,7 +10,7 @@
 #include "StereoRenderUtils.h"
 #include "SceneView.h"
 
-#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH))
+#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)) && UE_VERSION_OLDER_THAN(5, 7, 0)
 
 DEFINE_LOG_CATEGORY(LogOculusSpaceWarpExtensionPlugin);
 
@@ -80,6 +80,12 @@ namespace OculusXR
 		UE::StereoRenderUtils::FStereoShaderAspects Aspects(GMaxRHIShaderPlatform);
 		bIsMobileMultiViewEnabled = Aspects.IsMobileMultiViewEnabled();
 	}
+
+	void FSpaceWarpExtensionPlugin::OnDestroySession(XrSession InSession)
+	{
+		SpaceWarpViewExtension.Reset();
+	}
+
 #if UE_VERSION_OLDER_THAN(5, 6, 0)
 	void FSpaceWarpExtensionPlugin::OnBeginRendering_RenderThread(XrSession InSession)
 #else  // UE_VERSION_OLDER_THAN(5, 6, 0)

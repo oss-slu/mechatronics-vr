@@ -40,45 +40,60 @@ void AMRUKLightDispatcher::FillParameterCollection()
 		return;
 	}
 
-	UMaterialParameterCollectionInstance* Instance = GetWorld()->GetParameterCollectionInstance(Collection);
-
-	for (int i = 0; i < PointLightComponents.Num(); i++)
+	if (!GetWorld())
 	{
-		const UPointLightComponent* Light = PointLightComponents[i];
+		return;
+	}
+
+	UMaterialParameterCollectionInstance* Instance = GetWorld()->GetParameterCollectionInstance(Collection);
+	if (!Instance)
+	{
+		return;
+	}
+
+	for (int32 LightIndex = 0; LightIndex < PointLightComponents.Num(); LightIndex++)
+	{
+		const UPointLightComponent* Light = PointLightComponents[LightIndex];
 		if (!IsValid(Light))
 		{
 			continue;
 		}
 
-		const int Step = i * 3;
+		const int32 ParameterStep = LightIndex * 3;
 
 		// It's not possible to expand the amount of parameters in collection at runtime,
 		// in case we exceed the count of existing parameters break the loop
-		if (Collection->VectorParameters.Num() < Step + 3)
+		if (Collection->VectorParameters.Num() < ParameterStep + 3)
 		{
 			break;
 		}
 
 		// Prepare parameters
-		FCollectionVectorParameter PositionParam, DataParam, ColorParam;
+		FCollectionVectorParameter PositionParam;
+		FCollectionVectorParameter DataParam;
+		FCollectionVectorParameter ColorParam;
 
-		PositionParam.ParameterName = FName("PointLightPosition" + FString::FromInt(i));
-		DataParam.ParameterName = FName("PointLightData" + FString::FromInt(i));
-		ColorParam.ParameterName = FName("PointLightColor" + FString::FromInt(i));
+		PositionParam.ParameterName = FName(FString::Printf(TEXT("PointLightPosition%d"), LightIndex));
+		DataParam.ParameterName = FName(FString::Printf(TEXT("PointLightData%d"), LightIndex));
+		ColorParam.ParameterName = FName(FString::Printf(TEXT("PointLightColor%d"), LightIndex));
 
 		PositionParam.DefaultValue = FLinearColor(Light->GetComponentLocation());
-		DataParam.DefaultValue = FLinearColor(1.f / Light->AttenuationRadius, Light->ComputeLightBrightness(), Light->LightFalloffExponent, Light->bUseInverseSquaredFalloff);
+		DataParam.DefaultValue = FLinearColor(
+			1.0f / Light->AttenuationRadius,
+			Light->ComputeLightBrightness(),
+			Light->LightFalloffExponent,
+			Light->bUseInverseSquaredFalloff);
 		ColorParam.DefaultValue = Light->GetLightColor();
 
 		// Fill collection's vector parameters
-		Collection->VectorParameters[Step] = PositionParam;
-		Collection->VectorParameters[Step + 1] = DataParam;
-		Collection->VectorParameters[Step + 2] = ColorParam;
+		Collection->VectorParameters[ParameterStep] = PositionParam;
+		Collection->VectorParameters[ParameterStep + 1] = DataParam;
+		Collection->VectorParameters[ParameterStep + 2] = ColorParam;
 	}
 
 	// Send count of lights
 	Collection->ScalarParameters[0].DefaultValue = PointLightComponents.Num();
-	UKismetMaterialLibrary::SetScalarParameterValue(GetWorld(), Collection, "TotalLights", PointLightComponents.Num());
+	UKismetMaterialLibrary::SetScalarParameterValue(GetWorld(), Collection, TEXT("TotalLights"), PointLightComponents.Num());
 
 	// Update instance
 	Instance->UpdateRenderState(false);
@@ -119,6 +134,10 @@ void AMRUKLightDispatcher::FillPointLights()
 		for (AActor* Actor : PointLightActors)
 		{
 			const APointLight* PointLightActor = Cast<APointLight>(Actor);
+			if (!PointLightActor)
+			{
+				continue;
+			}
 
 			PointLightComponents.Add(PointLightActor->PointLightComponent);
 		}
@@ -135,6 +154,10 @@ void AMRUKLightDispatcher::FillPointLights()
 			}
 
 			const APointLight* PointLightActor = Cast<APointLight>(Actor);
+			if (!PointLightActor)
+			{
+				continue;
+			}
 
 			PointLightComponents.Add(PointLightActor->PointLightComponent);
 		}
@@ -142,7 +165,7 @@ void AMRUKLightDispatcher::FillPointLights()
 
 	// Check the additional added actors for point lights and add them in case they have
 	// PointLightComponents attached
-	for (const AActor* Actor : AdditionalActorsToLookForPointLightComponents)
+	for (AActor* Actor : AdditionalActorsToLookForPointLightComponents)
 	{
 		if (!IsValid(Actor))
 		{

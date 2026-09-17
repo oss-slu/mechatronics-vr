@@ -59,8 +59,9 @@ namespace OculusXRHMD
 		void MarkTextureForUpdate() { bUpdateTexture = true; }
 		bool NeedsPokeAHole();
 		void HandlePokeAHoleComponent();
-		void BuildPokeAHoleMesh(TArray<FVector>& Vertices, TArray<int32>& Triangles, TArray<FVector2D>& UV0);
 		bool NeedsPassthroughPokeAHole();
+
+		static void BuildPokeAHoleMesh(const IStereoLayers::FLayerDesc& LayerDesc, TArray<FVector>& Vertices, TArray<int32>& Triangles, TArray<FVector2D>& UV0);
 
 		bool ShapeNeedsTextures(ovrpShape shape);
 #if UE_VERSION_OLDER_THAN(5, 6, 0)
@@ -83,7 +84,7 @@ namespace OculusXRHMD
 
 		bool bNeedsTexSrgbCreate;
 
-		void AddPassthroughMesh_RenderThread(const TArray<FVector>& Vertices, const TArray<int32>& Triangles, FMatrix Transformation, uint64_t& OutMeshHandle, uint64_t& OutInstanceHandle);
+		void AddPassthroughMesh_RenderThread(const TArray<FVector3f>& Vertices, const TArray<int32_t>& Triangles, FMatrix Transformation, uint64_t& OutMeshHandle, uint64_t& OutInstanceHandle);
 		void UpdatePassthroughMeshTransform_RenderThread(uint64_t InstanceHandle, FMatrix Transformation);
 		void RemovePassthroughMesh_RenderThread(uint64_t MeshHandle, uint64_t InstanceHandle);
 
@@ -107,10 +108,10 @@ namespace OculusXRHMD
 
 		struct FPassthroughPokeActor
 		{
-			FPassthroughPokeActor(){};
+			FPassthroughPokeActor() {};
 			FPassthroughPokeActor(UProceduralMeshComponent* PokeAHoleComponentPtr, AActor* PokeAHoleActor)
 				: PokeAHoleComponentPtr(PokeAHoleComponentPtr)
-				, PokeAHoleActor(PokeAHoleActor){};
+				, PokeAHoleActor(PokeAHoleActor) {};
 			UProceduralMeshComponent* PokeAHoleComponentPtr;
 			AActor* PokeAHoleActor;
 		};

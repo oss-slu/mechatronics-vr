@@ -280,8 +280,11 @@ namespace OculusXRHMD
 #endif
 	}
 
-	/** Check currently executing from Render thread */
+	/** Check currently executing from physical Render thread */
 	OCULUSXRHMD_API bool InRenderThread();
+
+	/** Check currently executing from Render thread timeline */
+	OCULUSXRHMD_API bool InRenderThread(FRHICommandListImmediate& RHICmdList);
 
 	FORCEINLINE void CheckInRenderThread()
 	{
@@ -290,13 +293,35 @@ namespace OculusXRHMD
 #endif
 	}
 
-	/** Check currently executing from RHI thread */
+	FORCEINLINE void CheckInRenderThread(FRHICommandListImmediate& RHICmdList)
+	{
+#if DO_CHECK
+		check(InRenderThread(RHICmdList));
+#endif
+	}
+
+	FORCEINLINE void CheckInRenderThread(FRDGBuilder& RDGBuilder)
+	{
+		// If you have an RDG Builder, you are definitely in the render thread
+	}
+
+	/** Check currently executing from physical RHI thread */
 	OCULUSXRHMD_API bool InRHIThread();
+
+	/** Check currently executing from RHI thread timeline */
+	OCULUSXRHMD_API bool InRHIThread(FRHICommandListImmediate& RHICmdList);
 
 	FORCEINLINE void CheckInRHIThread()
 	{
 #if DO_CHECK
 		check(InRHIThread());
+#endif
+	}
+
+	FORCEINLINE void CheckInRHIThread(FRHICommandListImmediate& RHICmdList)
+	{
+#if DO_CHECK
+		check(InRHIThread(RHICmdList));
 #endif
 	}
 

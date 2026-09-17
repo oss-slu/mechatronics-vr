@@ -88,9 +88,6 @@ void UOculusXRSceneSubsystem::UpdateBoundary()
 		return;
 	}
 
-	// Log only if the value != the requested state, else we pollute the log (per-frame call)
-	UE_LOG(LogOculusXRScene, Log, TEXT("GetBoundaryVisibility -- Visibility(%s)"), *UEnum::GetValueAsString(currentVisibilityState));
-
 	// TODO: This should probably be part of the passthrough API
 	const FName SystemName(TEXT("OpenXR"));
 	const bool IsOpenXR = GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetSystemName() == SystemName);

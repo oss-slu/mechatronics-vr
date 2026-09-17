@@ -10,7 +10,36 @@
 
 #define LOCTEXT_NAMESPACE "OculusXRMovement"
 
-bool FOculusXRMovementFunctionsOVR::GetBodyState(FOculusXRBodyState& outOculusXRBodyState, float WorldToMeters)
+// Helper function to get the world to meters scale.
+// Can be called from any thread.
+static float GetWorldToMetersScale()
+{
+	if (GWorld != nullptr)
+	{
+#if WITH_EDITOR
+		// Workaround to allow WorldToMeters scaling to work correctly for controllers while running inside PIE.
+		// The main world will most likely not be pointing at the PIE world while polling input, so if we find a world context
+		// of that type, use that world's WorldToMeters instead.
+		if (GIsEditor)
+		{
+			for (const FWorldContext& Context : GEngine->GetWorldContexts())
+			{
+				if (Context.WorldType == EWorldType::PIE)
+				{
+					return Context.World()->GetWorldSettings()->WorldToMeters;
+				}
+			}
+		}
+#endif // WITH_EDITOR
+
+		// We're not currently rendering a frame, so just use whatever world to meters the main world is using.
+		// This can happen when we're polling input in the main engine loop, before ticking any worlds.
+		return GWorld->GetWorldSettings()->WorldToMeters;
+	}
+	return 100.0f;
+}
+
+bool FOculusXRMovementFunctionsOVR::GetBodyState(FOculusXRBodyState& outOculusXRBodyState)
 {
 	// Prevent calling plugin functions if the plugin is not available
 	if (!FOculusXRHMDModule::Get().IsOVRPluginAvailable())
@@ -29,6 +58,8 @@ bool FOculusXRMovementFunctionsOVR::GetBodyState(FOculusXRBodyState& outOculusXR
 
 	if (OVRP_SUCCESS(OVRBodyStateResult))
 	{
+		const float WorldToMeters = GetWorldToMetersScale();
+
 		outOculusXRBodyState.IsActive = (OVRBodyState.IsActive == ovrpBool_True);
 		outOculusXRBodyState.Confidence = OVRBodyState.Confidence;
 		outOculusXRBodyState.SkeletonChangedCount = OVRBodyState.SkeletonChangedCount;
@@ -43,6 +74,7 @@ bool FOculusXRMovementFunctionsOVR::GetBodyState(FOculusXRBodyState& outOculusXR
 			OculusXRBodyJoint.LocationFlags = OVRJointLocation.LocationFlags;
 			OculusXRBodyJoint.bIsValid = OVRJointLocation.LocationFlags & (XRSpaceFlags::XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XRSpaceFlags::XR_SPACE_LOCATION_POSITION_VALID_BIT);
 			OculusXRBodyJoint.Orientation = FRotator(OculusXRHMD::ToFQuat(OVRJointPose.Orientation));
+			OculusXRBodyJoint.OrientationQuat = OculusXRHMD::ToFQuat(OVRJointPose.Orientation);
 			OculusXRBodyJoint.Position = OculusXRHMD::ToFVector(OVRJointPose.Position) * WorldToMeters;
 		}
 		if (AvailableJoints < outOculusXRBodyState.Joints.Num())
@@ -59,7 +91,7 @@ bool FOculusXRMovementFunctionsOVR::GetBodyState(FOculusXRBodyState& outOculusXR
 	return false;
 }
 
-bool FOculusXRMovementFunctionsOVR::GetBodySkeleton(FOculusXRBodySkeleton& outOculusXRBodyState, float WorldToMeters)
+bool FOculusXRMovementFunctionsOVR::GetBodySkeleton(FOculusXRBodySkeleton& outOculusXRBodyState)
 {
 	// Prevent calling plugin functions if the plugin is not available
 	if (!FOculusXRHMDModule::Get().IsOVRPluginAvailable())
@@ -74,6 +106,8 @@ bool FOculusXRMovementFunctionsOVR::GetBodySkeleton(FOculusXRBodySkeleton& outOc
 			&OVRBodySkeleton);
 	if (OVRP_SUCCESS(OVRBodyStateResult))
 	{
+		const float WorldToMeters = GetWorldToMetersScale();
+
 		checkf(outOculusXRBodyState.Bones.Num() >= static_cast<int32>(OVRBodySkeleton.NumBones),
 			TEXT("Not enough bones in OVRBosySkeleton::Bones array. You must have at least %d joints"),
 			OVRBodySkeleton.NumBones);
@@ -85,8 +119,10 @@ bool FOculusXRMovementFunctionsOVR::GetBodySkeleton(FOculusXRBodySkeleton& outOc
 			ovrpPosef OVRBonePose = OVRBone.Pose;
 
 			FOculusXRBodySkeletonBone& OculusXRBone = outOculusXRBodyState.Bones[i];
-
-			OculusXRBone.Orientation = FRotator(OculusXRHMD::ToFQuat(OVRBonePose.Orientation));
+			auto inputQuat = OVRBonePose.Orientation;
+			auto UnrealQuat = OculusXRHMD::ToFQuat(OVRBonePose.Orientation);
+			OculusXRBone.Orientation = FRotator(UnrealQuat);
+			OculusXRBone.OrientationQuat = UnrealQuat;
 			OculusXRBone.Position = OculusXRHMD::ToFVector(OVRBonePose.Position) * WorldToMeters;
 
 			if (OVRBone.ParentBoneIndex == ovrpBoneId_Invalid)
@@ -476,7 +512,7 @@ bool FOculusXRMovementFunctionsOVR::IsFaceTrackingVisemesSupported()
 	return bResult;
 }
 
-bool FOculusXRMovementFunctionsOVR::GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState, float WorldToMeters)
+bool FOculusXRMovementFunctionsOVR::GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState)
 {
 	// Prevent calling plugin functions if the plugin is not available
 	if (!FOculusXRHMDModule::Get().IsOVRPluginAvailable())
@@ -494,6 +530,8 @@ bool FOculusXRMovementFunctionsOVR::GetEyeGazesState(FOculusXREyeGazesState& out
 
 	if (OVRP_SUCCESS(OVREyeGazesStateResult))
 	{
+		const float WorldToMeters = GetWorldToMetersScale();
+
 		outOculusXREyeGazesState.Time = static_cast<float>(OVREyeGazesState.Time);
 		for (int i = 0; i < ovrpEye_Count; ++i)
 		{

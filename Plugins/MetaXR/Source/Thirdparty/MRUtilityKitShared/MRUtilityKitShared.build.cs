@@ -19,5 +19,17 @@ public class MRUtilityKitShared : ModuleRules
         {
             RuntimeDependencies.Add(Path.Combine(ModuleDirectory, "Lib/Win64/mrutilitykitshared.dll"));
         }
+        else if (Target.Platform == UnrealTargetPlatform.Mac)
+        {
+            // Use ARM dylib for Apple Silicon, Intel dylib for x86_64
+            if (Target.Architecture == UnrealArch.Arm64)
+            {
+                RuntimeDependencies.Add(Path.Combine(ModuleDirectory, "Lib/MacArm/libmrutilitykitshared.dylib"));
+            }
+            else
+            {
+                RuntimeDependencies.Add(Path.Combine(ModuleDirectory, "Lib/Mac/libmrutilitykitshared.dylib"));
+            }
+        }
     }
 }

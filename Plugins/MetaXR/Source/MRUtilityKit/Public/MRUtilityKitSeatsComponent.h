@@ -20,10 +20,11 @@ public:
 	TArray<FTransform> SeatPoses;
 
 	/**
-	 * Calculate the seats poses that are available on the actor.
+	 * Calculate the seat poses that are available on the actor.
 	 * This gets called automatically after the room has been loaded.
 	 * However, it's okay to call this function again with a different SeatWidth.
 	 * The seat poses will then get recalculated.
+	 *
 	 * @param SeatWidth The width of each seat.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")

@@ -46,17 +46,6 @@ namespace OculusXRPluginRules
 			return bSuccess && !bIsProjectDirty;
 		}
 	} // namespace
-	bool FUseRecommendedXRAPIRule::IsApplied() const
-	{
-		const UOculusXRHMDRuntimeSettings* Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
-		return Settings->XrApi == EOculusXRXrApi::OVRPluginOpenXR;
-	}
-
-	void FUseRecommendedXRAPIRule::ApplyImpl(bool& OutShouldRestartEditor)
-	{
-		OCULUSXR_UPDATE_SETTINGS(UOculusXRHMDRuntimeSettings, XrApi, EOculusXRXrApi::OVRPluginOpenXR);
-		OutShouldRestartEditor = false;
-	}
 
 	bool FDisableOculusVRRule::IsApplied() const
 	{
@@ -165,6 +154,30 @@ namespace OculusXRPluginRules
 		Lines.Add(XmlStr);
 
 		FFileHelper::SaveStringArrayToFile(Lines, *Path);
+	}
+
+	bool FUseOpenXRBackendRule::IsApplied() const
+	{
+		// If the OpenXRHMD module isn't loaded, UOculusXRHMDRuntimeSettings::PostInitProperties
+		// force-sets XrApi back to OVRPluginOpenXR — applying NativeOpenXR would just bounce.
+		// Report applied in that case so we don't nag the user with an unsatisfiable rule.
+		if (!FModuleManager::Get().IsModuleLoaded("OpenXRHMD"))
+		{
+			return true;
+		}
+		const UOculusXRHMDRuntimeSettings* Settings = GetDefault<UOculusXRHMDRuntimeSettings>();
+		return Settings->XrApi != EOculusXRXrApi::OVRPluginOpenXR;
+	}
+
+	void FUseOpenXRBackendRule::ApplyImpl(bool& OutShouldRestartEditor)
+	{
+		UOculusXRHMDRuntimeSettings* Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
+		Settings->XrApi = EOculusXRXrApi::NativeOpenXR;
+		Settings->UpdateSinglePropertyInConfigFile(
+			Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, XrApi)),
+			Settings->GetDefaultConfigFilename());
+		// XrApi UPROPERTY is marked ConfigRestartRequired = true.
+		OutShouldRestartEditor = true;
 	}
 } // namespace OculusXRPluginRules
 

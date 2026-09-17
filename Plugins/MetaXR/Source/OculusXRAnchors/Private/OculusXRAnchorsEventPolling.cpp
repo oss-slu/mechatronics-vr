@@ -8,6 +8,7 @@
 #include "OculusXRAnchorBPFunctionLibrary.h"
 #include "OculusXRAnchorTypesPrivate.h"
 #include "OculusXRAnchorsUtil.h"
+#include "OculusXRAnchors.h"
 #include "Engine/Engine.h"
 #include <vector>
 
@@ -113,6 +114,14 @@ namespace OculusXRAnchors
 				GetEventDataAs(buf, QueryEvent);
 
 				UE_LOG(LogOculusXRAnchors, Verbose, TEXT("ovrpEventType_SpaceQueryResults  Request ID: %llu"), QueryEvent.requestId);
+
+				// Check if the requestId is found in AnchorQueryBindings or GetSharedAnchorsBindings
+				auto* AnchorsInstance = FOculusXRAnchors::GetInstance();
+				if (!AnchorsInstance || !AnchorsInstance->HasAnchorQueryBinding(QueryEvent.requestId))
+				{
+					UE_LOG(LogOculusXRAnchors, Log, TEXT("RequestId %llu not found in AnchorQueryBindings or GetSharedAnchorsBindings, skipping RetrieveSpaceQueryResults"), QueryEvent.requestId);
+					break;
+				}
 
 				ovrpUInt32 ovrpOutCapacity = 0;
 				auto getCapacityResult = FOculusXRHMDModule::GetPluginWrapper().RetrieveSpaceQueryResults(&QueryEvent.requestId, 0, &ovrpOutCapacity, nullptr);
@@ -265,6 +274,14 @@ namespace OculusXRAnchors
 				GetEventDataAs(buf, SpaceDiscoveryResultsEvent);
 
 				FOculusXRUInt64 RequestId(SpaceDiscoveryResultsEvent.requestId);
+
+				// Check if the requestId is found in AnchorDiscoveryBindings
+				auto* AnchorsInstance = FOculusXRAnchors::GetInstance();
+				if (!AnchorsInstance || !AnchorsInstance->HasDiscoveryBinding(RequestId.GetValue()))
+				{
+					UE_LOG(LogOculusXRAnchors, Log, TEXT("RequestId %llu not found in AnchorDiscoveryBindings, skipping RetrieveSpaceDiscoveryResults"), RequestId.GetValue());
+					break;
+				}
 
 				ovrpSpaceDiscoveryResults OVRPResults = { 0, 0, nullptr };
 

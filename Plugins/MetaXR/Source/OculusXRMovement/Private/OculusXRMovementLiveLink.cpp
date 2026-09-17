@@ -214,7 +214,7 @@ namespace MetaXRMovement
 	template <>
 	void FEyeSubject::UpdateFrame(FLiveLinkAnimationFrameData& FrameData)
 	{
-		bLastFrameIsValid = OculusXRMovement::GetEyeGazesState(LastState, 1.f)
+		bLastFrameIsValid = OculusXRMovement::GetEyeGazesState(LastState)
 			&& (LastState.EyeGazes[0].bIsValid || LastState.EyeGazes[1].bIsValid);
 		if (bLastFrameIsValid)
 		{
@@ -263,7 +263,7 @@ namespace MetaXRMovement
 	template <>
 	void FBodySubject::UpdateFrame(FLiveLinkAnimationFrameData& FrameData)
 	{
-		bLastFrameIsValid = OculusXRMovement::GetBodyState(LastState, 1.f) && (LastState.IsActive) && (LastState.SkeletonChangedCount > 0);
+		bLastFrameIsValid = OculusXRMovement::GetBodyState(LastState) && (LastState.IsActive) && (LastState.SkeletonChangedCount > 0);
 		if (bLastFrameIsValid)
 		{
 			constexpr auto FieldsCount = static_cast<uint8>(EOculusXRBoneID::COUNT);

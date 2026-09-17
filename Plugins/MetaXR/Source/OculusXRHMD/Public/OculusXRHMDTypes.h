@@ -202,9 +202,9 @@ enum class EOculusXRControllerType : uint8
 UENUM(BlueprintType)
 enum class EOculusXRXrApi : uint8
 {
-	OVRPluginOpenXR = 0 UMETA(DisplayName = "Oculus OVRPlugin + OpenXR backend (current recommended)", ToolTip = "Oculus plugin integration using OpenXR backend on both Mobile and PC. All new features will ship on backend for the forseeable future."),
+	OVRPluginOpenXR = 0 UMETA(DisplayName = "Meta XR with OVRPlugin (Deprecated - use Epic Native OpenXR)", ToolTip = "The OVRPlugin backend is deprecated and will be removed in a future release. Switch to Epic Native OpenXR."),
 
-	NativeOpenXR = 1 UMETA(DisplayName = "Epic Native OpenXR with Oculus vendor extensions", ToolTip = "Disable Legacy Oculus in favor of the native OpenXR implementation, with Oculus vendor extensions. Must enable the OpenXR plugin. This will be where Epic focuses XR development going forward. Oculus OpenXR extensions may be moved into a separate plugin (or plugins) in the future to improve modularity. The features supported by OpenXR are listed in the OpenXR specification on khronos.org, and the features supported by a given runtime can be verified with the \"OpenXR Explorer\" application on GitHub."),
+	NativeOpenXR = 1 UMETA(DisplayName = "Epic Native OpenXR (Recommended)", ToolTip = "Native OpenXR integration through the Epic OpenXR plugin with additional Meta XR features provided by this plugin. The OpenXR plugin must be enabled."),
 };
 
 /*

@@ -32,6 +32,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MR Utility Kit")
 	void CreateGuardian(UProceduralMeshComponent* GuardianMesh);
 
-public:
 	AMRUKGuardian(const FObjectInitializer& ObjectInitializer);
 };

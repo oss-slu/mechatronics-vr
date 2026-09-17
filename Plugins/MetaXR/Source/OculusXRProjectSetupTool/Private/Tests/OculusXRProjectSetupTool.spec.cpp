@@ -39,7 +39,8 @@ TSet<FName> RulesThatRequireRestart = {
 	FName("Rendering_MobileShaderAllowMovableDirectionalLights"),
 	FName("Rendering_MobileGPUScene"),
 	FName("Rendering_MobileUniformLocalLights"),
-	FName("Rendering_UseHalfPrecisionFloat")
+	FName("Rendering_UseHalfPrecisionFloat"),
+	FName("Plugin_UseOpenXRBackend")
 };
 
 void Setup();
