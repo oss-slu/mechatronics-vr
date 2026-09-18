@@ -83,24 +83,53 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
 	FLinearColor PreviewColor = FLinearColor::Green;
 
-	/** Currently showing preview? */
+	/** Currently showing preview? (read-only state tracking) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
 	bool bShowingPreview = false;
+
+	/** Allow snap previews to occur (when false, previews are disabled) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	bool bAllowGhostOutline
+ = true;
+
+	/** Allow snap placement arrows to occur (when false, arrows are disabled) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	bool bAllowSnapArrow
+ = true;
+
+	/** Color of the snap placement arrow */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	FLinearColor SnapArrowColor = FLinearColor::Yellow;
+
+	/** Scale factor for arrow head size */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
+	float SnapArrowSize = 5.0f;
+
+	/** Currently showing snap arrow? (read-only state tracking) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Snap Preview")
+	bool bShowingSnapArrow = false;
 
 	UFUNCTION(BlueprintCallable, Category = "Grab State")
 	bool IsAttachedToMotionController() const;
 
-	// Preview functions
-	/** Show preview of where this part will snap */
+	// Ghost outline (preview mesh) functions
+	/** Show ghost outline of where this part will snap */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	void ShowSnapPreview();
-	void ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint);
+	void ShowGhostOutline();
+	void ShowGhostOutlineInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint);
 	void OnPartGrabbed();
 	void OnPartReleased();
 
-	/** Hide the snap preview */
+	/** Hide the ghost outline */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	void HideSnapPreview();
+	void HideGhostOutline();
+
+	/** Show arrow indicating snap placement direction */
+	void ShowSnapArrow();
+	void ShowSnapArrowInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint);
+
+	/** Hide the snap arrow */
+	void HideSnapArrow();
 
 	// /** Calculate where this part should be positioned when snapped */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")

@@ -128,12 +128,6 @@ USnapPointComponent* APartActor::GetBestSnapPointFor(USnapPointComponent* Target
 }
 void APartActor::UpdatePreviewState()
 {
-	if (!IsAttachedToMotionController())
-	{
-		HideSnapPreview();
-		CurrentTargetSnapPoint = nullptr;
-		return;
-	}
 	CurrentTargetSnapPoint = FindBestPreviewTarget();
 }
 
@@ -149,10 +143,16 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
 			const ULessonManagerComponent* LM = GM->FindComponentByClass<ULessonManagerComponent>();
 			if (LM)
 			{
+				// Only proceed if the current step exists and is an Assemble step
 				if (LM->CurrentStep && LM->CurrentStep->StepType == ELessonStepType::Assemble)
 				{
-					const UAssembleStep* AssembleStep = static_cast<const UAssembleStep*>(LM->CurrentStep);
-					if (AssembleStep && !AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
+					const UAssembleStep* AssembleStep = Cast<UAssembleStep>(LM->CurrentStep);
+					if (!AssembleStep)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("%s: CurrentStep exists and is marked Assemble but cast to UAssembleStep failed. Skipping preview."), *GetName());
+						// Fall through and allow preview logic to continue without lesson filtering
+					}
+					else if (!AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
 					{
 						return nullptr;
 					}
@@ -196,35 +196,46 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
             }
         }
     }
+    else if (PartAssembledOnto)
+    {
+        // PartAssembledOnto was set but is not valid
+        UE_LOG(LogTemp, Warning, TEXT("%s: PartAssembledOnto is set but invalid; skipping specified actor search."), *GetName());
+    }
     
-	
+
 		// SECOND: Try the assembly base
-    	// Check assembly's base snap points
-    	TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
-    	for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
-    	{
-    		if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
-    		{
-    			continue;
-    		}
-        
-    		// Check each of my snap points for compatibility with base
-    		for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
-    		{
-    			if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
-    			{
-    				continue;
-    			}
-            
-    			if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) &&			BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
-    			{
-    				// Found compatible base - return it!
-    				UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"),				*GetName(), *BaseSnapPoint->GetName());
-    				return BaseSnapPoint;
-    			}
-    		}
-    	}
-	
+		// Check assembly's base snap points
+		if (!AssemblyActor || !AssemblyActor->IsValidLowLevelFast())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s: No AssemblyActor available for base snap search; skipping."), *GetName());
+		}
+		else
+		{
+			TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
+			for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
+			{
+				if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
+				{
+					continue;
+				}
+			    
+				// Check each of my snap points for compatibility with base
+				for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
+				{
+					if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
+					{
+						continue;
+					}
+			        
+					if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) && BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
+					{
+						// Found compatible base - return it!
+						UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"), *GetName(), *BaseSnapPoint->GetName());
+						return BaseSnapPoint;
+					}
+				}
+			}
+		}	
     return nullptr;  // No compatible target found
 }
 
@@ -256,7 +267,7 @@ bool APartActor::TrySnapToPreview()
 			Distance, MaxSnapDistance);
         
 		// Too far - just drop normally
-		HideSnapPreview();
+		HideGhostOutline();
 		CurrentTargetSnapPoint = nullptr;
 		return false;
 	}
@@ -280,7 +291,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		}
 		GrabComponent->SetActive(false);
-		HideSnapPreview();
+		HideGhostOutline();
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
 		bIsSnapped = true;
@@ -308,10 +319,9 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 				}
 				GrabComponent->SetActive(false);
-				HideSnapPreview();
+				HideGhostOutline();
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
-				bIsSnapped = true;
 				return true;
 			} 
 			
@@ -338,41 +348,47 @@ bool APartActor::IsAttachedToMotionController() const
 	return false;
 }
 
-void APartActor::ShowSnapPreview()
+void APartActor::ShowGhostOutline()
 {
+	if (!bAllowGhostOutline)
+	{
+		HideGhostOutline();
+		return;
+	}
+
 	// Part figures out which snap points to use
 	if (!CurrentTargetSnapPoint)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreview: No CurrentPreviewTarget set, returning early."));
+		UE_LOG(LogTemp, Warning, TEXT("ShowGhostOutline: No CurrentPreviewTarget set, returning early."));
 		return;
-		
+
 	}
-    
+
 	// Find which of MY snap points should connect
 	USnapPointComponent* MyBestSnapPoint = GetBestSnapPointFor(CurrentTargetSnapPoint);
-    
-	if (MyBestSnapPoint)	
+
+	if (MyBestSnapPoint)
 	{
-		ShowSnapPreviewInternal(MyBestSnapPoint, CurrentTargetSnapPoint);
+		ShowGhostOutlineInternal(MyBestSnapPoint, CurrentTargetSnapPoint);
 	}
 }
 
-void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint)
+void APartActor::ShowGhostOutlineInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint)
 {
 	if (!SourceSnapPoint || !TargetSnapPoint || !Mesh || !PreviewMesh) {
-		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreviewInternal: Early return - SourceSnapPoint: %p, TargetSnapPoint: %p, "), SourceSnapPoint, TargetSnapPoint);
+		UE_LOG(LogTemp, Warning, TEXT("ShowGhostOutlineInternal: Early return - SourceSnapPoint: %p, TargetSnapPoint: %p, "), SourceSnapPoint, TargetSnapPoint);
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Called with SourceSnapPoint: %s, TargetSnapPoint: %s"),
+	UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Called with SourceSnapPoint: %s, TargetSnapPoint: %s"),
 		SourceSnapPoint ? *SourceSnapPoint->GetName() : TEXT("nullptr"),
 		TargetSnapPoint ? *TargetSnapPoint->GetName() : TEXT("nullptr"));
 
 	if (Mesh->GetStaticMesh())
 	{
-		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Setting PreviewMesh static me+sh to %s"), *Mesh->GetStaticMesh()->GetName());
+		UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Setting PreviewMesh static mesh to %s"), *Mesh->GetStaticMesh()->GetName());
 		PreviewMesh->SetStaticMesh(Mesh->GetStaticMesh());
-		
+
 		// DETACH the preview mesh, so it doesn't move with the part!
 		// Completely reset the preview mesh transform
 		// Check if already detached
@@ -386,9 +402,9 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Preview mesh already detached"));
 		}
-        
+
 		const FTransform SnapTransform = CalculateSnapTransform(SourceSnapPoint, TargetSnapPoint);
-        
+
 
 		PreviewMesh->SetWorldLocation(SnapTransform.GetLocation());
 		PreviewMesh->SetWorldRotation(SnapTransform.GetRotation());
@@ -397,17 +413,17 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 
 		if (PreviewMaterial)
 		{
-			UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Using PreviewMaterial: %s"), *PreviewMaterial->GetName());
+			UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Using PreviewMaterial: %s"), *PreviewMaterial->GetName());
 			UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(PreviewMaterial, this);
 			if (DynamicMaterial)
 			{
-				UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Created dynamic material instance for preview."));
+				UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Created dynamic material instance for preview."));
 				DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), PreviewOpacity);
 				DynamicMaterial->SetVectorParameterValue(TEXT("Color"), PreviewColor);
 				for (int32 i = 0; i<PreviewMesh->GetNumMaterials(); i++)
 				{
 					PreviewMesh->SetMaterial(i, DynamicMaterial);
-					UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Set dynamic material on PreviewMesh slot %d"), i);
+					UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Set dynamic material on PreviewMesh slot %d"), i);
 				}
 			}
 			else
@@ -417,19 +433,19 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		}
 		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: No PreviewMaterial, using fallback."));
+			UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: No PreviewMaterial, using fallback."));
 			for (int32 i = 0; i < PreviewMesh->GetNumMaterials(); i++)
 			{
 				UMaterialInterface* OriginalMaterial = Mesh->GetMaterial(i);
 				if (OriginalMaterial)
 				{
-					UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Creating dynamic material from original material %s for slot %d"), *OriginalMaterial->GetName(), i);
+					UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Creating dynamic material from original material %s for slot %d"), *OriginalMaterial->GetName(), i);
 					UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(OriginalMaterial, this);
 					if (DynamicMaterial)
 					{
 						DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), PreviewOpacity);
 						PreviewMesh->SetMaterial(i, DynamicMaterial);
-						UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Set fallback dynamic material on PreviewMesh slot %d"), i);
+						UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Set fallback dynamic material on PreviewMesh slot %d"), i);
 					}
 				}
 			}
@@ -439,18 +455,25 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		bShowingPreview = true;
 		CurrentTargetSnapPoint = TargetSnapPoint;
 
-		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreview: Showing preview for %s at snap point %s to target %s"), 
-		  *GetName(), 
-		  *SourceSnapPoint->GetName(), 
+		// Store snap points for arrow visualization
+		MySnapPoint = SourceSnapPoint;
+		CandidateSnapPoint = TargetSnapPoint;
+
+		// Show arrow if enabled
+		ShowSnapArrowInternal(SourceSnapPoint, TargetSnapPoint);
+
+		UE_LOG(LogTemp, Log, TEXT("ShowGhostOutline: Showing preview for %s at snap point %s to target %s"),
+		  *GetName(),
+		  *SourceSnapPoint->GetName(),
 		  *TargetSnapPoint->GetName());
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreviewInternal: Mesh has no static mesh assigned!"));
+		UE_LOG(LogTemp, Warning, TEXT("ShowGhostOutlineInternal: Mesh has no static mesh assigned!"));
 	}
 }
 
-void APartActor::HideSnapPreview()
+void APartActor::HideGhostOutline()
 {
 	if (!PreviewMesh) return;
 
@@ -459,8 +482,58 @@ void APartActor::HideSnapPreview()
 		PreviewMesh->SetVisibility(false);
 		bShowingPreview = false;
 		CurrentTargetSnapPoint = nullptr;
-		UE_LOG(LogTemp, Log, TEXT("HideSnapPreview: Hiding preview for %s"), *GetName());
+		UE_LOG(LogTemp, Log, TEXT("HideGhostOutline: Hiding preview for %s"), *GetName());
 	}
+
+	HideSnapArrow();
+}
+
+void APartActor::ShowSnapArrow()
+{
+	if (!bAllowSnapArrow)
+	{
+		HideSnapArrow();
+		return;
+	}
+
+	if (!MySnapPoint || !CandidateSnapPoint)
+	{
+		return;
+	}
+
+	ShowSnapArrowInternal(MySnapPoint, CandidateSnapPoint);
+}
+
+void APartActor::ShowSnapArrowInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint)
+{
+	if (!SourceSnapPoint || !TargetSnapPoint || !GetWorld())
+	{
+		return;
+	}
+
+	bShowingSnapArrow = true;
+
+	// Get world positions of snap points
+	const FVector SourceLocation = SourceSnapPoint->GetComponentLocation();
+	const FVector TargetLocation = TargetSnapPoint->GetComponentLocation();
+
+	// Draw directional arrow from source (back) to target (front)
+	DrawDebugDirectionalArrow(
+		GetWorld(),
+		SourceLocation,
+		TargetLocation,
+		SnapArrowSize,
+		SnapArrowColor.ToFColor(true),
+		false,
+		-1.0f,
+		0,
+		2.0f
+	);
+}
+
+void APartActor::HideSnapArrow()
+{
+	bShowingSnapArrow = false;
 }
 
 FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint) const
@@ -527,7 +600,7 @@ void APartActor::OnPartGrabbed()
     
 	// Update preview state
 	UpdatePreviewState();
-	ShowSnapPreview();
+	ShowGhostOutline();
 }
 
 void APartActor::OnPartReleased() 
@@ -545,6 +618,11 @@ void APartActor::OnPartReleased()
 
 const TArray<USnapPointComponent*> APartActor::GetSnapPoints() const
 {
+	if (!Assembly)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s: Assembly pointer is null when requesting snap points."), *GetName());
+		return TArray<USnapPointComponent*>();
+	}
 	return Assembly->GetSnapPoints();
 }
 
@@ -651,12 +729,36 @@ void APartActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// Update preview state every frame
+	UpdatePreviewState();
+	ShowGhostOutline();
+	ShowSnapArrow();
+
+	// Draw arrow every frame if snap arrow is showing
+	if (bShowingSnapArrow && MySnapPoint && CandidateSnapPoint && GetWorld())
+	{
+		const FVector SourceLocation = MySnapPoint->GetComponentLocation();
+		const FVector TargetLocation = CandidateSnapPoint->GetComponentLocation();
+
+		DrawDebugDirectionalArrow(
+			GetWorld(),
+			SourceLocation,
+			TargetLocation,
+			SnapArrowSize,
+			SnapArrowColor.ToFColor(true),
+			false,
+			-1.0f,
+			0,
+			2.0f
+		);
+	}
+
 	if (!(bIsMotorized && MotorSpeed > KINDA_SMALL_NUMBER && Mesh)) return;
 
 	const float RPM = MotorSpeed * MaxRPM;
 	const float DegreesPerSecond = RPM * 6.0f;
 	const FVector Axis = MotorAxis.GetSafeNormal();
-	
+
 	const FQuat DeltaRot(Axis, FMath::DegreesToRadians(DegreesPerSecond * DeltaTime));
 	Mesh->AddLocalRotation(DeltaRot);
 }

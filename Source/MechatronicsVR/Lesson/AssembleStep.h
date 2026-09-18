@@ -43,13 +43,13 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assemble Step|Perf")
 	bool bAlsoPollEachTick = false;
 
 	UFUNCTION(BlueprintCallable, Category = "Assemble Step|Setup")
 	void SetAssemblyActor(AAssemblyActor* InAssembly);
-	
+
 	virtual bool CheckCompletion_Implementation() const override;
 	UFUNCTION()
 	void HandlePartsConnected(APartActor* PartA, APartActor* PartB);
@@ -59,6 +59,19 @@ protected:
 	virtual void OnStarted() override;
 	virtual void OnStopped() override;
 	virtual void OnReset() override;
+
+	// Track current target part instances for visual preview management
+	UPROPERTY()
+	TArray<TObjectPtr<APartActor>> CurrentTargetPartInstances;
+
+	// Enable arrows and outlines for target parts in this step
+	void UpdateTargetPartVisuals();
+
+	// Disable arrows and outlines for target parts
+	void ClearTargetPartVisuals();
+
+	// Find all part actors that match the target part classes
+	void FindTargetPartInstances(TArray<APartActor*>& OutParts) const;
 	
 
 private:
