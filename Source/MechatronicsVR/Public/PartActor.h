@@ -89,11 +89,13 @@ public:
 
 	/** Allow snap previews to occur (when false, previews are disabled) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
-	bool bAllowSnapPreview = true;
+	bool bAllowGhostOutline
+ = true;
 
 	/** Allow snap placement arrows to occur (when false, arrows are disabled) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
-	bool bShowSnapArrow = true;
+	bool bAllowSnapArrow
+ = true;
 
 	/** Color of the snap placement arrow */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Preview")
@@ -110,17 +112,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Grab State")
 	bool IsAttachedToMotionController() const;
 
-	// Preview functions
-	/** Show preview of where this part will snap */
+	// Ghost outline (preview mesh) functions
+	/** Show ghost outline of where this part will snap */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	void ShowSnapPreview();
-	void ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint);
+	void ShowGhostOutline();
+	void ShowGhostOutlineInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint);
 	void OnPartGrabbed();
 	void OnPartReleased();
 
-	/** Hide the snap preview */
+	/** Hide the ghost outline */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
-	void HideSnapPreview();
+	void HideGhostOutline();
 
 	/** Show arrow indicating snap placement direction */
 	void ShowSnapArrow();

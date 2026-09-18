@@ -76,7 +76,6 @@ APartActor::APartActor()
 	PreviewOpacity = 0.3f;
 	PreviewColor = FLinearColor::Green;
 	bShowingPreview = false;
-	bAllowSnapPreview = true;
 
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -129,12 +128,6 @@ USnapPointComponent* APartActor::GetBestSnapPointFor(USnapPointComponent* Target
 }
 void APartActor::UpdatePreviewState()
 {
-	if (!IsAttachedToMotionController())
-	{
-		HideSnapPreview();
-		CurrentTargetSnapPoint = nullptr;
-		return;
-	}
 	CurrentTargetSnapPoint = FindBestPreviewTarget();
 }
 
@@ -274,7 +267,7 @@ bool APartActor::TrySnapToPreview()
 			Distance, MaxSnapDistance);
         
 		// Too far - just drop normally
-		HideSnapPreview();
+		HideGhostOutline();
 		CurrentTargetSnapPoint = nullptr;
 		return false;
 	}
@@ -298,7 +291,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		}
 		GrabComponent->SetActive(false);
-		HideSnapPreview();
+		HideGhostOutline();
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
 		bIsSnapped = true;
@@ -326,7 +319,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 				}
 				GrabComponent->SetActive(false);
-				HideSnapPreview();
+				HideGhostOutline();
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
 				return true;
@@ -355,17 +348,18 @@ bool APartActor::IsAttachedToMotionController() const
 	return false;
 }
 
-void APartActor::ShowSnapPreview()
+void APartActor::ShowGhostOutline()
 {
-	if (!bAllowSnapPreview)
+	if (!bAllowGhostOutline)
 	{
+		HideGhostOutline();
 		return;
 	}
 
 	// Part figures out which snap points to use
 	if (!CurrentTargetSnapPoint)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreview: No CurrentPreviewTarget set, returning early."));
+		UE_LOG(LogTemp, Warning, TEXT("ShowGhostOutline: No CurrentPreviewTarget set, returning early."));
 		return;
 
 	}
@@ -375,24 +369,24 @@ void APartActor::ShowSnapPreview()
 
 	if (MyBestSnapPoint)
 	{
-		ShowSnapPreviewInternal(MyBestSnapPoint, CurrentTargetSnapPoint);
+		ShowGhostOutlineInternal(MyBestSnapPoint, CurrentTargetSnapPoint);
 	}
 }
 
-void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint)
+void APartActor::ShowGhostOutlineInternal(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint)
 {
 	if (!SourceSnapPoint || !TargetSnapPoint || !Mesh || !PreviewMesh) {
-		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreviewInternal: Early return - SourceSnapPoint: %p, TargetSnapPoint: %p, "), SourceSnapPoint, TargetSnapPoint);
+		UE_LOG(LogTemp, Warning, TEXT("ShowGhostOutlineInternal: Early return - SourceSnapPoint: %p, TargetSnapPoint: %p, "), SourceSnapPoint, TargetSnapPoint);
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Called with SourceSnapPoint: %s, TargetSnapPoint: %s"),
+	UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Called with SourceSnapPoint: %s, TargetSnapPoint: %s"),
 		SourceSnapPoint ? *SourceSnapPoint->GetName() : TEXT("nullptr"),
 		TargetSnapPoint ? *TargetSnapPoint->GetName() : TEXT("nullptr"));
 
 	if (Mesh->GetStaticMesh())
 	{
-		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Setting PreviewMesh static me+sh to %s"), *Mesh->GetStaticMesh()->GetName());
+		UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Setting PreviewMesh static mesh to %s"), *Mesh->GetStaticMesh()->GetName());
 		PreviewMesh->SetStaticMesh(Mesh->GetStaticMesh());
 
 		// DETACH the preview mesh, so it doesn't move with the part!
@@ -419,17 +413,17 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 
 		if (PreviewMaterial)
 		{
-			UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Using PreviewMaterial: %s"), *PreviewMaterial->GetName());
+			UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Using PreviewMaterial: %s"), *PreviewMaterial->GetName());
 			UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(PreviewMaterial, this);
 			if (DynamicMaterial)
 			{
-				UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Created dynamic material instance for preview."));
+				UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Created dynamic material instance for preview."));
 				DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), PreviewOpacity);
 				DynamicMaterial->SetVectorParameterValue(TEXT("Color"), PreviewColor);
 				for (int32 i = 0; i<PreviewMesh->GetNumMaterials(); i++)
 				{
 					PreviewMesh->SetMaterial(i, DynamicMaterial);
-					UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Set dynamic material on PreviewMesh slot %d"), i);
+					UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Set dynamic material on PreviewMesh slot %d"), i);
 				}
 			}
 			else
@@ -439,19 +433,19 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		}
 		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: No PreviewMaterial, using fallback."));
+			UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: No PreviewMaterial, using fallback."));
 			for (int32 i = 0; i < PreviewMesh->GetNumMaterials(); i++)
 			{
 				UMaterialInterface* OriginalMaterial = Mesh->GetMaterial(i);
 				if (OriginalMaterial)
 				{
-					UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Creating dynamic material from original material %s for slot %d"), *OriginalMaterial->GetName(), i);
+					UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Creating dynamic material from original material %s for slot %d"), *OriginalMaterial->GetName(), i);
 					UMaterialInstanceDynamic* DynamicMaterial = UMaterialInstanceDynamic::Create(OriginalMaterial, this);
 					if (DynamicMaterial)
 					{
 						DynamicMaterial->SetScalarParameterValue(TEXT("Opacity"), PreviewOpacity);
 						PreviewMesh->SetMaterial(i, DynamicMaterial);
-						UE_LOG(LogTemp, Log, TEXT("ShowSnapPreviewInternal: Set fallback dynamic material on PreviewMesh slot %d"), i);
+						UE_LOG(LogTemp, Log, TEXT("ShowGhostOutlineInternal: Set fallback dynamic material on PreviewMesh slot %d"), i);
 					}
 				}
 			}
@@ -468,18 +462,18 @@ void APartActor::ShowSnapPreviewInternal(USnapPointComponent* SourceSnapPoint, U
 		// Show arrow if enabled
 		ShowSnapArrowInternal(SourceSnapPoint, TargetSnapPoint);
 
-		UE_LOG(LogTemp, Log, TEXT("ShowSnapPreview: Showing preview for %s at snap point %s to target %s"),
+		UE_LOG(LogTemp, Log, TEXT("ShowGhostOutline: Showing preview for %s at snap point %s to target %s"),
 		  *GetName(),
 		  *SourceSnapPoint->GetName(),
 		  *TargetSnapPoint->GetName());
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ShowSnapPreviewInternal: Mesh has no static mesh assigned!"));
+		UE_LOG(LogTemp, Warning, TEXT("ShowGhostOutlineInternal: Mesh has no static mesh assigned!"));
 	}
 }
 
-void APartActor::HideSnapPreview()
+void APartActor::HideGhostOutline()
 {
 	if (!PreviewMesh) return;
 
@@ -488,7 +482,7 @@ void APartActor::HideSnapPreview()
 		PreviewMesh->SetVisibility(false);
 		bShowingPreview = false;
 		CurrentTargetSnapPoint = nullptr;
-		UE_LOG(LogTemp, Log, TEXT("HideSnapPreview: Hiding preview for %s"), *GetName());
+		UE_LOG(LogTemp, Log, TEXT("HideGhostOutline: Hiding preview for %s"), *GetName());
 	}
 
 	HideSnapArrow();
@@ -496,8 +490,9 @@ void APartActor::HideSnapPreview()
 
 void APartActor::ShowSnapArrow()
 {
-	if (!bShowSnapArrow)
+	if (!bAllowSnapArrow)
 	{
+		HideSnapArrow();
 		return;
 	}
 
@@ -605,7 +600,7 @@ void APartActor::OnPartGrabbed()
     
 	// Update preview state
 	UpdatePreviewState();
-	ShowSnapPreview();
+	ShowGhostOutline();
 }
 
 void APartActor::OnPartReleased() 
@@ -733,6 +728,11 @@ void APartActor::BeginPlay()
 void APartActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	// Update preview state every frame
+	UpdatePreviewState();
+	ShowGhostOutline();
+	ShowSnapArrow();
 
 	// Draw arrow every frame if snap arrow is showing
 	if (bShowingSnapArrow && MySnapPoint && CandidateSnapPoint && GetWorld())

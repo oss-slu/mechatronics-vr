@@ -6,6 +6,7 @@
 #include "PartActor.h"
 #include "DSP/AudioDebuggingUtilities.h"
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
 
 UAssembleStep::UAssembleStep()
 {
@@ -52,9 +53,12 @@ void UAssembleStep::OnStarted()
 		UE_LOG(LogTemp,Error,TEXT("AssemblyActor is not set"))
 		return;
 	}
-	
+
 	BindAssemblyEvents();
-	
+
+	// Enable arrow and outline previews for target parts in this step
+	UpdateTargetPartVisuals();
+
 	if (CheckCompletion())
 	{
 		return;
@@ -65,6 +69,9 @@ void UAssembleStep::OnStarted()
 void UAssembleStep::OnStopped()
 {
 	UnbindAssemblyEvents();
+
+	// Disable arrow and outline previews for target parts when step completes
+	ClearTargetPartVisuals();
 }
 
 void UAssembleStep::OnReset()
@@ -235,17 +242,117 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 bool UAssembleStep::IsTargetPart(APartActor* Part) const
 {
 	if (!Part) return false;
-    
+
 	for (TSubclassOf<APartActor> TargetClass : TargetPartClasses)
 	{
 		if (!TargetClass) continue;  // skip null entries in the array
-        
+
 		if (Part->IsA(TargetClass))
 		{
 			return true;
 		}
 	}
 	return false;
+}
+
+void UAssembleStep::FindTargetPartInstances(TArray<APartActor*>& OutParts) const
+{
+	OutParts.Reset();
+
+	if (!IsValid(AssemblyActor))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UAssembleStep::FindTargetPartInstances - AssemblyActor is not valid"));
+		return;
+	}
+
+	// Get the world from the assembly actor
+	UWorld* World = AssemblyActor->GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UAssembleStep::FindTargetPartInstances - Could not get world"));
+		return;
+	}
+
+	// If no target classes specified, return empty
+	if (TargetPartClasses.Num() == 0)
+	{
+		return;
+	}
+
+	// Iterate through all parts in the world and collect those matching target classes
+	for (TActorIterator<APartActor> It(World); It; ++It)
+	{
+		APartActor* Part = *It;
+		if (!Part || !Part->IsValidLowLevelFast())
+		{
+			continue;
+		}
+
+		// Check if this part is an instance of any target class
+		if (IsTargetPart(Part))
+		{
+			OutParts.Add(Part);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("UAssembleStep::FindTargetPartInstances - Found %d target parts"), OutParts.Num());
+}
+
+void UAssembleStep::UpdateTargetPartVisuals()
+{
+	// Find all target part instances
+	CurrentTargetPartInstances.Reset();
+	TArray<APartActor*> TargetParts;
+	FindTargetPartInstances(TargetParts);
+
+	UWorld* World = AssemblyActor ? AssemblyActor->GetWorld() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+
+	// First: disable and hide previews for ALL parts in the world
+	for (TActorIterator<APartActor> It(World); It; ++It)
+	{
+		APartActor* Part = *It;
+		if (Part && Part->IsValidLowLevelFast())
+		{
+			Part->bAllowGhostOutline = false;
+			Part->bAllowSnapArrow = false;
+			Part->HideGhostOutline();
+			Part->HideSnapArrow();
+		}
+	}
+
+	// Second: enable arrow and outline previews only for target parts
+	for (APartActor* Part : TargetParts)
+	{
+		if (Part && Part->IsValidLowLevelFast())
+		{
+			Part->bAllowGhostOutline = true;
+			Part->bAllowSnapArrow = true;
+			CurrentTargetPartInstances.Add(Part);
+
+			UE_LOG(LogTemp, Log, TEXT("UAssembleStep::UpdateTargetPartVisuals - Enabled previews for %s"), *Part->GetName());
+		}
+	}
+}
+
+void UAssembleStep::ClearTargetPartVisuals()
+{
+	// Disable previews for the parts that had them enabled
+	for (APartActor* Part : CurrentTargetPartInstances)
+	{
+		if (Part && Part->IsValidLowLevelFast())
+		{
+			Part->bAllowGhostOutline = false;
+			Part->bAllowSnapArrow = false;
+
+			UE_LOG(LogTemp, Log, TEXT("UAssembleStep::ClearTargetPartVisuals - Disabled previews for %s"), *Part->GetName());
+		}
+	}
+
+	CurrentTargetPartInstances.Reset();
 }
 
 
