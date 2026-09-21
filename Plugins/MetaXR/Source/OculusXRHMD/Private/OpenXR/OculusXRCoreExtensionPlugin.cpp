@@ -41,7 +41,6 @@ namespace OculusXR
 		OutSpectatorScreenController = nullptr;
 		return true;
 #else  // PLATFORM_ANDROID
-		OutSpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(InHMDBase);
 		return false;
 #endif // PLATFORM_ANDROID
 	}

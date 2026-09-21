@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "MRUtilityKit.h"
-#include "MRUtilityKitBPLibrary.h"
 #include "GameFramework/Actor.h"
 #include "ProceduralMeshComponent.h"
 #include "Tasks/Task.h"
+
+#include "MRUtilityKit.h"
+#include "MRUtilityKitBPLibrary.h"
+
 #include "MRUtilityKitDestructibleMesh.generated.h"
 
 /**

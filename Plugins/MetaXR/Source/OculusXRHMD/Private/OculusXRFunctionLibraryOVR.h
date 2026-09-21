@@ -70,5 +70,7 @@ namespace OculusXRHMD
 		virtual void GetNextPredictedDisplayTime(uint64_t* NextPredictedDisplayTime) override;
 		virtual void RegisterOpenXrEventHandler(void (*OpenXrEventHandler)(void* data, void* context), void* Context) override;
 		virtual void UnregisterOpenXrEventHandler(void (*OpenXrEventHandler)(void* data, void* context)) override;
+		virtual void BeginProfilingRegion(const FString& RegionName) override;
+		virtual void EndProfilingRegion() override;
 	};
 } // namespace OculusXRHMD

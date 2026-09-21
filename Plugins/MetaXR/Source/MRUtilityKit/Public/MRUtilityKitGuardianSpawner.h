@@ -37,7 +37,7 @@ public:
 
 	/**
 	 * Whether the fading value should be calculated for the shader or not.
-	 If fading is not needed this can save performance.
+	 * If fading is not needed this can save performance.
 	 */
 	UPROPERTY(EditAnywhere, Category = "MR Utility Kit")
 	bool EnableFade = true;
@@ -63,7 +63,6 @@ public:
 	UFUNCTION(BlueprintSetter, Category = "MR Utility Kit")
 	void SetGridDensity(double Density);
 
-public:
 	void Tick(float DeltaSeconds) override;
 
 protected:
@@ -87,7 +86,7 @@ protected:
 #endif
 
 private:
-	// Room UUID to spawned actors in this room
+	/** Room UUID to spawned actors in this room */
 	TMap<AMRUKRoom*, TArray<AMRUKGuardian*>> SpawnedGuardians;
 
 	UPROPERTY()

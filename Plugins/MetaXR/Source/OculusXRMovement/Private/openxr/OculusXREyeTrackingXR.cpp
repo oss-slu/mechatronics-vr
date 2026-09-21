@@ -149,9 +149,12 @@ namespace XRMovement
 	void FEyeTrackingXR::InitOpenXRFunctions(XrInstance InInstance)
 	{
 		// XR_FB_Eye_Tracking_Social
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrCreateEyeTrackerFB", &xrCreateEyeTrackerFB);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrDestroyEyeTrackerFB", &xrDestroyEyeTrackerFB);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetEyeGazesFB", &xrGetEyeGazesFB);
+		if (IsEyeTrackingSupported())
+		{
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrCreateEyeTrackerFB", &xrCreateEyeTrackerFB);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrDestroyEyeTrackerFB", &xrDestroyEyeTrackerFB);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetEyeGazesFB", &xrGetEyeGazesFB);
+		}
 	}
 
 	void FEyeTrackingXR::Update_GameThread(XrSession InSession)

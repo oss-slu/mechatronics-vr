@@ -19,7 +19,6 @@ UOculusXREyeTrackingComponent::UOculusXREyeTrackingComponent()
 	, bUpdateRotation(true)
 	, ConfidenceThreshold(0.f)
 	, bAcceptInvalid(false)
-	, WorldToMeters(100.f)
 	, TargetPoseableMeshComponent(nullptr)
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -87,7 +86,7 @@ void UOculusXREyeTrackingComponent::TickComponent(float DeltaTime, enum ELevelTi
 
 	FOculusXREyeGazesState EyeGazesState;
 
-	if (UOculusXRMovementFunctionLibrary::TryGetEyeGazesState(EyeGazesState, WorldToMeters))
+	if (UOculusXRMovementFunctionLibrary::TryGetEyeGazesState(EyeGazesState))
 	{
 		for (uint8 i = 0u; i < static_cast<uint8>(EOculusXREye::COUNT); ++i)
 		{
@@ -187,11 +186,6 @@ bool UOculusXREyeTrackingComponent::InitializeEyes()
 	if (!bIsAnythingMapped)
 	{
 		UE_LOG(LogOculusXRMovement, Warning, TEXT("Component name -- %s:%s, doesn't have a valid configuration."), *GetOwner()->GetName(), *GetName());
-	}
-
-	if (!OculusXRHMD::GetUnitScaleFactorFromSettings(GetWorld(), WorldToMeters))
-	{
-		UE_LOG(LogOculusXRMovement, Warning, TEXT("Cannot get world settings. (%s:%s)"), *GetOwner()->GetName(), *GetName());
 	}
 
 	return bIsAnythingMapped;

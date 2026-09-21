@@ -16,6 +16,9 @@
 
 DEFINE_LOG_CATEGORY(LogOculusPassthrough);
 
+#pragma warning(push)
+#pragma warning(disable : 4996)
+
 void UOculusXRStereoLayerShapeReconstructed::ApplyShape(IStereoLayers::FLayerDesc& LayerDesc)
 {
 	const FEdgeStyleParameters EdgeStyleParameters(
@@ -165,7 +168,7 @@ OculusXRHMD::FOculusPassthroughMeshRef UOculusXRPassthroughLayerComponent::Creat
 	}
 
 	TArray<int32> Triangles;
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 	int32 NumSections = ProceduralMeshComponent->GetNumSections();
 	int VertexOffset = 0; // Each section start with vertex IDs of 0, in order to create a single mesh from all sections we need to offset those IDs by the amount of previous vertices
 	for (int32 s = 0; s < NumSections; ++s)
@@ -178,7 +181,7 @@ OculusXRHMD::FOculusPassthroughMeshRef UOculusXRPassthroughLayerComponent::Creat
 
 		for (int32 i = 0; i < ProcMeshSection->ProcVertexBuffer.Num(); ++i)
 		{
-			Vertices.Add(ProcMeshSection->ProcVertexBuffer[i].Position);
+			Vertices.Add(FVector3f(ProcMeshSection->ProcVertexBuffer[i].Position));
 		}
 
 		VertexOffset += ProcMeshSection->ProcVertexBuffer.Num();
@@ -226,11 +229,11 @@ OculusXRHMD::FOculusPassthroughMeshRef UOculusXRPassthroughLayerComponent::Creat
 		Triangles.Add(LOD.IndexBuffer.GetIndex(i));
 	}
 
-	TArray<FVector> Vertices;
+	TArray<FVector3f> Vertices;
 	const int32 NumVertices = LOD.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 	for (int32 i = 0; i < NumVertices; ++i)
 	{
-		Vertices.Add((FVector)LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(i));
+		Vertices.Add(LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(i));
 	}
 
 	OculusXRHMD::FOculusPassthroughMeshRef PassthroughMesh = new OculusXRHMD::FOculusPassthroughMesh(Vertices, Triangles);
@@ -726,3 +729,5 @@ void UOculusXRPassthroughLayerBase::MarkStereoLayerDirty()
 		pptInstance->UpdateLayer();
 	}
 }
+
+#pragma warning(pop)

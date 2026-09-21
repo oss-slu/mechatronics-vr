@@ -29,11 +29,14 @@ namespace OculusXRPassthroughRules
 
 	bool FEnablePassthroughRule::IsValid()
 	{
+#pragma warning(push)
+#pragma warning(disable : 4996)
 		if (OculusXRPSTUtils::IsComponentOfTypeInWorld<UOculusXRPassthroughLayerComponent>()
 			|| OculusXRPSTUtils::IsComponentOfTypeInWorld<UBPNode_InitializePersistentPassthrough>(
 				[](UBPNode_InitializePersistentPassthrough* n) {
 					return n && n->GetExecPin() && n->GetExecPin()->LinkedTo.Num() > 0;
 				}))
+#pragma warning(pop)
 		{
 			return true;
 		}

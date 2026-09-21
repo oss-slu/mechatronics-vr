@@ -33,7 +33,7 @@ namespace OculusXRHMD
 		virtual void* GetOvrpPhysicalDevice() const override;
 		virtual void* GetOvrpDevice() const override;
 		virtual void* GetOvrpCommandQueue() const override;
-		virtual FTextureRHIRef CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags) override;
+		virtual FTextureRHIRef CreateTexture_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags) override;
 		// This is a hack to turn force FSR off when we allocate our FDM to avoid a crash on Quest 3
 		// TODO: Remove this for UE 5.3 after there's an engine-side fix
 		virtual void UseFragmentDensityMapOverShadingRate_RHIThread() override;
@@ -107,9 +107,9 @@ namespace OculusXRHMD
 		return GetIVulkanDynamicRHI()->RHIGetGraphicsVkQueue();
 	}
 
-	FTextureRHIRef FVulkanCustomPresent::CreateTexture_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags)
+	FTextureRHIRef FVulkanCustomPresent::CreateTexture_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, ovrpTextureHandle InTexture, ETextureCreateFlags InTexCreateFlags)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
 		const VkImageSubresourceRange SubresourceRangeAll = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
@@ -125,13 +125,13 @@ namespace OculusXRHMD
 
 		switch (InResourceType)
 		{
-			case RRT_Texture2D:
+			case ETextureType::Texture2D:
 				return VulkanRHI->RHICreateTexture2DFromResource(InFormat, InSizeX, InSizeY, InNumMips, InNumSamples, (VkImage)InTexture, InTexCreateFlags, InBinding).GetReference();
 
-			case RRT_Texture2DArray:
+			case ETextureType::Texture2DArray:
 				return VulkanRHI->RHICreateTexture2DArrayFromResource(InFormat, InSizeX, InSizeY, 2, InNumMips, InNumSamples, (VkImage)InTexture, InTexCreateFlags, InBinding).GetReference();
 
-			case RRT_TextureCube:
+			case ETextureType::TextureCube:
 				return VulkanRHI->RHICreateTextureCubeFromResource(InFormat, InSizeX, false, 1, InNumMips, (VkImage)InTexture, InTexCreateFlags, InBinding).GetReference();
 
 			default:

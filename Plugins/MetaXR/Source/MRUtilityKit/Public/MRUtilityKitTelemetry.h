@@ -16,4 +16,5 @@ namespace MRUKTelemetry
 	using FLoadGridSliceResizerMarker = OculusXRTelemetry::TMarker<257238248>;
 	using FLoadDestructibleGlobalMeshSpawner = OculusXRTelemetry::TMarker<257232038>;
 	using FLoadHiFiScene = OculusXRTelemetry::TMarker<257233830>;
+	using FLoadPassthroughCameraAccess = OculusXRTelemetry::TMarker<257242671>;
 } // namespace MRUKTelemetry

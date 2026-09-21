@@ -2,13 +2,16 @@
 
 #include "OculusXREnvironmentDepthExtensionPlugin.h"
 
+#if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
+#define XR_USE_GRAPHICS_API_VULKAN 1
+#include <vulkan/vulkan.h>
+#endif
+#include "khronos/openxr/openxr_platform.h"
+
 #include "IOpenXRHMDModule.h"
 #include "OculusXRHMD_DynamicResolutionState.h"
 #include "OpenXR/OculusXROpenXRUtilities.h"
 #include "OpenXRPlatformRHI.h"
-
-#include <vulkan/vulkan.h>
-#include "khronos/openxr/openxr_platform.h"
 
 #if PLATFORM_ANDROID
 #include "AndroidPermissionCallbackProxy.h"
@@ -20,20 +23,29 @@
 #include "OpenXRHMD.h"
 #include "HardwareInfo.h"
 #include "ScreenRendering.h"
-#include "XRThreadUtils.h"
 #include "ScreenPass.h"
 #include "RenderResource.h"
 #include "Shader.h"
+
+#if OCULUS_HMD_SUPPORTED_PLATFORMS_D3D11
+#include "ID3D11DynamicRHI.h"
+#endif
+#if OCULUS_HMD_SUPPORTED_PLATFORMS_D3D12
+#include "ID3D12DynamicRHI.h"
+#endif
+#if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
+#include "IVulkanDynamicRHI.h"
+#endif
 
 namespace
 {
 #ifdef WITH_OCULUS_BRANCH
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
-	FTextureRHIRef CreateTextureVulkan_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding,
-		uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, OculusXR::TextureHandle InTexture,
+	FTextureRHIRef CreateTextureVulkan_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding,
+		uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, OculusXRHMD::FCustomPresent::ETextureType InResourceType, OculusXR::TextureHandle InTexture,
 		ETextureCreateFlags InTexCreateFlags)
 	{
-		OculusXRHMD::CheckInRenderThread();
+		OculusXRHMD::CheckInRenderThread(RHICmdList);
 
 		IVulkanDynamicRHI* VulkanRHI = GetIVulkanDynamicRHI();
 		constexpr VkImageSubresourceRange SubresourceRangeAll = { VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS,
@@ -52,17 +64,17 @@ namespace
 
 		switch (InResourceType)
 		{
-			case RRT_Texture2D:
+			case OculusXRHMD::FCustomPresent::ETextureType::Texture2D:
 				return VulkanRHI->RHICreateTexture2DFromResource(InFormat, InSizeX, InSizeY, InNumMips, InNumSamples,
 									reinterpret_cast<VkImage>(InTexture), InTexCreateFlags, InBinding)
 					.GetReference();
 
-			case RRT_Texture2DArray:
+			case OculusXRHMD::FCustomPresent::ETextureType::Texture2DArray:
 				return VulkanRHI->RHICreateTexture2DArrayFromResource(InFormat, InSizeX, InSizeY, 2, InNumMips, InNumSamples,
 									reinterpret_cast<VkImage>(InTexture), InTexCreateFlags, InBinding)
 					.GetReference();
 
-			case RRT_TextureCube:
+			case OculusXRHMD::FCustomPresent::ETextureType::TextureCube:
 				return VulkanRHI->RHICreateTextureCubeFromResource(InFormat, InSizeX, false, 1, InNumMips,
 									reinterpret_cast<VkImage>(InTexture), InTexCreateFlags, InBinding)
 					.GetReference();
@@ -74,25 +86,25 @@ namespace
 #endif
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_D3D11
-	FTextureRHIRef CreateTextureD3D11_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding,
-		uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, OculusXR::TextureHandle InTexture,
+	FTextureRHIRef CreateTextureD3D11_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding,
+		uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, OculusXRHMD::FCustomPresent::ETextureType InResourceType, OculusXR::TextureHandle InTexture,
 		ETextureCreateFlags InTexCreateFlags)
 	{
-		OculusXRHMD::CheckInRenderThread();
+		OculusXRHMD::CheckInRenderThread(RHICmdList);
 
 		switch (InResourceType)
 		{
-			case RRT_Texture2D:
+			case OculusXRHMD::FCustomPresent::ETextureType::Texture2D:
 				return GetID3D11DynamicRHI()->RHICreateTexture2DFromResource(InFormat, InTexCreateFlags, InBinding,
 												reinterpret_cast<ID3D11Texture2D*>(InTexture))
 					.GetReference();
 
-			case RRT_Texture2DArray:
+			case OculusXRHMD::FCustomPresent::ETextureType::Texture2DArray:
 				return GetID3D11DynamicRHI()->RHICreateTexture2DArrayFromResource(InFormat, InTexCreateFlags, InBinding,
 												reinterpret_cast<ID3D11Texture2D*>(InTexture))
 					.GetReference();
 
-			case RRT_TextureCube:
+			case OculusXRHMD::FCustomPresent::ETextureType::TextureCube:
 				return GetID3D11DynamicRHI()->RHICreateTextureCubeFromResource(InFormat, InTexCreateFlags | TexCreate_TargetArraySlicesIndependently,
 												InBinding, reinterpret_cast<ID3D11Texture2D*>(InTexture))
 					.GetReference();
@@ -105,27 +117,27 @@ namespace
 #endif
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS_D3D12
-	FTextureRHIRef CreateTextureD3D12_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding,
-		uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, OculusXR::TextureHandle InTexture,
+	FTextureRHIRef CreateTextureD3D12_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, const FClearValueBinding& InBinding,
+		uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, OculusXRHMD::FCustomPresent::ETextureType InResourceType, OculusXR::TextureHandle InTexture,
 		ETextureCreateFlags InTexCreateFlags)
 	{
-		OculusXRHMD::CheckInRenderThread();
+		OculusXRHMD::CheckInRenderThread(RHICmdList);
 
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
 		switch (InResourceType)
 		{
-			case RRT_Texture2D:
+			case OculusXRHMD::FCustomPresent::ETextureType::Texture2D:
 				return DynamicRHI->RHICreateTexture2DFromResource(InFormat, InTexCreateFlags, InBinding,
 									 reinterpret_cast<ID3D12Resource*>(InTexture))
 					.GetReference();
 
-			case RRT_Texture2DArray:
+			case OculusXRHMD::FCustomPresent::ETextureType::Texture2DArray:
 				return DynamicRHI->RHICreateTexture2DArrayFromResource(InFormat, InTexCreateFlags, InBinding,
 									 reinterpret_cast<ID3D12Resource*>(InTexture))
 					.GetReference();
 
-			case RRT_TextureCube:
+			case OculusXRHMD::FCustomPresent::ETextureType::TextureCube:
 				return DynamicRHI->RHICreateTextureCubeFromResource(InFormat, InTexCreateFlags, InBinding,
 									 reinterpret_cast<ID3D12Resource*>(InTexture))
 					.GetReference();
@@ -418,7 +430,7 @@ namespace OculusXR
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 				RHICmdList.SetBatchedShaderParameters(RHICmdList.GetBoundPixelShader(), BatchedParameters);
 
-#ifdef WITH_OCULUS_BRANCH
+#if defined(WITH_OCULUS_BRANCH) && UE_VERSION_OLDER_THAN(5, 6, 1)
 				// If GSupportsMultiViewPerViewViewports is true then we must specify a stereo viewport otherwise
 				// it will lead to undefined behaviour in the right eye.
 				if (GSupportsMultiViewPerViewViewports)
@@ -779,6 +791,7 @@ namespace OculusXR
 		uint32 ImageCount = 0;
 		XR_ENSURE(xrEnumerateEnvironmentDepthSwapchainImagesMETA(EnvironmentDepthSwapchainMeta, 0, &ImageCount, nullptr));
 
+#if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN
 		TArray<XrSwapchainImageVulkanKHR> DepthSwapChainImages;
 		DepthSwapChainImages.SetNum(ImageCount);
 		for (uint32 i = 0; i < ImageCount; ++i)
@@ -797,6 +810,10 @@ namespace OculusXR
 				EnvironmentDepthTextures.Push(reinterpret_cast<TextureHandle>(DepthSwapChainImage.image));
 			}
 		}
+#else
+		UE_LOG(LogHMD, Warning, TEXT("Environment depth not supported on this platform"));
+		return false;
+#endif
 
 		return true;
 	}
@@ -877,7 +894,7 @@ namespace OculusXR
 
 	bool FEnvironmentDepthExtensionPlugin::StopEnvironmentDepth()
 	{
-		ExecuteOnRenderThread_DoNotWait([this]() {
+		ENQUEUE_RENDER_COMMAND(FEnvironmentDepthExtensionPlugin_StopEnvironmentDepth)([this](FRHICommandListImmediate& RHICmdList) {
 			auto& EnvDepthPlugin = FOculusXRHMDModule::Get().GetExtensionPluginManager().GetEnvironmentDepthExtensionPlugin();
 			if (!EnvironmentDepthSwapchain.IsEmpty())
 			{
@@ -893,21 +910,25 @@ namespace OculusXR
 		return true;
 	}
 
-	TArray<FTextureRHIRef> FEnvironmentDepthExtensionPlugin::CreateSwapChainTextures_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat,
-		const FClearValueBinding& InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType,
+	TArray<FTextureRHIRef> FEnvironmentDepthExtensionPlugin::CreateSwapChainTextures_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat,
+		const FClearValueBinding& InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, OculusXRHMD::FCustomPresent::ETextureType InResourceType,
 		const TArray<TextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName) const
 	{
-		OculusXRHMD::CheckInRenderThread();
+		OculusXRHMD::CheckInRenderThread(RHICmdList);
 
 		TArray<FTextureRHIRef> RHITextureSwapChain;
 		for (int32 TextureIndex = 0; TextureIndex < InTextures.Num(); ++TextureIndex)
 		{
-			FTextureRHIRef TexRef = CreateTexture_RenderThread_Fn(InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples,
+			FTextureRHIRef TexRef = CreateTexture_RenderThread_Fn(RHICmdList, InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples,
 				InNumSamplesTileMem, InResourceType, InTextures[TextureIndex], InTexCreateFlags);
 
 			FString TexName = FString::Printf(TEXT("%s (%d/%d)"), DebugName, TextureIndex, InTextures.Num());
 			TexRef->SetName(*TexName);
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 			RHIBindDebugLabelName(TexRef, *TexName);
+#else
+			RHICmdList.BindDebugLabelName(TexRef, *TexName);
+#endif
 
 			RHITextureSwapChain.Add(TexRef);
 		}
@@ -944,7 +965,8 @@ namespace OculusXR
 		}
 #endif // PLATFORM_ANDROID
 
-		ExecuteOnRenderThread_DoNotWait([this]() {
+		ENQUEUE_RENDER_COMMAND(Oculus_StartEnvironmentDepth)
+		([this](FRHICommandListImmediate& RHICmdList) {
 			auto& EnvDepthPlugin = FOculusXRHMDModule::Get().GetExtensionPluginManager().GetEnvironmentDepthExtensionPlugin();
 			if (!EnvDepthPlugin.InitializeEnvironmentDepth_RenderThread())
 			{
@@ -982,13 +1004,13 @@ namespace OculusXR
 			constexpr uint32 NumSamplesTileMem = 1;
 			constexpr ETextureCreateFlags DepthTexCreateFlags = TexCreate_ShaderResource | TexCreate_InputAttachmentRead;
 			const FClearValueBinding DepthTextureBinding = FClearValueBinding::DepthFar;
-			constexpr ERHIResourceType ResourceType = RRT_Texture2DArray;
+			constexpr OculusXRHMD::FCustomPresent::ETextureType ResourceType = OculusXRHMD::FCustomPresent::ETextureType::Texture2DArray;
 
 			if (!EnvironmentDepthSwapchain.IsEmpty())
 			{
 				EnvironmentDepthSwapchain.Empty();
 			}
-			EnvironmentDepthSwapchain = CreateSwapChainTextures_RenderThread(SizeX, SizeY, DepthFormat, DepthTextureBinding, NumMips,
+			EnvironmentDepthSwapchain = CreateSwapChainTextures_RenderThread(RHICmdList, SizeX, SizeY, DepthFormat, DepthTextureBinding, NumMips,
 				NumSamples, NumSamplesTileMem, ResourceType, DepthTextures, DepthTexCreateFlags,
 				*FString::Printf(TEXT("Oculus Environment Depth Swapchain")));
 

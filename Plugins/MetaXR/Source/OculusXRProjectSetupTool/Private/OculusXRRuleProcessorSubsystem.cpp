@@ -166,14 +166,15 @@ void UOculusXRRuleProcessorSubsystem::SendSummaryEvent(ESetupRulePlatform Platfo
 {
 	const auto& Status = UnAppliedRulesStatus(Platform);
 	const char* Level = Status.PendingRequiredRulesCount > 0 ? "Critical" : "Recommended";
-	const char* Value = TCHAR_TO_ANSI(*FString::FromInt(Status.PendingRequiredRulesCount > 0 ? Status.PendingRequiredRulesCount : Status.PendingRecommendedRulesCount));
-	const char* Total = TCHAR_TO_ANSI(
-		*FString::FromInt(Status.PendingRequiredRulesCount + Status.PendingRecommendedRulesCount));
+	const FString ValueStr = FString::FromInt(Status.PendingRequiredRulesCount > 0 ? Status.PendingRequiredRulesCount : Status.PendingRecommendedRulesCount);
+	const FString TotalStr = FString::FromInt(Status.PendingRequiredRulesCount + Status.PendingRecommendedRulesCount);
+	const auto ValueAnsi = StringCast<ANSICHAR>(*ValueStr);
+	const auto TotalAnsi = StringCast<ANSICHAR>(*TotalStr);
 	const OculusXRTelemetry::TScopedMarker<OculusXRTelemetry::Events::FProjectSetupToolSummary> SummaryEvent;
 	const auto& CriticalAnnotated = SummaryEvent
 										.AddAnnotation(OculusXRTelemetry::Annotations::Level, Level)
-										.AddAnnotation(OculusXRTelemetry::Annotations::Value, Value)
-										.AddAnnotation(OculusXRTelemetry::Annotations::Count, Total)
+										.AddAnnotation(OculusXRTelemetry::Annotations::Value, ValueAnsi.Get())
+										.AddAnnotation(OculusXRTelemetry::Annotations::Count, TotalAnsi.Get())
 										.AddAnnotation(OculusXRTelemetry::Annotations::BuildTargetGroup, OculusXRPSTUtils::ToString(Platform));
 }
 

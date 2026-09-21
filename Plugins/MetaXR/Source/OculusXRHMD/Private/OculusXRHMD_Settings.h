@@ -81,6 +81,9 @@ namespace OculusXRHMD
 				/** Whether Scene can be used with the app */
 				uint64 bSceneSupportEnabled : 1;
 
+				/** Whether PassthroughCameraAccess can be used with the app */
+				uint64 bPassthroughCameraAccessEnabled : 1;
+
 				/** Whether the guardian boundary visibility toggles can be used with the app */
 				uint64 bBoundaryVisibilitySupportEnabled : 1;
 
@@ -113,9 +116,6 @@ namespace OculusXRHMD
 
 				/* In case of multiple players testing, when the current player is inactive, disabling this setting will make sure the current player does NOT update headpose until it is active again.*/
 				uint64 bUpdateHeadPoseForInactivePlayer : 1;
-
-				/* Enable Shader Binary Cache (SBC) and setup its path */
-				uint64 bSupportSBC : 1;
 			};
 			uint64 Raw;
 		} Flags;
@@ -178,8 +178,6 @@ namespace OculusXRHMD
 		bool bIterativeCookOnTheFly;
 
 		EOculusXRMPPoseRestoreType MPPoseRestoreType;
-
-		FString SBCPath;
 
 	public:
 		FSettings();

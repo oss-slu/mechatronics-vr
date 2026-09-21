@@ -51,8 +51,8 @@ void AMRUKAnchor::Setup(const FOculusXRUUID& Uuid, FOculusXRUInt64 Space, const 
 		CachedMesh.GetValue().Clear();
 	}
 
-	SceneMeshPositions = std::move(MeshPositions);
-	SceneMeshIndices = std::move(MeshIndices);
+	SceneMeshPositions = MoveTemp(MeshPositions);
+	SceneMeshIndices = MoveTemp(MeshIndices);
 }
 
 bool AMRUKAnchor::IsPositionInBoundary(const FVector2D& Position)
@@ -62,9 +62,9 @@ bool AMRUKAnchor::IsPositionInBoundary(const FVector2D& Position)
 		return false;
 	}
 
-	int Intersections = 0;
+	int32 Intersections = 0;
 
-	for (int i = 1; i <= PlaneBoundary2D.Num(); i++)
+	for (int32 i = 1; i <= PlaneBoundary2D.Num(); i++)
 	{
 		const FVector2D P1 = PlaneBoundary2D[i - 1];
 		const FVector2D P2 = PlaneBoundary2D[i % PlaneBoundary2D.Num()];
@@ -107,7 +107,7 @@ FVector AMRUKAnchor::GenerateRandomPositionOnPlaneFromStream(const FRandomStream
 
 		TArray<FVector2f> PlaneBoundary;
 		PlaneBoundary.Reserve(PlaneBoundary2D.Num());
-		for (const auto Point : PlaneBoundary2D)
+		for (const auto& Point : PlaneBoundary2D)
 		{
 			PlaneBoundary.Push(FVector2f(Point));
 		}
@@ -117,7 +117,7 @@ FVector AMRUKAnchor::GenerateRandomPositionOnPlaneFromStream(const FRandomStream
 		// Compute the area of each triangle and the total surface area of the mesh
 		Mesh.Areas.Reserve(Mesh.Triangles.Num() / 3);
 		Mesh.TotalArea = 0.0f;
-		for (int i = 0; i < Mesh.Triangles.Num(); i += 3)
+		for (int32 i = 0; i < Mesh.Triangles.Num(); i += 3)
 		{
 			const auto I0 = Mesh.Triangles[i];
 			const auto I1 = Mesh.Triangles[i + 1];
@@ -138,7 +138,7 @@ FVector AMRUKAnchor::GenerateRandomPositionOnPlaneFromStream(const FRandomStream
 	// Pick a random triangle weighted by surface area (triangles with larger surface
 	// area have more chance of being chosen)
 	auto Rand = RandomStream.FRandRange(0.0f, TotalArea);
-	int TriangleIndex = 0;
+	int32 TriangleIndex = 0;
 	for (; TriangleIndex < Areas.Num() - 1; ++TriangleIndex)
 	{
 		Rand -= Areas[TriangleIndex];
@@ -177,7 +177,7 @@ bool AMRUKAnchor::Raycast(const FVector& Origin, const FVector& Direction, float
 {
 	const float WorldToMeters = GetWorld()->GetWorldSettings()->WorldToMeters;
 
-	MRUKShared::MrukHit Hit{};
+	MRUKShared::Hit Hit{};
 
 	if (MRUKShared::GetInstance()->RaycastAnchor(ToMrukShared(AnchorUUID), PositionToMrukShared(Origin, WorldToMeters), UnitVectorToMrukShared(Direction), MaxDist / WorldToMeters, ToMrukSharedSurfaceTypes(ComponentTypes), &Hit))
 	{
@@ -194,14 +194,14 @@ bool AMRUKAnchor::RaycastAll(const FVector& Origin, const FVector& Direction, fl
 {
 	const float WorldToMeters = GetWorld()->GetWorldSettings()->WorldToMeters;
 
-	static const uint32_t MaxHitCount = 128;
-	MRUKShared::MrukHit Hits[MaxHitCount];
-	uint32_t HitsCount = MaxHitCount;
+	static constexpr uint32 MaxHitCount = 128;
+	MRUKShared::Hit Hits[MaxHitCount];
+	uint32 HitsCount = MaxHitCount;
 	if (MRUKShared::GetInstance()->RaycastAnchorAll(ToMrukShared(AnchorUUID), PositionToMrukShared(Origin, WorldToMeters), UnitVectorToMrukShared(Direction), MaxDist / WorldToMeters, ToMrukSharedSurfaceTypes(ComponentTypes), Hits, &HitsCount))
 	{
-		for (uint32_t i = 0; i < HitsCount; ++i)
+		for (uint32 i = 0; i < HitsCount; ++i)
 		{
-			MRUKShared::MrukHit& Hit = Hits[i];
+			MRUKShared::Hit& Hit = Hits[i];
 			FMRUKHit OutHit;
 			OutHit.HitDistance = Hit.hitDistance * WorldToMeters;
 			OutHit.HitNormal = -UnitVectorToUnreal(Hit.hitNormal);
@@ -240,7 +240,7 @@ void AMRUKAnchor::AttachProceduralMesh(TArray<FMRUKPlaneUV> PlaneUVAdjustments, 
 
 void AMRUKAnchor::GenerateProceduralAnchorMesh(UProceduralMeshComponent* ProceduralMesh, const TArray<FMRUKPlaneUV>& PlaneUVAdjustments, const TArray<FString>& CutHoleLabels, bool PreferVolume, bool GenerateCollision, double Offset)
 {
-	int SectionIndex = 0;
+	int32 SectionIndex = 0;
 	if (VolumeBounds.IsValid)
 	{
 		TArray<FVector> Vertices;
@@ -257,9 +257,9 @@ void AMRUKAnchor::GenerateProceduralAnchorMesh(UProceduralMeshComponent* Procedu
 		UVs.Reserve(NumVertices);
 
 		FBox VolumeBoundsOffset(VolumeBounds.Min - Offset, VolumeBounds.Max + Offset);
-		for (int i = 0; i < 3; i++)
+		for (int32 i = 0; i < 3; i++)
 		{
-			for (int j = 0; j < 2; j++)
+			for (int32 j = 0; j < 2; j++)
 			{
 				FVector Normal = FVector::ZeroVector;
 				if (j == 0)
@@ -273,9 +273,9 @@ void AMRUKAnchor::GenerateProceduralAnchorMesh(UProceduralMeshComponent* Procedu
 				auto BaseIndex = Vertices.Num();
 				FVector Vertex;
 				Vertex[i] = VolumeBoundsOffset[j][i];
-				for (int k = 0; k < 2; k++)
+				for (int32 k = 0; k < 2; k++)
 				{
-					for (int l = 0; l < 2; l++)
+					for (int32 l = 0; l < 2; l++)
 					{
 						Vertex[(i + 1) % 3] = VolumeBoundsOffset[k][(i + 1) % 3];
 						Vertex[(i + 2) % 3] = VolumeBoundsOffset[l][(i + 2) % 3];
@@ -337,7 +337,7 @@ void AMRUKAnchor::GenerateProceduralAnchorMesh(UProceduralMeshComponent* Procedu
 
 		TArray<FVector2f> PlaneBoundary;
 		PlaneBoundary.Reserve(PlaneBoundary2D.Num());
-		for (const auto Point : PlaneBoundary2D)
+		for (const auto& Point : PlaneBoundary2D)
 		{
 			PlaneBoundary.Push(FVector2f(Point));
 		}
@@ -400,7 +400,7 @@ void AMRUKAnchor::GenerateProceduralAnchorMesh(UProceduralMeshComponent* Procedu
 			Tangents.Push(FProcMeshTangent(-FVector::YAxisVector, false));
 			auto U = (PlaneBoundaryVertex.X - PlaneBounds.Min.X) / BoundsSize.X;
 			auto V = 1 - (PlaneBoundaryVertex.Y - PlaneBounds.Min.Y) / BoundsSize.Y;
-			if (PlaneUVAdjustments.Num() == 0)
+			if (PlaneUVAdjustments.IsEmpty())
 			{
 				UV0s.Push(FVector2D(U, V));
 			}
@@ -497,7 +497,7 @@ bool AMRUKAnchor::IsPositionInVolumeBounds(const FVector& Position, bool TestVer
 
 FVector AMRUKAnchor::GetFacingDirection() const
 {
-	if (Room == nullptr)
+	if (!Room)
 	{
 		return {};
 	}
@@ -531,7 +531,7 @@ AActor* AMRUKAnchor::SpawnInterior(const TSubclassOf<class AActor>& ActorClass, 
 
 	if (VolumeBounds.IsValid)
 	{
-		int CardinalAxisIndex = 0;
+		int32 CardinalAxisIndex = 0;
 		if (CalculateFacingDirection && !MatchAspectRatio)
 		{
 			// Pick rotation that is pointing away from the closest wall
@@ -689,8 +689,8 @@ bool AMRUKAnchor::RayCastVolume(const FRay& LocalRay, float MaxDist, FMRUKHit& O
 	// Use the slab method to determine if the ray intersects with the bounding box
 	// https://education.siggraph.org/static/HyperGraph/raytrace/rtinter3.htm
 	float DistNear = -UE_BIG_NUMBER, DistFar = UE_BIG_NUMBER;
-	int HitAxis = 0;
-	for (int i = 0; i < 3; ++i)
+	int32 HitAxis = 0;
+	for (int32 i = 0; i < 3; ++i)
 	{
 		if (FMath::Abs(LocalRay.Direction.Component(i)) >= UE_KINDA_SMALL_NUMBER)
 		{
@@ -700,7 +700,7 @@ bool AMRUKAnchor::RayCastVolume(const FRay& LocalRay, float MaxDist, FMRUKHit& O
 
 			if (Dist1 > Dist2)
 			{
-				std::swap(Dist1, Dist2);
+				Swap(Dist1, Dist2);
 			}
 			if (Dist1 > DistNear)
 			{

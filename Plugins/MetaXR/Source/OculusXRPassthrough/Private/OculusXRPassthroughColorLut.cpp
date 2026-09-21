@@ -227,7 +227,7 @@ uint64 UOculusXRPassthroughColorLut::CreateLutObject(const TArray<uint8>& InData
 			return 0;
 		}
 
-		if (!Passthrough.Pin()->GetSettings()->bExtColorLutAvailable)
+		if (!Passthrough.Pin()->GetSettings().bExtColorLutAvailable)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("XR_META_passthrough_color_lut extension is not available."));
 			return 0;

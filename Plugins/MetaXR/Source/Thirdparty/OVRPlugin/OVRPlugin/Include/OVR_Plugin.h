@@ -78,6 +78,9 @@ OVRP_EXPORT ovrpResult ovrp_GetVersion2(char const** version);
 /// Gets the version of the underlying VR SDK currently in use.
 OVRP_EXPORT ovrpResult ovrp_GetNativeSDKVersion2(char const** nativeSDKVersion);
 
+/// Gets the runtime name (e.g. "Oculus", "Meta XR Simulator", "SteamVR", "Windows Mixed Reality", etc.)
+OVRP_EXPORT ovrpResult ovrp_GetRuntimeName(char const** runtimeName);
+
 /// Returns a pointer that can be used to access the underlying VR SDK
 /// (e.g. ovrSession in CAPI, ovrMobile* in VRAPI, XrSession* in OpenXR).
 OVRP_EXPORT ovrpResult ovrp_GetNativeSDKPointer2(void** nativeSDKPointer);
@@ -148,10 +151,8 @@ OVRP_EXPORT ovrpResult ovrp_SetRemoteHandedness(ovrpHandedness handedness);
 // Sets color scale parameters; can be used for effects like fade-to-black. Final pixel color will be multiplied by
 // colorScale and added to offset. If applyToAllLayers is false, this applies only for the eyefov layer. If it's true,
 // it's for every layer submitted.
-OVRP_EXPORT ovrpResult ovrp_SetColorScaleAndOffset(
-    const ovrpVector4f colorScale,
-    const ovrpVector4f colorOffset,
-    const ovrpBool applyToAllLayers);
+OVRP_EXPORT ovrpResult
+ovrp_SetColorScaleAndOffset(ovrpVector4f colorScale, ovrpVector4f colorOffset, ovrpBool applyToAllLayers);
 
 /// Creates a layer.
 /// The desc remains constant for the lifetime of the layer.
@@ -166,7 +167,7 @@ OVRP_EXPORT ovrpResult ovrp_SetupLayerDepth(void* device, ovrpTextureFormat dept
 OVRP_EXPORT ovrpResult ovrp_GetEyeFovLayerId(int* layerId);
 
 /// Set blending mode of Eye Fov layer to use premultiplied alpha or not
-OVRP_EXPORT ovrpResult ovrp_SetEyeFovPremultipliedAlphaMode(const ovrpBool enabled);
+OVRP_EXPORT ovrpResult ovrp_SetEyeFovPremultipliedAlphaMode(ovrpBool enabled);
 
 /// Get premultiplied alpha mode of the Eye Fov layer
 OVRP_EXPORT ovrpResult ovrp_GetEyeFovPremultipliedAlphaMode(ovrpBool* enabled);
@@ -289,6 +290,36 @@ OVRP_EXPORT ovrpResult ovrp_CalculateEyePreviewRect(
     ovrpEye eyeId,
     OVRP_CONSTREF(ovrpRecti) viewportRect,
     ovrpRecti* previewRect);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /// Allocates mirror texture
 /// If you called ovrp_Initialize with ovrpRenderAPI_D3D11, pass device argument
@@ -479,14 +510,12 @@ OVRP_EXPORT ovrpResult ovrp_SetControllerHapticsAmplitudeEnvelope(
 OVRP_EXPORT ovrpResult
 ovrp_SetControllerHapticsPcm(ovrpController controllerMask, ovrpHapticsPcmVibration hapticsVibration);
 
+OVRP_EXPORT ovrpResult
+ovrp_SetControllerHapticsParametric(ovrpController controllerMask, ovrpHapticsParametricVibration hapticsVibration);
 
-
-
-
-
-
-
-
+OVRP_EXPORT ovrpResult ovrp_GetControllerParametricProperties(
+    ovrpController controllerMask,
+    ovrpHapticsParametricProperties* hapticsProperties);
 
 
 
@@ -850,7 +879,7 @@ OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV2( // For OVRP_1_110_0+
     const char* is_internal_build,
     const char* batch_mode);
 
-OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV3( // For OVRP_1_111_0+
+OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV3( // For OVRP_1_114_0+
     ovrpBool isEssential,
     const char* productType,
     const char* eventName,
@@ -862,7 +891,67 @@ OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV3( // For OVRP_1_111_0+
     const char* event_target,
     const char* error_msg,
     ovrpOptionalBool is_internal_build,
-    ovrpOptionalBool batch_mode);
+    ovrpOptionalBool batch_mode,
+    unsigned long long machine_oculus_user_id);
+
+OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV4( // For metadata handle support
+    ovrpBool isEssential,
+    const char* productType,
+    const char* eventName,
+    int metadataHandle,
+    const char* project_name,
+    const char* event_entrypoint,
+    const char* project_guid,
+    const char* event_type,
+    const char* event_target,
+    const char* error_msg,
+    ovrpOptionalBool is_internal_build,
+    ovrpOptionalBool batch_mode,
+    unsigned long long machine_oculus_user_id);
+
+OVRP_EXPORT ovrpResult ovrp_SendUnifiedEventV5( // For is_runtime and event_status support. event_status accepts: "SUCCESS", "FAIL", "CANCEL"
+    ovrpBool isEssential,
+    const char* productType,
+    const char* eventName,
+    int metadataHandle,
+    const char* project_name,
+    const char* event_entrypoint,
+    const char* project_guid,
+    const char* event_type,
+    const char* event_target,
+    const char* error_msg,
+    ovrpOptionalBool is_internal_build,
+    ovrpOptionalBool batch_mode,
+    unsigned long long machine_oculus_user_id,
+    ovrpOptionalBool is_runtime,
+    const char* event_status);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetryCreateMetadataHandle(int* returnHandle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetrySetMetadata(const char* key, const char* value, int handle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetrySetMetadataInt(const char* key, int value, int handle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetrySetMetadataLong(const char* key, long long value, int handle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetrySetMetadataFloat(const char* key, float value, int handle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetrySetMetadataDouble(const char* key, double value, int handle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetrySetMetadataBool(const char* key, ovrpBool value, int handle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetrySetMetadataIntArray(const char* key, const int* values, int count, int handle);
+
+OVRP_EXPORT ovrpResult
+ovrp_TelemetrySetMetadataLongArray(const char* key, const long long* values, int count, int handle);
+
+OVRP_EXPORT ovrpResult
+ovrp_TelemetrySetMetadataDoubleArray(const char* key, const double* values, int count, int handle);
+
+OVRP_EXPORT ovrpResult
+ovrp_TelemetrySetMetadataStringArray(const char* key, const char** values, int count, int handle);
+
+OVRP_EXPORT ovrpResult ovrp_TelemetryGetMetadata(int handle, char* metadataJson, int bufferSize);
 
 OVRP_EXPORT ovrpResult ovrp_AddCustomMetadata(const char* metadataName, const char* metadataParam);
 
@@ -910,10 +999,8 @@ OVRP_EXPORT ovrpResult ovrp_IsWideMotionModeHandPosesEnabled(ovrpBool* enabled);
 
 OVRP_EXPORT ovrpResult ovrp_SetHandSkeletonVersion(ovrHandSkeletonVersion version);
 
-
-
-
-
+OVRP_EXPORT ovrpResult ovrp_SetWideMotionMode2HandPosesEnabled(ovrpBool enabled);
+OVRP_EXPORT ovrpResult ovrp_IsWideMotionMode2HandPosesEnabled(ovrpBool* enabled);
 
 OVRP_EXPORT ovrpResult ovrp_SetMultimodalHandsControllersSupported(ovrpBool supported);
 OVRP_EXPORT ovrpResult ovrp_IsMultimodalHandsControllersSupported(ovrpBool* supported);
@@ -924,6 +1011,9 @@ OVRP_EXPORT ovrpResult ovrp_GetHandTrackingEnabled(ovrpBool* handTrackingEnabled
 OVRP_EXPORT ovrpResult ovrp_GetHandState(ovrpStep step, ovrpHand hand, ovrpHandState* handState);
 OVRP_EXPORT ovrpResult ovrp_GetHandState2(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandState* handState);
 OVRP_EXPORT ovrpResult ovrp_GetHandState3(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandState3* handState);
+OVRP_EXPORT ovrpResult
+ovrp_GetHandPoseSourceInferred(ovrpStep step, int frameIndex, ovrpHand hand, ovrpBool* poseInferred);
+OVRP_EXPORT ovrpResult ovrp_GetUnextrapolatedHandState(ovrpHand hand, ovrpHandState3* handState);
 OVRP_EXPORT ovrpResult ovrp_GetHandStateAtTime(double time, ovrpHand hand, ovrpHandState3* handState);
 OVRP_EXPORT ovrpResult
 ovrp_GetHandTrackingState(ovrpStep step, int frameIndex, ovrpHand hand, ovrpHandTrackingState* handTrackingState);
@@ -948,7 +1038,7 @@ OVRP_EXPORT ovrpResult ovrp_GetFaceTracking2Supported(ovrpBool* faceTracking2Sup
 OVRP_EXPORT ovrpResult ovrp_GetFaceTrackingVisemesEnabled(ovrpBool* faceTrackingVisemesEnabled);
 OVRP_EXPORT ovrpResult ovrp_GetFaceTrackingVisemesSupported(ovrpBool* faceTrackingVisemesSupported);
 OVRP_EXPORT ovrpResult ovrp_StartFaceTracking2(
-    const ovrpFaceTrackingDataSource2* const requestedDataSources,
+    const ovrpFaceTrackingDataSource2* requestedDataSources,
     unsigned int requestedDataSourcesCount);
 OVRP_EXPORT ovrpResult ovrp_StopFaceTracking2();
 OVRP_EXPORT ovrpResult ovrp_StartBodyTracking();
@@ -1028,6 +1118,13 @@ OVRP_EXPORT ovrpBool ovrp_IsConsentSettingsChangeEnabled(int toolId);
 OVRP_EXPORT ovrpBool ovrp_ShouldShowTelemetryNotification(int toolId);
 OVRP_EXPORT ovrpResult ovrp_SetNotificationShown(int tool);
 
+OVRP_EXPORT ovrpResult ovrp_MetaWandAuth_GetAccessToken(char* accessToken, int bufferSize);
+OVRP_EXPORT ovrpBool ovrp_MetaWandAuth_Authenticate();
+OVRP_EXPORT ovrpBool ovrp_MetaWandAuth_Logout();
+OVRP_EXPORT ovrpBool ovrp_MetaWandAuth_HasAccessToken();
+OVRP_EXPORT ovrpBool ovrp_MetaWandAuth_IsAuthenticating();
+OVRP_EXPORT ovrpBool ovrp_MetaWandAuth_Stop();
+
 OVRP_EXPORT ovrpResult ovrp_QplSetConsent(ovrpBool qplConsent);
 OVRP_EXPORT ovrpResult ovrp_QplMarkerStart(int markerId, int instanceKey, ovrpInt64 timestampMs);
 OVRP_EXPORT ovrpResult ovrp_QplMarkerStartForJoin(
@@ -1091,8 +1188,8 @@ OVRP_EXPORT ovrpResult ovrp_DestroySpace(ovrpSpace* space);
 OVRP_EXPORT ovrpResult ovrp_SetSpaceComponentStatus(
     const ovrpSpace* space,
     ovrpSpaceComponentType componentType,
-    const ovrpBool enable,
-    const double timeout,
+    ovrpBool enable,
+    double timeout,
     ovrpUInt64* requestId);
 OVRP_EXPORT ovrpResult ovrp_GetSpaceComponentStatus(
     const ovrpSpace* space,
@@ -1266,8 +1363,12 @@ OVRP_EXPORT ovrpResult ovrp_GetEyeLayerRecommendedResolution(ovrpSizei* recommen
 
 
 
+
 OVRP_EXPORT ovrpResult ovrp_RegisterOpenXREventHandler(ovrpOpenXrEventHandler eventHandler, void* context);
 OVRP_EXPORT ovrpResult ovrp_UnregisterOpenXREventHandler(ovrpOpenXrEventHandler eventHandler);
+
+OVRP_EXPORT ovrpResult ovrp_RegisterShutdownEventHandler(ovrpShutdownEventHandler eventHandler, void* context);
+OVRP_EXPORT ovrpResult ovrp_UnregisterShutdownEventHandler(ovrpShutdownEventHandler eventHandler);
 
 OVRP_EXPORT ovrpResult ovrp_GetOpenXRInstanceProcAddrFunc(void** func);
 
@@ -1298,6 +1399,8 @@ OVRP_EXPORT ovrpResult ovrp_GetBoundaryVisibility(ovrpBoundaryVisibility* bounda
 
 
 
+
+OVRP_EXPORT ovrpResult ovrp_RequestFastMotionMode(ovrpBool enabled);
 
 OVRP_EXPORT ovrpResult ovrp_IsLayerShapeSupported(ovrpShape shape, ovrpBool* isLayerShapeSupported);
 
@@ -1454,6 +1557,8 @@ OVRP_EXPORT ovrpResult ovrp_GetStationaryReferenceSpaceId(ovrpUuid* generationId
 
 
 OVRP_EXPORT void ovrp_AllowVisibilityMask(ovrpBool enabled);
+
+OVRP_EXPORT ovrpResult ovrp_AcquireLayerSwapchain(int layerId, int* acquiredIndex);
 
 #ifdef __cplusplus
 }

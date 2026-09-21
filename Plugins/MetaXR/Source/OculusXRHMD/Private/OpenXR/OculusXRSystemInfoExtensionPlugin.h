@@ -60,7 +60,7 @@ namespace OculusXR
 				, TouchControllerProPath(XR_NULL_PATH)
 				, TouchControllerPlusPath(XR_NULL_PATH)
 				, LeftHandPath(XR_NULL_PATH)
-				, RightHandPath(XR_NULL_PATH){};
+				, RightHandPath(XR_NULL_PATH) {};
 
 			XrPath TouchControllerPath;
 			XrPath TouchControllerProPath;

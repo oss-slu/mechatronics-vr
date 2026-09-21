@@ -137,7 +137,7 @@ namespace OculusXRRenderingRules
 		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
 	};
 
-#ifdef WITH_OCULUS_BRANCH
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 	class FEnableDynamicResolutionRule final : public ISetupRule
 	{
 	public:
@@ -154,7 +154,9 @@ namespace OculusXRRenderingRules
 	protected:
 		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
 	};
+#endif
 
+#ifdef WITH_OCULUS_BRANCH
 	class FEnableMobileUniformLocalLightsRule final : public ISetupRule
 	{
 	public:
@@ -214,7 +216,7 @@ namespace OculusXRRenderingRules
 		FDisablePostProcessingRule()
 			: ISetupRule("Rendering_DisablePostProcessing",
 				  NSLOCTEXT("OculusXRRenderingRules", "DisablePostProcessing_DisplayName", "Disable Post Processing"),
-				  NSLOCTEXT("OculusXRRenderingRules", "DisablePostProcessing_Description", "Mobile HDR has performance and stability issues in VR. We strongly recommend disabling it."),
+				  NSLOCTEXT("OculusXRRenderingRules", "DisablePostProcessing_Description", "Mobile HDR impacts performance in VR. We recommend disabling it."),
 				  ESetupRuleCategory::Rendering,
 				  ESetupRuleSeverity::Performance,
 				  MetaQuest_All) {}
@@ -224,6 +226,7 @@ namespace OculusXRRenderingRules
 		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
 	};
 
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 	class FDisableAmbientOcclusionRule final : public ISetupRule
 	{
 	public:
@@ -239,6 +242,7 @@ namespace OculusXRRenderingRules
 	protected:
 		virtual void ApplyImpl(bool& OutShouldRestartEditor) override;
 	};
+#endif
 
 	class FEnableMultiViewRule final : public ISetupRule
 	{
@@ -371,15 +375,19 @@ namespace OculusXRRenderingRules
 		MakeShared<FEnableMSAARule>(),
 		MakeShared<FEnableOcclusionCullingRule>(),
 		MakeShared<FEnableDynamicFoveationRule>(),
-#ifdef WITH_OCULUS_BRANCH
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 		MakeShared<FEnableDynamicResolutionRule>(),
+#endif
+#ifdef WITH_OCULUS_BRANCH
 		MakeShared<FEnableMobileUniformLocalLightsRule>(),
 		MakeShared<FEnableEmulatedUniformBuffersRule>(),
 		MakeShared<FDisableMobileGPUSceneRule>(),
 #endif
 		MakeShared<FDisableLensFlareRule>(),
 		MakeShared<FDisablePostProcessingRule>(),
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 		MakeShared<FDisableAmbientOcclusionRule>(),
+#endif
 		MakeShared<FEnableMultiViewRule>(),
 		MakeShared<FEnableStaticLightingRule>(),
 		MakeShared<FDisableMobileShaderStaticAndCSMShadowReceiversRule>(),

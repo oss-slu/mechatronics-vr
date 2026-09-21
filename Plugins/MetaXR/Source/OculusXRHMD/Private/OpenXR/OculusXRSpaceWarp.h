@@ -7,7 +7,7 @@
 #include "SceneViewExtension.h"
 #include "XRSwapChain.h"
 
-#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH))
+#if (defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)) && UE_VERSION_OLDER_THAN(5, 7, 0)
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOculusSpaceWarpExtensionPlugin, Log, All);
 
@@ -26,6 +26,7 @@ namespace OculusXR
 		virtual const void* OnCreateInstance(IOpenXRHMDModule* InModule, const void* InNext) override;
 		virtual void PostCreateInstance(XrInstance InInstance) override;
 		virtual void PostCreateSession(XrSession InSession) override;
+		virtual void OnDestroySession(XrSession InSession) override;
 #if UE_VERSION_OLDER_THAN(5, 6, 0)
 		virtual void OnBeginRendering_RenderThread(XrSession InSession) override;
 #else  // UE_VERSION_OLDER_THAN(5, 6, 0)

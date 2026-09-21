@@ -10,6 +10,14 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogMRUK, Log, All);
 
 UENUM(BlueprintType)
+enum class EMRUKSceneModel : uint8
+{
+	V1,
+	V2,
+	V2FallbackV1,
+};
+
+UENUM(BlueprintType)
 enum class EMRUKInitStatus : uint8
 {
 	/// Not Initialized.
@@ -55,7 +63,7 @@ enum class EMRUKSpawnerSelectionMode : uint8
 	Random,
 	/// Pick the closest size.
 	ClosestSize,
-	/// Used in the AMRUKAnchorActorSpawner to use allow for a custom selection mode.
+	/// Used in the AMRUKAnchorActorSpawner to allow for a custom selection mode.
 	Custom,
 };
 
@@ -70,7 +78,7 @@ enum class EMRUKSpawnerScalingMode : uint8
 	UniformXYScale,
 	/// Don't perform any scaling.
 	NoScaling,
-	/// Used in the AMRUKAnchorActorSpawner to use allow for a custom scaling.
+	/// Used in the AMRUKAnchorActorSpawner to allow for a custom scaling.
 	Custom,
 };
 
@@ -159,7 +167,7 @@ struct MRUTILITYKIT_API FMRUKHit
 
 /**
  * Label filter to use in MRUK (Mixed Reality Utility Kit). You can use this to filter anchors by their labels.
- * use the IncludedLabels and ExcludedLabels list to specify which labels to include and exclude.
+ * Use the IncludedLabels and ExcludedLabels list to specify which labels to include and exclude.
  */
 USTRUCT(BlueprintType)
 struct MRUTILITYKIT_API FMRUKLabelFilter
@@ -183,7 +191,7 @@ struct MRUTILITYKIT_API FMRUKLabelFilter
 	/**
 	 * Enum flags representing component types to include, by default include all component types.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit", meta = (Bitmask, BitmaskEnum = "EMRUKComponentType"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit", meta = (Bitmask, BitmaskEnum = "/Script/MRUtilityKit.EMRUKComponentType"))
 	int32 ComponentTypes = static_cast<int32>(EMRUKComponentType::All);
 
 	/**
@@ -290,7 +298,7 @@ struct MRUTILITYKIT_API FMRUKSpawnActor
 };
 
 /**
- * This enum is used to specify the fallback behaviour when spawning an scene actor.
+ * This enum is used to specify the fallback behaviour when spawning a scene actor.
  * Specify whether to fallback to a procedural mesh or not.
  */
 UENUM(BlueprintType)
@@ -384,15 +392,168 @@ enum class EMRUKSpawnMode : uint8
 };
 
 /**
- * UE Module interface impelmentation
+ * This enum is used to specify the environment raycast hit status.
+ * It indicates whether a raycast hit an object, missed, or encountered
+ * other conditions such as occlusion or being outside the field of view.
+ */
+UENUM(BlueprintType)
+enum class EMRUKEnvironmentRaycastHitStatus : uint8
+{
+	/// Indicates that the raycast hit the depth.
+	Hit,
+
+	/// Indicates that the raycast did not hit the depth.
+	NoHit,
+
+	/// Indicates that the hit point is occluded.
+	HitPointOccluded,
+
+	/// Indicates that the hit point is outside the field of view.
+	HitPointOutsideFov,
+
+	/// Indicates that the ray itself is occluded by depth.
+	RayOccluded,
+
+	/// Indicates a failure in the raycasting process.
+	/// This status indicates a failure in the raycasting process, which can occur if the raycaster fails to initialize or encounters an unexpected error.
+	Failure,
+};
+
+/**
+ * This enum is used to specify the status of the environment raycaster.
+ * It indicates whether the raycaster is stopped, in the process of being created, or ready for use.
+ */
+UENUM(BlueprintType)
+enum class EMRUKEnvironmentRaycasterStatus : uint8
+{
+	/// Indicates that the raycaster is stopped.
+	Stopped,
+
+	/// Indicates that the raycaster is in the process of being created.
+	Creating,
+
+	/// Indicates that the raycaster is ready for use.
+	Ready,
+};
+
+/**
+ * Specifies the type of trackable object.
+ */
+UENUM(BlueprintType)
+enum class EMRUKTrackableType : uint8
+{
+	/// No trackable type.
+	None,
+
+	/// Keyboard trackable.
+	Keyboard,
+
+	/// QR code trackable.
+	QRCode,
+};
+
+/**
+ * Specifies the type of marker payload for trackables like QR codes.
+ */
+UENUM(BlueprintType)
+enum class EMRUKMarkerPayloadType : uint8
+{
+	/// No payload.
+	NonePayload,
+
+	/// Invalid payload (cannot be decoded).
+	InvalidPayload,
+
+	/// String payload.
+	StringPayload,
+
+	/// Binary payload.
+	BinaryPayload,
+};
+
+/**
+ * Configuration for trackable tracking. Use this to enable or disable different types of trackables.
+ */
+USTRUCT(BlueprintType)
+struct MRUTILITYKIT_API FMRUKTrackerConfiguration
+{
+	GENERATED_BODY()
+
+	/**
+	 * Whether keyboard tracking should be enabled.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit")
+	bool bEnableKeyboardTracking = false;
+
+	/**
+	 * Whether QR code tracking should be enabled.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit")
+	bool bEnableQRCodeTracking = false;
+};
+
+/**
+ * Represents a hit result from an environment raycast.
+ */
+USTRUCT(BlueprintType)
+struct MRUTILITYKIT_API FMRUKEnvironmentRaycastHit
+{
+	GENERATED_BODY()
+
+	/**
+	 * The status of the raycast hit, indicating whether it hit an object, missed, or encountered other conditions.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit")
+	EMRUKEnvironmentRaycastHitStatus status = EMRUKEnvironmentRaycastHitStatus::NoHit;
+
+	/**
+	 * The point in the world where the raycast hit.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit")
+	FVector point = FVector::ZeroVector;
+
+	/**
+	 * The orientation of the hit point.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit")
+	FQuat orientation = FQuat::Identity;
+
+	/**
+	 * The normal vector of the hit point.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MR Utility Kit")
+	FVector normal = FVector::ZeroVector;
+};
+
+USTRUCT(BlueprintType)
+struct MRUTILITYKIT_API FMRUKTrackableKey
+{
+	GENERATED_BODY()
+
+	uint64_t Space;
+	uint64_t EntityId;
+
+	bool operator==(const FMRUKTrackableKey& Other) const
+	{
+		return Space == Other.Space && EntityId == Other.EntityId;
+	}
+
+	friend uint32_t GetTypeHash(const FMRUKTrackableKey& Key)
+	{
+		return HashCombine(GetTypeHash(Key.Space), GetTypeHash(Key.EntityId));
+	}
+};
+
+/**
+ * UE Module interface implementation
  */
 class FMRUKModule : public IModuleInterface
 {
 public:
 	static FMRUKModule& GetInstance();
 
-	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
+
 	virtual void ShutdownModule() override;
 
 private:

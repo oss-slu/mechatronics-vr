@@ -1,11 +1,21 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #include "OculusXRSystemInfoExtensionPlugin.h"
+
+#include "Engine/RendererSettings.h"
 #include "IOpenXRHMDModule.h"
 #include "OculusXRAssetDirectory.h"
 #include "OculusXRXRFunctions.h"
 #include "OculusXROpenXRUtilities.h"
 #include "OculusXRHMDRuntimeSettings.h"
+#include "OculusXRHMDTypes.h"
+#include "OculusXRTelemetry.h"
+#include "UObject/UObjectGlobals.h"
+#include "OculusXRHMDPrivate.h"
+
+#if WITH_EDITOR
+#include "Settings/LevelEditorPlaySettings.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogOculusSystemInfoExtensionPlugin);
 
@@ -184,6 +194,71 @@ namespace OculusXR
 			}
 			return ColorSpace;
 		}
+
+		void SendTelemetryData()
+		{
+			UE_LOG(LogHMD, Log, TEXT("Collecting Telemetry Data"));
+			FString TelemetryParam;
+#if WITH_EDITOR && PLATFORM_WINDOWS
+			// Implementing telemetry to monitor the adoption rate of multiplayer testing.
+			ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
+			check(PlayInSettings);
+			int PlayerCount = 0;
+			bool bIsRunningUnderOneProcess = false;
+			PlayInSettings->GetPlayNumberOfClients(PlayerCount);
+			PlayInSettings->GetRunUnderOneProcess(bIsRunningUnderOneProcess);
+			if (PlayerCount > 1)
+			{
+				OculusXRTelemetry::SendEvent("MultiPlayer_Testing isRunningUnderOneProcess", bIsRunningUnderOneProcess);
+			}
+#endif
+			const URendererSettings* RendererSettings = GetMutableDefault<URendererSettings>();
+			UOculusXRHMDRuntimeSettings* HMDSettings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
+			check(HMDSettings != nullptr);
+
+#ifdef WITH_OCULUS_BRANCH
+			bool bLateLatchingEnabled = false;
+#if OCULUS_HMD_SUPPORTED_PLATFORMS_VULKAN && PLATFORM_ANDROID
+			bLateLatchingEnabled = HMDSettings->bLateLatching;
+#endif
+			OculusXRTelemetry::SendEvent("LateLatching", bLateLatchingEnabled);
+			OculusXRTelemetry::SendEvent("DynamicResolution", HMDSettings->bDynamicFoveatedRendering);
+
+			static const IConsoleVariable* CVarPixelDensityMin = IConsoleManager::Get().FindConsoleVariable(VAR_PixelDensityMin);
+			const float PixelDensityMin = CVarPixelDensityMin ? CVarPixelDensityMin->GetFloat() : 0.8f;
+			OculusXRTelemetry::SendEvent("DynamicResolution Min", PixelDensityMin);
+
+			static const IConsoleVariable* CVarPixelDensityMax = IConsoleManager::Get().FindConsoleVariable(VAR_PixelDensityMax);
+			const float PixelDensityMax = CVarPixelDensityMax ? CVarPixelDensityMax->GetFloat() : 1.2f;
+			OculusXRTelemetry::SendEvent("DynamicResolution Max", PixelDensityMax);
+
+			if (RendererSettings != nullptr)
+			{
+				OculusXRTelemetry::SendEvent("EmulatedUniformBuffer", RendererSettings->bVulkanUseEmulatedUBs);
+				OculusXRTelemetry::SendEvent("UniformLocalLights", RendererSettings->bMobileUniformLocalLights != 0);
+				OculusXRTelemetry::SendEvent("MobileAllowCustomOcclusionCulling", RendererSettings->bMobileAllowCustomOcclusionCulling != 0);
+				OculusXRTelemetry::SendEvent("TestDeferredAllowCustomOcclusionCulling", RendererSettings->bTestDeferredAllowCustomOcclusionCulling != 0);
+			}
+#endif // WITH_OCULUS_BRANCH
+
+			if (RendererSettings != nullptr)
+			{
+				OculusXRTelemetry::SendEvent("OcclusionCulling", RendererSettings->bOcclusionCulling != 0);
+			}
+
+			FStaticFeatureLevel CurrentFeatureLevel = GEngine ? GEngine->GetDefaultWorldFeatureLevel() : GMaxRHIFeatureLevel;
+
+			static auto* MobileTonemapSubpassPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.TonemapSubpass"));
+			const bool bIsMobileTonemapSubpassEnabled = (MobileTonemapSubpassPathCvar && (MobileTonemapSubpassPathCvar->GetValueOnAnyThread() == 1)) && !IsMobileDeferredShadingEnabled(GShaderPlatformForFeatureLevel[CurrentFeatureLevel]);
+
+			static const auto GpuSceneCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
+			const bool bMobileSupportGPUScene = GpuSceneCVar && GpuSceneCVar->GetValueOnAnyThread();
+
+			OculusXRTelemetry::SendEvent("MobileTonemap", bIsMobileTonemapSubpassEnabled);
+			OculusXRTelemetry::SendEvent("MobileHDR", RendererSettings->bMobilePostProcessing != 0);
+			OculusXRTelemetry::SendEvent("GPUScene", bMobileSupportGPUScene);
+			OculusXRTelemetry::SendEvent("XrApi", HMDSettings->XrApi == EOculusXRXrApi::OVRPluginOpenXR ? "OVRPluginOpenXR" : "NativeOpenXR");
+		}
 	} // namespace
 
 	FSystemInfoExtensionPlugin::FSystemInfoExtensionPlugin()
@@ -272,6 +347,8 @@ namespace OculusXR
 		ControllerPaths.TouchControllerPlusPath = FOpenXRPath("/interaction_profiles/meta/touch_controller_plus");
 		ControllerPaths.LeftHandPath = FOpenXRPath("/user/hand/left");
 		ControllerPaths.RightHandPath = FOpenXRPath("/user/hand/right");
+
+		SendTelemetryData();
 	}
 
 	bool FSystemInfoExtensionPlugin::GetControllerModel(XrInstance InInstance, XrPath InInteractionProfile, XrPath InDevicePath, FSoftObjectPath& OutPath)

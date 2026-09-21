@@ -64,7 +64,7 @@ public:
 
 	void BeginPlay() override;
 	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	void ComputeOwner2DBounds(FVector& Origin, FVector2D& Extent, double& Yaw) const;
+	void ComputeOwner2DBounds(FVector& OutOrigin, FVector2D& OutExtent, double& OutYaw) const;
 
 protected:
 	UPROPERTY()

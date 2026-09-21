@@ -273,6 +273,36 @@ EOculusXRXrApi UOculusXRFunctionLibrary::GetXrApi()
 	return XrApi;
 }
 
+void UOculusXRFunctionLibrary::BeginProfilingRegion(const FString& RegionName)
+{
+#if OCULUS_HMD_SUPPORTED_PLATFORMS
+	TSharedPtr<OculusXRHMD::IOculusXRFunctionLibrary> Impl = GetOculusXRFunctionImpl();
+	if (Impl.IsValid())
+	{
+		Impl->BeginProfilingRegion(RegionName);
+	}
+	else
+	{
+		UE_LOG(LogHMD, Warning, TEXT("BeginProfilingRegion called but OculusXR function library implementation is not available"));
+	}
+#endif
+}
+
+void UOculusXRFunctionLibrary::EndProfilingRegion()
+{
+#if OCULUS_HMD_SUPPORTED_PLATFORMS
+	TSharedPtr<OculusXRHMD::IOculusXRFunctionLibrary> Impl = GetOculusXRFunctionImpl();
+	if (Impl.IsValid())
+	{
+		Impl->EndProfilingRegion();
+	}
+	else
+	{
+		UE_LOG(LogHMD, Warning, TEXT("EndProfilingRegion called but OculusXR function library implementation is not available"));
+	}
+#endif
+}
+
 EOculusXRFoveatedRenderingMethod UOculusXRFunctionLibrary::GetFoveatedRenderingMethod()
 {
 	EOculusXRFoveatedRenderingMethod FoveatedRenderingMethod = EOculusXRFoveatedRenderingMethod::FixedFoveatedRendering;

@@ -116,7 +116,7 @@ namespace OculusXRHMD
 			if (bIsTrackerStarted)
 			{
 				FOculusXREyeGazesState eyeGazes;
-				bool getStateResult = OculusXRMovement::GetEyeGazesState(eyeGazes, WorldToMeters);
+				bool getStateResult = OculusXRMovement::GetEyeGazesState(eyeGazes);
 				if (getStateResult && IsStateValidForBothEyes(eyeGazes))
 				{
 					FTransform TrackingToWorld = TrackingSystem ? TrackingSystem->GetTrackingToWorldTransform() : FTransform::Identity;

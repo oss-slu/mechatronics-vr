@@ -26,7 +26,7 @@ namespace OculusXRHMD
 		, bDynamicFoveatedRendering(true)
 		, bSupportEyeTrackedFoveatedRendering(false)
 		, SystemSplashBackground(ESystemSplashBackgroundType::Black)
-		, XrApi(EOculusXRXrApi::OVRPluginOpenXR)
+		, XrApi(EOculusXRXrApi::NativeOpenXR)
 		, ColorSpace(EOculusXRColorSpace::P3)
 		, ControllerPoseAlignment(EOculusXRControllerPoseAlignment::Default)
 		, HandTrackingSupport(EOculusXRHandTrackingSupport::ControllersOnly)
@@ -68,6 +68,7 @@ namespace OculusXRHMD
 		Flags.bAnchorSupportEnabled = false;
 		Flags.bAnchorSharingEnabled = false;
 		Flags.bSceneSupportEnabled = false;
+		Flags.bPassthroughCameraAccessEnabled = false;
 		Flags.bBoundaryVisibilitySupportEnabled = false;
 		Flags.bDefaultBoundaryVisibilitySuppressed = false;
 		Flags.bColocationSessionsEnabled = false;
@@ -79,10 +80,6 @@ namespace OculusXRHMD
 		RenderTargetSize = FIntPoint(0, 0);
 
 		Flags.bIterativeCookOnTheFly = false;
-		Flags.bSupportSBC = false;
-		// Note: SBCPath should be consistent as other project saved path, e.g. /sdcard/Android/data/[packagename]/files/UnrealGame/[ProjectName]/[ProjectName]/Saved/Profiling/CSV/
-		FString ProjectName = !FApp::IsProjectNameEmpty() ? FApp::GetProjectName() : FPlatformProcess::ExecutableName();
-		SBCPath = FString("files/UnrealGame/") + ProjectName + FString("/") + ProjectName + FString("/Saved/VulkanCache");
 
 #ifdef WITH_OCULUS_BRANCH
 		Flags.bTileTurnOffEnabled = false;

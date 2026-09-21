@@ -48,14 +48,23 @@ namespace UnrealBuildTool.Rules
                     "ImageWrapper",
                     "MediaAssets",
                     "Analytics",
-                    "OpenGLDrv",
-                    "VulkanRHI",
                     "OculusOpenXRLoader",
                     "ProceduralMeshComponent",
                     "Projects",
                     "OpenXR",
                     "OpenXRHMD",
                 });
+
+            // OpenGL and Vulkan are not available on Mac
+            if (Target.Platform != UnrealTargetPlatform.Mac)
+            {
+                PrivateDependencyModuleNames.AddRange(
+                    new string[]
+                    {
+                        "OpenGLDrv",
+                        "VulkanRHI",
+                    });
+            }
 
             PublicDependencyModuleNames.AddRange(
                 new string[]
@@ -86,7 +95,11 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("UnrealEd");
             }
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
+            // OpenGL is not available on Mac
+            if (Target.Platform != UnrealTargetPlatform.Mac)
+            {
+                AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
+            }
 
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {
@@ -106,12 +119,6 @@ namespace UnrealBuildTool.Rules
                             "D3D12RHI",
                         });
 
-                    PrivateIncludePaths.AddRange(
-                        new string[]
-                        {
-                            "OculusXRMR/Public",
-                        });
-
                     AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
                     AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
                     AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
@@ -128,18 +135,11 @@ namespace UnrealBuildTool.Rules
                 // OVRPlugin
                 if (Target.Platform == UnrealTargetPlatform.Win64)
                 {
-                    RuntimeDependencies.Add("$(PluginDir)/Source/ThirdParty/OVRPlugin/OVRPlugin/Lib/" + Target.Platform.ToString() + "/OpenXR/OVRPlugin.dll");
+                    RuntimeDependencies.Add("$(PluginDir)/Source/Thirdparty/OVRPlugin/OVRPlugin/Lib/" + Target.Platform.ToString() + "/OpenXR/OVRPlugin.dll");
                 }
             }
             else if (Target.Platform == UnrealTargetPlatform.Android)
             {
-                // We are not currently supporting Mixed Reality on Android, but we need to include IOculusXRMRModule.h for OCULUS_MR_SUPPORTED_PLATFORMS definition
-                PrivateIncludePaths.AddRange(
-                        new string[]
-                        {
-                            "OculusXRMR/Public"
-                        });
-
                 // Vulkan
                 {
                     AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
@@ -151,7 +151,18 @@ namespace UnrealBuildTool.Rules
                     AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "OculusMobile_APL.xml"));
                 }
             }
-
+            else if (Target.Platform == UnrealTargetPlatform.Mac)
+            {
+                // OVRPlugin.dylib runtime dependency
+                RuntimeDependencies.Add("$(PluginDir)/Source/Thirdparty/OVRPlugin/OVRPlugin/Lib/Mac/OpenXR/OVRPlugin.dylib");
+            }
+            else if (Target.Platform == UnrealTargetPlatform.Linux)
+            {
+                // Vulkan
+                {
+                    AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+                }
+            }
             AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenXR");
         }
     }

@@ -20,18 +20,23 @@ namespace OculusXRRenderingRules
 	{
 		FPreviewPlatformInfo GetAndroidPreviewPlatformInfo()
 		{
+#if !UE_VERSION_OLDER_THAN(5, 7, 0)
+			const FName AndroidPlatformName(TEXT("Android_Preview_Vulkan"));
+#else
 			const FName AndroidPlatformName(TEXT("AndroidVulkan_Preview"));
-
-			const EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(AndroidPlatformName);
-
-			const ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+#endif
 
 			const auto& AllPreviewPlatforms = FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems();
-
 			for (const auto& Platform : AllPreviewPlatforms)
 			{
+#if !UE_VERSION_OLDER_THAN(5, 7, 0)
+				if (Platform.DeviceProfileName == AndroidPlatformName)
+#else
 				if (Platform.PreviewShaderPlatformName == AndroidPlatformName)
+#endif
 				{
+					const EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(Platform.PreviewShaderPlatformName);
+					const ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 					return FPreviewPlatformInfo(FeatureLevel, ShaderPlatform, Platform.PlatformName, Platform.ShaderFormat, Platform.DeviceProfileName,
 						true, Platform.PreviewShaderPlatformName);
 				}
@@ -146,7 +151,7 @@ namespace OculusXRRenderingRules
 		OutShouldRestartEditor = false;
 	}
 
-#ifdef WITH_OCULUS_BRANCH
+#if defined(WITH_OCULUS_BRANCH) || defined(WITH_OPENXR_BRANCH)
 	bool FEnableDynamicResolutionRule::IsApplied() const
 	{
 		const UOculusXRHMDRuntimeSettings* Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
@@ -159,7 +164,9 @@ namespace OculusXRRenderingRules
 		OCULUSXR_UPDATE_SETTINGS(UOculusXRHMDRuntimeSettings, bDynamicResolution, true);
 		OutShouldRestartEditor = false;
 	}
+#endif
 
+#ifdef WITH_OCULUS_BRANCH
 	bool FEnableMobileUniformLocalLightsRule::IsApplied() const
 	{
 		return GetMutableDefault<URendererSettings>()->bMobileUniformLocalLights;
@@ -167,7 +174,9 @@ namespace OculusXRRenderingRules
 
 	void FEnableMobileUniformLocalLightsRule::ApplyImpl(bool& OutShouldRestartEditor)
 	{
-		if (GetMutableDefault<URendererSettings>()->bMobileSupportGPUScene)
+		static const auto GpuSceneCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
+		const bool bMobileSupportGPUScene = GpuSceneCVar && GpuSceneCVar->GetValueOnAnyThread();
+		if (bMobileSupportGPUScene)
 		{
 			UE_LOG(LogTemp, Error, TEXT("Failed to enable MobileUniformLocalLights because MobileUniformLocalLights is incompatible with GPUScene."));
 			return;
@@ -184,7 +193,9 @@ namespace OculusXRRenderingRules
 
 	void FEnableEmulatedUniformBuffersRule::ApplyImpl(bool& OutShouldRestartEditor)
 	{
-		if (GetMutableDefault<URendererSettings>()->bMobileSupportGPUScene)
+		static const auto GpuSceneCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
+		const bool bMobileSupportGPUScene = GpuSceneCVar && GpuSceneCVar->GetValueOnAnyThread();
+		if (bMobileSupportGPUScene)
 		{
 			UE_LOG(LogTemp, Error, TEXT("Failed to enable EmulatedUniformBuffers because EmulatedUniformBuffers is incompatible with GPUScene."));
 			return;
@@ -242,6 +253,7 @@ namespace OculusXRRenderingRules
 		OutShouldRestartEditor = true;
 	}
 
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 	bool FDisableAmbientOcclusionRule::IsApplied() const
 	{
 		const URendererSettings* Settings = GetMutableDefault<URendererSettings>();
@@ -254,6 +266,7 @@ namespace OculusXRRenderingRules
 		OCULUSXR_UPDATE_SETTINGS(URendererSettings, bMobileAmbientOcclusion, 0);
 		OutShouldRestartEditor = true;
 	}
+#endif
 
 	bool FEnableMultiViewRule::IsApplied() const
 	{
@@ -333,19 +346,29 @@ namespace OculusXRRenderingRules
 	bool FDisableMobileGPUSceneRule::IsApplied() const
 	{
 		const UOculusXRHMDRuntimeSettings* OculusXRSettings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
+		static const auto GpuSceneCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SupportGPUScene"));
+		const bool bMobileSupportGPUScene = GpuSceneCVar && GpuSceneCVar->GetValueOnAnyThread();
 		const URendererSettings* RenderSettings = GetMutableDefault<URendererSettings>();
 		// check if GPUScene conflicts with any existing features: EUB or ULL
-		return !((RenderSettings->bMobileSupportGPUScene && RenderSettings->bVulkanUseEmulatedUBs)
-			|| (RenderSettings->bMobileSupportGPUScene && RenderSettings->bMobileUniformLocalLights)
+		return !((bMobileSupportGPUScene && RenderSettings->bVulkanUseEmulatedUBs)
+			|| (bMobileSupportGPUScene && RenderSettings->bMobileUniformLocalLights)
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 			|| (RenderSettings->bMobileSupportGPUScene && RenderSettings->bMobileSupportSpaceWarp)
-			|| (RenderSettings->bMobileSupportGPUScene && RenderSettings->bSupportsXRSoftOcclusions)
-			|| (RenderSettings->bMobileSupportGPUScene && OculusXRSettings->bLateLatching));
+#endif
+			|| (bMobileSupportGPUScene && RenderSettings->bSupportsXRSoftOcclusions)
+			|| (bMobileSupportGPUScene && OculusXRSettings->bLateLatching));
 	}
 
 	void FDisableMobileGPUSceneRule::ApplyImpl(bool& OutShouldRestartEditor)
 	{
-		OCULUSXR_UPDATE_SETTINGS(URendererSettings, bMobileSupportGPUScene, false);
+#ifdef PROJECT_CVAR_MOBILE_SUPPORTS_GPUSCENE
+		UE_LOG(LogProjectSetupTool, Error, TEXT("Project build files define PROJECT_CVAR_MOBILE_SUPPORTS_GPUSCENE. You will need to modify your build files to change it."));
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("OculusXRRenderingRules", "Rendering_MobileGPUScene_DefinedInBuild", "Project build files define PROJECT_CVAR_MOBILE_SUPPORTS_GPUSCENE. You will need to modify your build files to change it."));
+#else
+		GConfig->SetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.SupportGPUScene"), false, GEngineIni);
+		GConfig->Flush(false, GEngineIni);
 		OutShouldRestartEditor = true;
+#endif
 	}
 
 	bool FDisableMobileGPUSceneRule::IsValid()
