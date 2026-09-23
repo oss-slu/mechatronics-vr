@@ -97,13 +97,6 @@ public:
 	OCULUSXRHMD_API static bool IsSimulatorActivated();
 	OCULUSXRHMD_API static void ToggleOpenXRRuntime();
 	OCULUSXRHMD_API static bool IsSimulatorInstalled();
-	OCULUSXRHMD_API static void CheckForXRSimUpdate(bool bCheckSkippedVersion);
-	OCULUSXRHMD_API static void UpdateXRSimToLatest();
-	OCULUSXRHMD_API static bool CanUpdatedToLatest();
-
-	// FMetaXRSES
-	OCULUSXRHMD_API static void LaunchEnvironment(int32 EnvironmentIndex);
-	OCULUSXRHMD_API static void StopServer();
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OCULUSXRHMD_API static void* GetOVRPluginHandle();

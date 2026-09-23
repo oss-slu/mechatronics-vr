@@ -20,7 +20,7 @@ public:
 			  TEXT("vr.oculus.ShowToolWindow"),
 			  *NSLOCTEXT("OculusRift", "CCommandText_ShowToolWindow",
 				  "Show the Oculus Editor Tool window (editor only).")
-				   .ToString(),
+				  .ToString(),
 			  FConsoleCommandDelegate::CreateRaw(this, &FOculusToolCommands::ShowOculusTool))
 	{
 	}
@@ -33,10 +33,6 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleIterativeCookOnTheFly;
 	TSharedPtr<FUICommandInfo> OpenPlatWindow;
 	TSharedPtr<FUICommandInfo> ToggleMetaXRSim;
-	TSharedPtr<FUICommandInfo> CheckForUpdateXRSim;
-	TSharedPtr<FUICommandInfo> UpdateXRSim;
-	TSharedPtr<FUICommandInfo> StopServer;
-	TSharedPtr<FUICommandInfo> OpenSettings;
 
 private:
 	void ShowOculusTool();

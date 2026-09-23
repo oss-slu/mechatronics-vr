@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
-#include "OculusXRBodytrackingXR.h"
+#include "OculusXRBodyTrackingXR.h"
 #include "OpenXRCore.h"
 #include "IOpenXRHMDModule.h"
 #include "OpenXRHMD.h"
@@ -258,6 +258,7 @@ namespace XRMovement
 			FOculusXRBodySkeletonBone& OculusXRBone = OutSkeleton.Bones[i];
 
 			OculusXRBone.Orientation = FRotator(ToFQuat(bonePose.orientation));
+			OculusXRBone.OrientationQuat = ToFQuat(bonePose.orientation);
 			OculusXRBone.Position = ToFVector(bonePose.position) * OpenXRHMD->GetWorldToMetersScale();
 
 			if (bone.parentJoint == XR_BODY_JOINT_NONE_FB)
@@ -382,17 +383,26 @@ namespace XRMovement
 	void FBodyTrackingXR::InitOpenXRFunctions(XrInstance InInstance)
 	{
 		// XR_FB_Body_Tracking
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrCreateBodyTrackerFB", &xrCreateBodyTrackerFB);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrDestroyBodyTrackerFB", &xrDestroyBodyTrackerFB);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrLocateBodyJointsFB", &xrLocateBodyJointsFB);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetBodySkeletonFB", &xrGetBodySkeletonFB);
+		if (IsBodyTrackingSupported())
+		{
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrCreateBodyTrackerFB", &xrCreateBodyTrackerFB);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrDestroyBodyTrackerFB", &xrDestroyBodyTrackerFB);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrLocateBodyJointsFB", &xrLocateBodyJointsFB);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetBodySkeletonFB", &xrGetBodySkeletonFB);
+		}
 
 		// XR_META_body_tracking_fidelity
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrRequestBodyTrackingFidelityMETA", &xrRequestBodyTrackingFidelityMETA);
+		if (IsFidelitySupported())
+		{
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrRequestBodyTrackingFidelityMETA", &xrRequestBodyTrackingFidelityMETA);
+		}
 
 		// XR_META_body_tracking_calibration
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrSuggestBodyTrackingCalibrationOverrideMETA", &xrSuggestBodyTrackingCalibrationOverrideMETA);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrResetBodyTrackingCalibrationMETA", &xrResetBodyTrackingCalibrationMETA);
+		if (IsCalibrationSupported())
+		{
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrSuggestBodyTrackingCalibrationOverrideMETA", &xrSuggestBodyTrackingCalibrationOverrideMETA);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrResetBodyTrackingCalibrationMETA", &xrResetBodyTrackingCalibrationMETA);
+		}
 	}
 
 	void FBodyTrackingXR::Update_GameThread(XrSession InSession)
@@ -456,6 +466,7 @@ namespace XRMovement
 			OculusXRBodyJoint.LocationFlags = jointLocation.locationFlags;
 			OculusXRBodyJoint.bIsValid = jointLocation.locationFlags & (XRSpaceFlags::XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XRSpaceFlags::XR_SPACE_LOCATION_POSITION_VALID_BIT);
 			OculusXRBodyJoint.Orientation = FRotator(ToFQuat(jointPose.orientation));
+			OculusXRBodyJoint.OrientationQuat = ToFQuat(jointPose.orientation);
 			OculusXRBodyJoint.Position = ToFVector(jointPose.position) * OpenXRHMD->GetWorldToMetersScale();
 		}
 

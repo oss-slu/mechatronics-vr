@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc\EngineVersionComparison.h"
+#include "Misc/EngineVersionComparison.h"
 #if !UE_VERSION_OLDER_THAN(5, 4, 0)
 #include "IStereoLayersFlagsSupplier.h"
 #endif // !UE_VERSION_OLDER_THAN(5, 4, 0)

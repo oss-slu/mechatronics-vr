@@ -95,7 +95,7 @@ public:
 	}
 
 private:
-	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|SpatialAnchor", meta = (AllowPrivateAccess = "true", Bitmask, BitmaskEnum = "EOculusLocationFlags"))
+	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|SpatialAnchor", meta = (AllowPrivateAccess = "true", Bitmask, BitmaskEnum = "/Script/OculusXRAnchors.EOculusLocationFlags"))
 	int32 Flags;
 };
 

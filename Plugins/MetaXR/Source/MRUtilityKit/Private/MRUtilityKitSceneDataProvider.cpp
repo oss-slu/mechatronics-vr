@@ -1,7 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #include "MRUtilityKitSceneDataProvider.h"
-#include "UObject/ConstructorHelpers.h"
 #include "MRUtilityKit.h"
 
 void AMRUKSceneDataProvider::GetRoom(FString& RoomJSON, FString& RoomName)
@@ -10,13 +9,13 @@ void AMRUKSceneDataProvider::GetRoom(FString& RoomJSON, FString& RoomName)
 	{
 		if (!SpecificRoomName.IsEmpty())
 		{
-			for (const auto& Room : Rooms)
+			for (const TPair<FString, UDataTable*>& Room : Rooms)
 			{
-				const auto RoomDT = Room.Value;
-				const auto TmpJSON = RoomDT->FindRow<FJSONData>(FName(SpecificRoomName), "", false);
-				if (TmpJSON != nullptr)
+				UDataTable* const RoomDT = Room.Value;
+				const FJSONData* JSONData = RoomDT->FindRow<FJSONData>(FName(SpecificRoomName), "", false);
+				if (JSONData)
 				{
-					RoomJSON = TmpJSON->JSON;
+					RoomJSON = JSONData->JSON;
 					RoomName = SpecificRoomName;
 					return;
 				}
@@ -33,18 +32,22 @@ void AMRUKSceneDataProvider::GetRoom(FString& RoomJSON, FString& RoomName)
 	{
 		if (!SpecificRoomClass.IsEmpty())
 		{
-			const auto RoomDT = *Rooms.Find(SpecificRoomClass);
-			if (RoomDT != nullptr)
+			UDataTable* const* RoomDTPtr = Rooms.Find(SpecificRoomClass);
+			if (RoomDTPtr)
 			{
-				TArray<FJSONData*> TmpArray;
-				RoomDT->GetAllRows("", TmpArray);
-				auto TmpRowNames = RoomDT->GetRowNames();
-				const auto Num = TmpArray.Num() - 1;
-				const auto Idx = FMath::RandRange(0, Num);
+				UDataTable* const RoomDT = *RoomDTPtr;
+				if (RoomDT)
+				{
+					TArray<FJSONData*> AllRows;
+					RoomDT->GetAllRows("", AllRows);
+					TArray<FName> RowNames = RoomDT->GetRowNames();
+					const int32 NumRows = AllRows.Num() - 1;
+					const int32 RowIndex = FMath::RandRange(0, NumRows);
 
-				RoomJSON = TmpArray[Idx]->JSON;
-				RoomName = TmpRowNames[Idx].ToString();
-				return;
+					RoomJSON = AllRows[RowIndex]->JSON;
+					RoomName = RowNames[RowIndex].ToString();
+					return;
+				}
 			}
 
 			UE_LOG(LogMRUK, Warning, TEXT("Specific room class not found, using random room."));
@@ -55,32 +58,30 @@ void AMRUKSceneDataProvider::GetRoom(FString& RoomJSON, FString& RoomName)
 		}
 	}
 
-	auto Num = Rooms.Num() - 1;
-	auto Idx = FMath::RandRange(0, Num);
+	const int32 NumRooms = Rooms.Num() - 1;
+	const int32 RoomIndex = FMath::RandRange(0, NumRooms);
 
 	TArray<UDataTable*> ChildArray;
 	Rooms.GenerateValueArray(ChildArray);
 
-	const auto Room = ChildArray[Idx];
+	UDataTable* const Room = ChildArray[RoomIndex];
 
-	Num = Room->GetRowMap().Num() - 1;
-	Idx = FMath::RandRange(0, Num);
+	const int32 NumRows = Room->GetRowMap().Num() - 1;
+	const int32 RowIndex = FMath::RandRange(0, NumRows);
 
 	TArray<FJSONData*> RandomRoomRows;
-	auto RandomRoomRowNames = Room->GetRowNames();
+	TArray<FName> RandomRoomRowNames = Room->GetRowNames();
 	Room->GetAllRows("", RandomRoomRows);
 
-	RoomJSON = RandomRoomRows[Idx]->JSON;
-	RoomName = RandomRoomRowNames[Idx].ToString();
+	RoomJSON = RandomRoomRows[RowIndex]->JSON;
+	RoomName = RandomRoomRowNames[RowIndex].ToString();
 }
 
-// Called when the game starts or when spawned
 void AMRUKSceneDataProvider::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-// Called every frame
 void AMRUKSceneDataProvider::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);

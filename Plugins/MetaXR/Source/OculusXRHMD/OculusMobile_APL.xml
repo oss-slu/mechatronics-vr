@@ -38,6 +38,7 @@
 		<setBoolFromPropertyContains result="bSupportMetaQuestPro" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="SupportedDevices" contains="QuestPro"/>
 		<setBoolFromPropertyContains result="bSupportMetaQuest3" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="SupportedDevices" contains="Quest3"/>
 		<setBoolFromPropertyContains result="bSupportMetaQuest3S" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="SupportedDevices" contains="Quest3S"/>
+		
 
 		<setBoolFromProperty result="bShowLaunchImage" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bShowLaunchImage" default="false"/>
 		<setBoolFromProperty result="bRequiresSystemKeyboard" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bRequiresSystemKeyboard" default="false"/>
@@ -60,6 +61,7 @@
 		<setBoolFromProperty result="bAnchorSupportEnabled" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bAnchorSupportEnabled" default="false"/>
 		<setBoolFromProperty result="bAnchorSharingEnabled" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bAnchorSharingEnabled" default="false"/>
 		<setBoolFromProperty result="bSceneSupportEnabled" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bSceneSupportEnabled" default="false"/>
+		<setBoolFromProperty result="bPassthroughCameraAccessEnabled" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bPassthroughCameraAccessEnabled" default="false"/>
 		<setBoolFromProperty result="bBoundaryVisibilitySupportEnabled" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bBoundaryVisibilitySupportEnabled" default="false"/>
 		<setBoolFromProperty result="bColocationSessionsEnabled" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bColocationSessionsEnabled" default="false"/>
 		<setBoolFromProperty result="bSupportEyeTrackedFoveatedRendering" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bSupportEyeTrackedFoveatedRendering" default="false"/>
@@ -68,7 +70,6 @@
 		<setStringFromProperty result="SystemSplashBackground" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="SystemSplashBackground" default="Black"/>
 		<setBoolIsEqual result="bSystemSplashImageContextualPassthrough" arg1="$S(SystemSplashBackground)" arg2="Contextual"/>
 		<setBoolIsEqual result="bSystemSplashImageBlack" arg1="$S(SystemSplashBackground)" arg2="Black"/>
-		<setBoolFromProperty result="bSupportSBC" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bSupportSBC" default="false"/>
 
 		<!-- check for experimental feature support from config -->
 		<setBoolFromProperty result="bSupportExperimentalFeatures" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="bSupportExperimentalFeatures" default="false"/>
@@ -252,8 +253,14 @@
 				<if condition="bSceneSupportEnabled">
 					<true>
 						<addPermission android:name="com.oculus.permission.USE_SCENE"/>
+						<addPermission android:name="horizonos.permission.HEADSET_CAMERA"/>
 						<addPermission android:name="com.oculus.permission.SCENE_OBJECT_TRACKING"/>
 						<addPermission android:name="com.oculus.permission.PLANE_TRACKING"/>
+					</true>
+				</if>
+				<if condition="bPassthroughCameraAccessEnabled">
+					<true>
+						<addPermission android:name="horizonos.permission.HEADSET_CAMERA"/>
 					</true>
 				</if>
 				<if condition="bBoundaryVisibilitySupportEnabled">
@@ -325,6 +332,7 @@
 					<setStringAdd result="devicesString" arg1="$S(devicesString)" arg2="quest3s|"/>
 				</true>
 			</if>
+			
 			<setIntLength result="devicesStringLength" source="$S(devicesString)"/>
 			<setBoolIsGreater result="bDevicesSupported" arg1="$I(devicesStringLength)" arg2="0"/>
 			<if condition="bDevicesSupported">
@@ -410,6 +418,12 @@
 			<!-- Add Oculus Splash Screen -->
 			<if condition="bShowLaunchImage">
 				<true>
+					<!-- Default the Oculus Splash Screen type setting to mono -->
+					<setElement result="splashType" value="meta-data"/>
+					<addAttribute tag="$splashType" name="android:name" value="com.oculus.ossplash.type"/>
+					<addAttribute tag="$splashType" name="android:value" value="mono"/>
+					<addElement tag="application" name="splashType"/>
+					
 					<!-- Add Oculus Splash Screen colorspace setting -->
 					<setElement result="oculusSplashColorspace" value="meta-data"/>
 					<addAttribute tag="$oculusSplashColorspace" name="android:name" value="com.oculus.ossplash.colorspace"/>
@@ -490,20 +504,35 @@
 			<addAttribute tag="$tileTurnOffEnabled" name="android:name" value="com.oculus.foveation.tile_turn_off"/>
 			<addAttribute tag="$tileTurnOffEnabled" name="android:value" value="$B(bTileTurnOffEnabled)"/>
 			<addElement tag="application" name="tileTurnOffEnabled"/>
-
-			<!-- Add Shader Binary Cache -->
-			<if condition="bSupportSBC">
-				<true>
-					<setElement result="ShaderBinaryCache" value="meta-data"/>
-					<addAttribute tag="$ShaderBinaryCache" name="android:name" value="com.oculus.sbcpath"/>
-					<setStringFromProperty result="SBCPath" ini="Engine" section="/Script/OculusXRHMD.OculusXRHMDRuntimeSettings" property="SBCPath" default=""/>
-					<addAttribute tag="$ShaderBinaryCache" name="android:value" value="$S(SBCPath)"/>
-					<addElement tag="application" name="ShaderBinaryCache"/>
-				</true>
-			</if>
 		</loopElements>
 
 	</androidManifestUpdates>
+
+	<!-- optional additions to the GameActivity class in GameActivity.java -->
+	<gameActivityClassAdditions>
+		<insert>
+			// Launch a URL starting with systemux://
+			public boolean AndroidThunkJava_LaunchQuestSystemUXURL(String IntentStr, String URI)
+			{
+				try
+				{
+					Context context = getApplicationContext();
+					PackageManager pm = context.getPackageManager();
+					Intent intent = pm.getLaunchIntentForPackage(&quot;com.oculus.vrshell&quot;);
+					intent.putExtra(&quot;intent_data&quot;, IntentStr);
+					intent.putExtra(&quot;uri&quot;, URI);
+					context.startActivity(intent);
+					return true;
+				}
+				catch (Exception e)
+				{
+					Log.debug(&quot;[JAVA} AndroidThunkJava_LaunchQuestSystemUXURL: Failed with exception &quot; + e.getMessage());
+				}
+
+				return false;
+			}
+		</insert>
+	</gameActivityClassAdditions>
 
 	<!-- optional additions to proguard -->
 	<proguardAdditions>

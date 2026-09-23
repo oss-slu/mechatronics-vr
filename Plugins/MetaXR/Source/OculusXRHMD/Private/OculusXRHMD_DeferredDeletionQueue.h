@@ -19,7 +19,7 @@ namespace OculusXRHMD
 	public:
 		void AddLayerToDeferredDeletionQueue(const FLayerPtr& ptr);
 		void AddOVRPLayerToDeferredDeletionQueue(const uint32 layerID);
-		void HandleLayerDeferredDeletionQueue_RenderThread(bool bDeleteImmediately = false);
+		void HandleLayerDeferredDeletionQueue_RenderThread(FRHICommandListImmediate& RHICmdList, bool bDeleteImmediately = false);
 
 	private:
 		struct DeferredDeletionEntry

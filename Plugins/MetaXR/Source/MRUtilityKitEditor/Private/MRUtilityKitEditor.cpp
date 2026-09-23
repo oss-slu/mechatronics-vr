@@ -2,6 +2,7 @@
 
 #include "MRUtilityKitEditor.h"
 
+#include "AssetToolsModule.h"
 #include "MRUtilityKitGridSliceResizer.h"
 #include "MRUtilityKitGridSliceResizerVisualization.h"
 #include "MRUtilityKitTelemetry.h"

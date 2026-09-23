@@ -26,20 +26,20 @@ namespace
 		Normals.Init(FVector::ZeroVector, Vertices.Num());
 
 		// Iterate through each triangle
-		for (int32 TriIndex = 0; TriIndex < Triangles.Num(); TriIndex += 3)
+		for (int32 TriangleIndex = 0; TriangleIndex < Triangles.Num(); TriangleIndex += 3)
 		{
 			// Get the vertices of the triangle
-			FVector VertexA = Vertices[Triangles[TriIndex]];
-			FVector VertexB = Vertices[Triangles[TriIndex + 1]];
-			FVector VertexC = Vertices[Triangles[TriIndex + 2]];
+			const FVector VertexA = Vertices[Triangles[TriangleIndex]];
+			const FVector VertexB = Vertices[Triangles[TriangleIndex + 1]];
+			const FVector VertexC = Vertices[Triangles[TriangleIndex + 2]];
 
 			// Calculate the triangle's normal
 			const FVector TriangleNormal = FVector::CrossProduct(VertexC - VertexA, VertexB - VertexA).GetSafeNormal();
 
 			// Add the triangle's normal to each of its vertices' normals
-			Normals[Triangles[TriIndex]] += TriangleNormal;
-			Normals[Triangles[TriIndex + 1]] += TriangleNormal;
-			Normals[Triangles[TriIndex + 2]] += TriangleNormal;
+			Normals[Triangles[TriangleIndex]] += TriangleNormal;
+			Normals[Triangles[TriangleIndex + 1]] += TriangleNormal;
+			Normals[Triangles[TriangleIndex + 2]] += TriangleNormal;
 		}
 
 		// Normalize the vertex normals
@@ -66,9 +66,9 @@ namespace
 		Tangents.Init(FProcMeshTangent(0.f, 0.f, 0.f), Normals.Num());
 
 		// Iterate through each normal
-		for (int32 NormalIndex = 0; NormalIndex < Normals.Num(); NormalIndex++)
+		for (int32 VertexIndex = 0; VertexIndex < Normals.Num(); VertexIndex++)
 		{
-			const FVector& Normal = Normals[NormalIndex];
+			const FVector& Normal = Normals[VertexIndex];
 
 			// Calculate a tangent based on the normal
 			FVector TangentX = FVector(1.0f, 0.0f, 0.0f);
@@ -85,7 +85,7 @@ namespace
 			}
 
 			// Store the tangent in the array
-			Tangents[NormalIndex] = FProcMeshTangent(TangentX, false);
+			Tangents[VertexIndex] = FProcMeshTangent(TangentX, false);
 		}
 
 		return Tangents;
@@ -95,8 +95,8 @@ namespace
 	{
 		if (SceneComponent)
 		{
-			const auto RelativeRotation = SceneComponent->GetRelativeRotationCache().RotatorToQuat(SceneComponent->GetRelativeRotation());
-			const auto Rotation = AccumulatedRotation * RelativeRotation;
+			const FQuat RelativeRotation = SceneComponent->GetRelativeRotationCache().RotatorToQuat(SceneComponent->GetRelativeRotation());
+			const FQuat Rotation = AccumulatedRotation * RelativeRotation;
 			const FVector RotatedXAxis = Rotation.GetAxisX();
 			const FVector RotatedYAxis = Rotation.GetAxisY();
 			const FVector RotatedZAxis = Rotation.GetAxisZ();
@@ -144,7 +144,7 @@ namespace
 			const FVector NewScale = ParentReciprocalScale * RotatedScale * OldScale;
 			SceneComponent->SetRelativeScale3D(NewScale);
 			const FVector NewParentReciprocalScale = ParentReciprocalScale * (OldScale / NewScale);
-			for (auto Child : SceneComponent->GetAttachChildren())
+			for (USceneComponent* Child : SceneComponent->GetAttachChildren())
 			{
 				if (Child)
 				{
@@ -156,12 +156,18 @@ namespace
 } // namespace
 
 UMRUKLoadFromDevice* UMRUKLoadFromDevice::LoadSceneFromDeviceAsync(const UObject* WorldContext
-)
+	,
+	EMRUKSceneModel SceneModel)
 {
 	// We must have a valid contextual world for this action, so we don't even make it
 	// unless we can resolve the UWorld from WorldContext.
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull);
 	if (!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	{
+		return nullptr;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull);
+	if (!ensureAlwaysMsgf(IsValid(World), TEXT("World was not valid.")))
 	{
 		return nullptr;
 	}
@@ -169,17 +175,18 @@ UMRUKLoadFromDevice* UMRUKLoadFromDevice::LoadSceneFromDeviceAsync(const UObject
 	// Create a new UMyDelayAsyncAction, and store function arguments in it.
 	UMRUKLoadFromDevice* NewAction = NewObject<UMRUKLoadFromDevice>();
 	NewAction->World = World;
+	NewAction->SceneModel = SceneModel;
 	NewAction->RegisterWithGameInstance(World->GetGameInstance());
 	return NewAction;
 }
 
 void UMRUKLoadFromDevice::Activate()
 {
-	const auto Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	UMRUKSubsystem* Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 	Subsystem->OnSceneLoaded.AddDynamic(this, &UMRUKLoadFromDevice::OnSceneLoaded);
 
 	{
-		Subsystem->LoadSceneFromDevice();
+		Subsystem->LoadSceneFromDevice(SceneModel);
 	}
 }
 
@@ -190,7 +197,7 @@ void UMRUKLoadFromDevice::OnSceneLoaded(bool Succeeded)
 		UE_LOG(LogMRUK, Warning, TEXT("World is not valid anymore. Can not fire on scene loaded events"));
 		return;
 	}
-	const auto Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	UMRUKSubsystem* Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 	Subsystem->OnSceneLoaded.RemoveDynamic(this, &UMRUKLoadFromDevice::OnSceneLoaded);
 	if (Succeeded)
 	{
@@ -203,12 +210,65 @@ void UMRUKLoadFromDevice::OnSceneLoaded(bool Succeeded)
 	SetReadyToDestroy();
 }
 
-UMRUKLoadFromJson* UMRUKLoadFromJson::LoadSceneFromJsonAsync(const UObject* WorldContext, const FString& JsonString)
+UMRUKConfigureTrackables* UMRUKConfigureTrackables::ConfigureTrackablesAsync(const UObject* WorldContext, const FMRUKTrackerConfiguration& Configuration)
+{
+	if (!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	{
+		return nullptr;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull);
+	if (!ensureAlwaysMsgf(IsValid(World), TEXT("World was not valid.")))
+	{
+		return nullptr;
+	}
+
+	UMRUKConfigureTrackables* NewAction = NewObject<UMRUKConfigureTrackables>();
+	NewAction->World = World;
+	NewAction->TrackerConfiguration = Configuration;
+	NewAction->RegisterWithGameInstance(World->GetGameInstance());
+	return NewAction;
+}
+
+void UMRUKConfigureTrackables::OnTrackablesConfigured(bool Succeeded)
+{
+	if (!World.IsValid())
+	{
+		UE_LOG(LogMRUK, Warning, TEXT("World is not valid anymore. Can not fire on trackables configured event"));
+		return;
+	}
+	UMRUKSubsystem* Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	Subsystem->OnTrackablesConfigured.RemoveDynamic(this, &UMRUKConfigureTrackables::OnTrackablesConfigured);
+	if (Succeeded)
+	{
+		Success.Broadcast();
+	}
+	else
+	{
+		Failure.Broadcast();
+	}
+	SetReadyToDestroy();
+}
+
+void UMRUKConfigureTrackables::Activate()
+{
+	UMRUKSubsystem* Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	Subsystem->OnTrackablesConfigured.AddDynamic(this, &UMRUKConfigureTrackables::OnTrackablesConfigured);
+	Subsystem->ConfigureTrackers(TrackerConfiguration);
+}
+
+UMRUKLoadFromJson* UMRUKLoadFromJson::LoadSceneFromJsonAsync(const UObject* WorldContext, const FString& JsonString, EMRUKSceneModel SceneModel)
 {
 	// We must have a valid contextual world for this action, so we don't even make it
 	// unless we can resolve the UWorld from WorldContext.
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull);
+
 	if (!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	{
+		return nullptr;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContext, EGetWorldErrorMode::ReturnNull);
+	if (!ensureAlwaysMsgf(IsValid(World), TEXT("World was not valid.")))
 	{
 		return nullptr;
 	}
@@ -217,15 +277,16 @@ UMRUKLoadFromJson* UMRUKLoadFromJson::LoadSceneFromJsonAsync(const UObject* Worl
 	UMRUKLoadFromJson* NewAction = NewObject<UMRUKLoadFromJson>();
 	NewAction->World = World;
 	NewAction->Json = JsonString;
+	NewAction->SceneModel = SceneModel;
 	NewAction->RegisterWithGameInstance(World->GetGameInstance());
 	return NewAction;
 }
 
 void UMRUKLoadFromJson::Activate()
 {
-	const auto Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	UMRUKSubsystem* Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 	Subsystem->OnSceneLoaded.AddDynamic(this, &UMRUKLoadFromJson::OnSceneLoaded);
-	Subsystem->LoadSceneFromJsonString(Json);
+	Subsystem->LoadSceneFromJsonString(Json, SceneModel);
 }
 
 void UMRUKLoadFromJson::OnSceneLoaded(bool Succeeded)
@@ -235,7 +296,7 @@ void UMRUKLoadFromJson::OnSceneLoaded(bool Succeeded)
 		UE_LOG(LogMRUK, Warning, TEXT("World is not valid anymore. Can not fire on scene loaded events"));
 		return;
 	}
-	const auto Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	UMRUKSubsystem* Subsystem = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 	Subsystem->OnSceneLoaded.RemoveDynamic(this, &UMRUKLoadFromJson::OnSceneLoaded);
 	if (Succeeded)
 	{
@@ -258,9 +319,9 @@ bool UMRUKBPLibrary::LoadGlobalMeshFromDevice(FOculusXRUInt64 SpaceHandle, UProc
 		return false;
 	}
 
-	const auto RoomLayoutManager = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>()->GetRoomLayoutManager();
-	const bool LoadResult = RoomLayoutManager->LoadTriangleMesh(SpaceHandle.Value, OutProceduralMesh, LoadCollision);
-	if (!LoadResult)
+	UOculusXRRoomLayoutManagerComponent* RoomLayoutManager = World->GetGameInstance()->GetSubsystem<UMRUKSubsystem>()->GetRoomLayoutManager();
+	const bool bLoadResult = RoomLayoutManager->LoadTriangleMesh(SpaceHandle.Value, OutProceduralMesh, LoadCollision);
+	if (!bLoadResult)
 	{
 		UE_LOG(LogMRUK, Warning, TEXT("Could not load triangle mesh from layout manager"));
 		return false;
@@ -272,15 +333,17 @@ bool UMRUKBPLibrary::LoadGlobalMeshFromDevice(FOculusXRUInt64 SpaceHandle, UProc
 void UMRUKBPLibrary::RecalculateProceduralMeshAndTangents(UProceduralMeshComponent* Mesh)
 {
 	if (!IsValid(Mesh))
-		return;
-
-	for (int s = 0; s < Mesh->GetNumSections(); ++s)
 	{
-		FProcMeshSection* Section = Mesh->GetProcMeshSection(s);
+		return;
+	}
+
+	for (int32 SectionIndex = 0; SectionIndex < Mesh->GetNumSections(); ++SectionIndex)
+	{
+		FProcMeshSection* Section = Mesh->GetProcMeshSection(SectionIndex);
 
 		// Get vertices of the section
 		TArray<FVector> Vertices;
-		for (FProcMeshVertex Vertex : Section->ProcVertexBuffer)
+		for (const FProcMeshVertex& Vertex : Section->ProcVertexBuffer)
 		{
 			Vertices.Add(Vertex.Position);
 		}
@@ -292,7 +355,7 @@ void UMRUKBPLibrary::RecalculateProceduralMeshAndTangents(UProceduralMeshCompone
 		TArray<FColor> EmptyVertexColors;
 
 		// Update mesh section
-		Mesh->UpdateMeshSection(s, Vertices, Normals, EmptyUV, EmptyVertexColors, Tangents);
+		Mesh->UpdateMeshSection(SectionIndex, Vertices, Normals, EmptyUV, EmptyVertexColors, Tangents);
 	}
 }
 
@@ -319,12 +382,12 @@ FVector2D UMRUKBPLibrary::ComputeCentroid(const TArray<FVector2D>& PolygonPoints
 	}
 
 	double SignedArea = 0.0;
-	for (int32 I = 0; I < PolygonPoints.Num(); ++I)
+	for (int32 VertexIndex = 0; VertexIndex < PolygonPoints.Num(); ++VertexIndex)
 	{
-		const double X0 = PolygonPoints[I].X;
-		const double Y0 = PolygonPoints[I].Y;
-		const double X1 = PolygonPoints[(I + 1) % PolygonPoints.Num()].X;
-		const double Y1 = PolygonPoints[(I + 1) % PolygonPoints.Num()].Y;
+		const double X0 = PolygonPoints[VertexIndex].X;
+		const double Y0 = PolygonPoints[VertexIndex].Y;
+		const double X1 = PolygonPoints[(VertexIndex + 1) % PolygonPoints.Num()].X;
+		const double Y1 = PolygonPoints[(VertexIndex + 1) % PolygonPoints.Num()].Y;
 
 		const double A = X0 * Y1 - X1 * Y0;
 		SignedArea += A;
@@ -346,16 +409,16 @@ FVector UMRUKBPLibrary::ComputeDirectionAwayFromClosestWall(const AMRUKAnchor* A
 	double ClosestWallDistance = DBL_MAX;
 	FVector AwayFromWall{};
 
-	for (int i = 0; i < 4; ++i)
+	for (int32 CardinalAxisIndex = 0; CardinalAxisIndex < 4; ++CardinalAxisIndex)
 	{
-		if (ExcludedAxes.Contains(i))
+		if (ExcludedAxes.Contains(CardinalAxisIndex))
 		{
 			continue;
 		}
 		// Shoot a ray along the cardinal directions
 		// The "Up" (i.e. Z axis) for anchors typically points away from the facing direction, but it depends
 		// entirely on how the user defined the volume in scene capture.
-		const auto CardinalAxis = (FQuat::MakeFromEuler({ 0.0, 0.0, 90.0 * i }).RotateVector(Anchor->GetActorUpVector()));
+		const FVector CardinalAxis = (FQuat::MakeFromEuler({ 0.0, 0.0, 90.0 * CardinalAxisIndex }).RotateVector(Anchor->GetActorUpVector()));
 
 		for (const auto& WallAnchor : Anchor->Room->WallAnchors)
 		{
@@ -368,12 +431,12 @@ FVector UMRUKBPLibrary::ComputeDirectionAwayFromClosestWall(const AMRUKAnchor* A
 			{
 				continue;
 			}
-			const auto DistToWall = FVector::Distance(Hit.HitPosition, Anchor->GetActorLocation());
+			const double DistToWall = FVector::Distance(Hit.HitPosition, Anchor->GetActorLocation());
 			if (DistToWall < ClosestWallDistance)
 			{
 				ClosestWallDistance = DistToWall;
 				AwayFromWall = -CardinalAxis;
-				OutCardinalAxisIndex = i;
+				OutCardinalAxisIndex = CardinalAxisIndex;
 			}
 		}
 	}
@@ -383,9 +446,9 @@ FVector UMRUKBPLibrary::ComputeDirectionAwayFromClosestWall(const AMRUKAnchor* A
 
 UTexture2D* UMRUKBPLibrary::ConstructTexture2D(UTextureRenderTarget2D* RenderTarget2D, UObject* Outer, const FString& TexName)
 {
-	const auto SizeX = RenderTarget2D->SizeX;
-	const auto SizeY = RenderTarget2D->SizeY;
-	const auto Tex = UTexture2D::CreateTransient(SizeX, SizeY, RenderTarget2D->GetFormat());
+	const int32 SizeX = RenderTarget2D->SizeX;
+	const int32 SizeY = RenderTarget2D->SizeY;
+	UTexture2D* Tex = UTexture2D::CreateTransient(SizeX, SizeY, RenderTarget2D->GetFormat());
 	Tex->AddToRoot();
 	Tex->Filter = TF_Bilinear;
 	Tex->CompressionSettings = TC_Default;
@@ -436,10 +499,10 @@ void UMRUKBPLibrary::CreateMeshSegmentation(const TArray<FVector>& MeshPositions
 		MeshPositionsF.Add(FVector3f(V));
 	}
 
-	MRUKShared::MrukMesh3f* MeshSegmentsF = nullptr;
-	uint32_t MeshSegmentsCount = 0;
+	MRUKShared::Mesh3f* MeshSegmentsF = nullptr;
+	uint32 MeshSegmentsCount = 0;
 
-	MRUKShared::MrukMesh3f ReservedMeshSegmentF{};
+	MRUKShared::Mesh3f ReservedMeshSegmentF{};
 
 	const FVector3f ReservedMinF(ReservedMin);
 	const FVector3f ReservedMaxF(ReservedMax);
@@ -449,9 +512,9 @@ void UMRUKBPLibrary::CreateMeshSegmentation(const TArray<FVector>& MeshPositions
 		&MeshSegmentsCount, &ReservedMeshSegmentF);
 
 	OutSegments.Reserve(MeshSegmentsCount);
-	for (uint32_t i = 0; i < MeshSegmentsCount; ++i)
+	for (uint32 MeshSegmentIndex = 0; MeshSegmentIndex < MeshSegmentsCount; ++MeshSegmentIndex)
 	{
-		const MRUKShared::MrukMesh3f& SegmentF = MeshSegmentsF[i];
+		const MRUKShared::Mesh3f& SegmentF = MeshSegmentsF[MeshSegmentIndex];
 		if (SegmentF.numIndices == 0)
 		{
 			continue;
@@ -460,13 +523,13 @@ void UMRUKBPLibrary::CreateMeshSegmentation(const TArray<FVector>& MeshPositions
 		FMRUKMeshSegment MeshSegment{};
 		MeshSegment.Indices.Reserve(SegmentF.numIndices);
 		MeshSegment.Positions.Reserve(SegmentF.numVertices);
-		for (uint32_t j = 0; j < SegmentF.numIndices; ++j)
+		for (uint32 TriangleIndex = 0; TriangleIndex < SegmentF.numIndices; ++TriangleIndex)
 		{
-			MeshSegment.Indices.Add(SegmentF.indices[j]);
+			MeshSegment.Indices.Add(SegmentF.indices[TriangleIndex]);
 		}
-		for (uint32_t j = 0; j < SegmentF.numVertices; ++j)
+		for (uint32 VertexIndex = 0; VertexIndex < SegmentF.numVertices; ++VertexIndex)
 		{
-			const FVector3f& V = SegmentF.vertices[j];
+			const FVector3f& V = SegmentF.vertices[VertexIndex];
 			MeshSegment.Positions.Add({ V.X, V.Y, V.Z });
 		}
 
@@ -477,13 +540,13 @@ void UMRUKBPLibrary::CreateMeshSegmentation(const TArray<FVector>& MeshPositions
 	{
 		OutReservedSegment.Indices.Reserve(ReservedMeshSegmentF.numIndices);
 		OutReservedSegment.Positions.Reserve(ReservedMeshSegmentF.numVertices);
-		for (uint32_t j = 0; j < ReservedMeshSegmentF.numIndices; ++j)
+		for (uint32 TriangleIndex = 0; TriangleIndex < ReservedMeshSegmentF.numIndices; ++TriangleIndex)
 		{
-			OutReservedSegment.Indices.Add(ReservedMeshSegmentF.indices[j]);
+			OutReservedSegment.Indices.Add(ReservedMeshSegmentF.indices[TriangleIndex]);
 		}
-		for (uint32_t j = 0; j < ReservedMeshSegmentF.numVertices; ++j)
+		for (uint32 VertexIndex = 0; VertexIndex < ReservedMeshSegmentF.numVertices; ++VertexIndex)
 		{
-			const FVector3f& V = ReservedMeshSegmentF.vertices[j];
+			const FVector3f& V = ReservedMeshSegmentF.vertices[VertexIndex];
 			OutReservedSegment.Positions.Add({ V.X, V.Y, V.Z });
 		}
 	}

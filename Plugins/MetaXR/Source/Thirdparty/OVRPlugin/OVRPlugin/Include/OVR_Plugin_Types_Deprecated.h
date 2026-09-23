@@ -221,6 +221,9 @@ typedef enum {
 
   ovrpOverlayFlag_AutoFilter = 0x00000400,
 
+  // If true, the content of the layer is consider to be premultipled
+  ovrpOverlayFlag_PremultipliedAlpha = 0x00100000,
+
   // Internal flags
   /// If true, the overlay is a loading screen.
   ovrpOverlayFlag_LoadingScreen = 0x40000000,

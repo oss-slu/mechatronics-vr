@@ -63,6 +63,8 @@ void FOculusXRPTLayerComponentDetailsCustomization::CustomizeDetails(IDetailLayo
 	}
 }
 
+#pragma warning(push)
+#pragma warning(disable : 4996)
 EVisibility FOculusXRPTLayerComponentDetailsCustomization::GetShapeWarningVisibility() const
 {
 	UObject* Shape = nullptr;
@@ -87,6 +89,7 @@ FText FOculusXRPTLayerComponentDetailsCustomization::GetShapeWarningText() const
 	else
 		return FText::Format(LOCTEXT("OculusXRPTComponentShapeWarningText", "Please use a Shape class supporting passthrough with this component.\nIf you wish to continue using {0}, consider a Stereo Layer component instead"), FText::FromString(Shape->GetClass()->GetName()));
 }
+#pragma warning(pop)
 
 //////////////////////////////////////////////////////////////////////////
 

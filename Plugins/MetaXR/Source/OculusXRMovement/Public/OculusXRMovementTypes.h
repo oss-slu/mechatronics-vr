@@ -131,8 +131,11 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
 	bool bIsValid;
 
-	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement", meta = (DeprecatedProperty, DeprecationMessage = "Orientation will be deprecated, please use OrientationQuat instead."))
 	FRotator Orientation;
+
+	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
+	FQuat OrientationQuat;
 
 	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
 	FVector Position;
@@ -157,7 +160,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
 	float Time;
 
-	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement", meta = (IgnoreForMemberInitializationTest))
 	TArray<FOculusXRBodyJoint> Joints;
 };
 
@@ -168,8 +171,11 @@ struct OCULUSXRMOVEMENT_API FOculusXRBodySkeletonBone
 public:
 	FOculusXRBodySkeletonBone();
 
-	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
+	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement", meta = (DeprecatedProperty, DeprecationMessage = "Orientation will be deprecated, please use OrientationQuat instead."))
 	FRotator Orientation;
+
+	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
+	FQuat OrientationQuat;
 
 	UPROPERTY(BlueprintReadOnly, Category = "OculusXR|Movement")
 	FVector Position;

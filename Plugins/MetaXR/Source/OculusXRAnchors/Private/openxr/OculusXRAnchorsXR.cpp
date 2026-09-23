@@ -9,6 +9,7 @@
 #include "OculusXRHMDPrivate.h"
 #include "OculusXRAnchorDelegates.h"
 #include "OculusXRAnchorsUtil.h"
+#include "OculusXRAnchors.h"
 
 #define LOCTEXT_NAMESPACE "OculusXRAnchors"
 
@@ -293,6 +294,14 @@ namespace XRAnchors
 			UE_LOG(LogOculusXRAnchors, Verbose, TEXT("[FAnchorsXR::OnEvent] XrEventDataSpaceQueryResultsAvailableFB"));
 			UE_LOG(LogOculusXRAnchors, Verbose, TEXT("						RequestId: %llu"), event->requestId);
 
+			// Check if the requestId is found in AnchorQueryBindings or GetSharedAnchorsBindings
+			auto* AnchorsInstance = OculusXRAnchors::FOculusXRAnchors::GetInstance();
+			if (!AnchorsInstance || !AnchorsInstance->HasAnchorQueryBinding(event->requestId))
+			{
+				UE_LOG(LogOculusXRAnchors, Log, TEXT("RequestId %llu not found in AnchorQueryBindings or GetSharedAnchorsBindings, skipping xrRetrieveSpaceQueryResultsFB"), event->requestId);
+				return;
+			}
+
 			// Initial query for the number of elements
 			XrSpaceQueryResultsFB queryResults{ XR_TYPE_SPACE_QUERY_RESULTS_FB, nullptr };
 			queryResults.resultCapacityInput = 0;
@@ -348,6 +357,14 @@ namespace XRAnchors
 
 			UE_LOG(LogOculusXRAnchors, Verbose, TEXT("[FAnchorsXR::OnEvent] XrEventDataSpaceDiscoveryResultsAvailableMETA"));
 			UE_LOG(LogOculusXRAnchors, Verbose, TEXT("						RequestId: %llu"), event->requestId);
+
+			// Check if the requestId is found in AnchorDiscoveryBindings
+			auto* AnchorsInstance = OculusXRAnchors::FOculusXRAnchors::GetInstance();
+			if (!AnchorsInstance || !AnchorsInstance->HasDiscoveryBinding(event->requestId))
+			{
+				UE_LOG(LogOculusXRAnchors, Log, TEXT("RequestId %llu not found in AnchorDiscoveryBindings, skipping xrRetrieveSpaceDiscoveryResultsMETA"), event->requestId);
+				return;
+			}
 
 			// Initial query for the number of elements
 			XrSpaceDiscoveryResultsMETA discoverResults{ XR_TYPE_SPACE_DISCOVERY_RESULTS_META, nullptr };

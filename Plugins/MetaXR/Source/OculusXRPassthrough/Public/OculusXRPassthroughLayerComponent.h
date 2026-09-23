@@ -34,10 +34,11 @@ class OCULUSXRPASSTHROUGH_API UOculusXRPassthroughLayerBase : public UStereoLaye
 public:
 	/**
 	 * Specifies whether passthrough should appear on top of (when \ref LayerOrder is `PassthroughLayerOrder_Overlay`)
-	 * or beneath (when \ref LayerOrder is `PassthroughLayerOrder_Underlay`) the virtual content. The default is `Overlay`.
+	 * or beneath (when \ref LayerOrder is `PassthroughLayerOrder_Underlay`) the virtual content. The default is `Underlay`.
+	 * `Overlay` is deprecated.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Passthrough Properties", DisplayName = "Layer Placement")
-	TEnumAsByte<enum EOculusXRPassthroughLayerOrder> LayerOrder;
+	TEnumAsByte<enum EOculusXRPassthroughLayerOrder> LayerOrder = PassthroughLayerOrder_Underlay;
 
 	/**
 	 * Defines the passthrough opacity. It can be used to blend between passthrough and VR when \ref LayerOrder is set to `Overlay`,
@@ -207,7 +208,8 @@ public:
 
 	/**
 	 * Specifies whether passthrough should appear on top of (\ref PassthroughLayerOrder_Overlay)
-	 * or beneath (\ref PassthroughLayerOrder_Underlay) the virtual content. The default is `Overlay`.
+	 * or beneath (\ref PassthroughLayerOrder_Underlay) the virtual content. The default is `Underlay`.
+	 * `Overlay` is deprecated.
 	 * See \ref LayerOrder property for more details */
 	UFUNCTION(BlueprintCallable, Category = "Passthrough Properties")
 	void SetLayerPlacement(EOculusXRPassthroughLayerOrder InLayerOrder);
@@ -280,6 +282,8 @@ public:
 };
 
 /**
+ * \deprecated UOculusXRStereoLayerShapeUserDefined is deprecated, use UOculusXRStereoLayerShapeReconstructed instead.
+ *
  * @brief Represents a passthrough layer which relies on the geometry and the depth provided by the client to render itself.
  *
  * The Passthrough API enables you to show the user's real environment in your mixed reality experiences.
@@ -291,7 +295,7 @@ public:
  * @see https://developers.meta.com/horizon/documentation/unreal/unreal-customize-passthrough-surface-projected-passthrough/ to learn more about surface projected passthrough.
  */
 UCLASS(meta = (DisplayName = "User Defined Passthrough Layer"))
-class OCULUSXRPASSTHROUGH_API UOculusXRStereoLayerShapeUserDefined : public UOculusXRPassthroughLayerBase
+class UE_DEPRECATED(5.6, "UOculusXRStereoLayerShapeUserDefined is deprecated, use UOculusXRStereoLayerShapeReconstructed instead.") OCULUSXRPASSTHROUGH_API UOculusXRStereoLayerShapeUserDefined : public UOculusXRPassthroughLayerBase
 {
 	GENERATED_BODY()
 public:
@@ -323,6 +327,9 @@ private:
 class UProceduralMeshComponent;
 
 /**
+ * \deprecated UOculusXRPassthroughLayerComponent is deprecated, use persistent passthrough instead.
+ * See https://developers.meta.com/horizon/documentation/unreal/unreal-persistent-passthrough/ for more details.
+ *
  * @brief A component which defines reusable passthrough behavior that can be added to different types of Actors.
  *
  * The Passthrough API enables you to show the user's real environment in your mixed reality experiences.
@@ -331,9 +338,10 @@ class UProceduralMeshComponent;
  *
  * @see https://developers.meta.com/horizon/documentation/unreal/unreal-passthrough-overview/ to learn more about passthrough and its features
  * @see https://developers.meta.com/horizon/documentation/unreal/unreal-passthrough-tutorial/ to create a simple app which uses passthrough
+ * @see https://developers.meta.com/horizon/documentation/unreal/unreal-persistent-passthrough to learn more about persistent passthrough
  */
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = OculusXRHMD)
-class OCULUSXRPASSTHROUGH_API UOculusXRPassthroughLayerComponent : public UStereoLayerComponent
+class UE_DEPRECATED(5.6, "UOculusXRPassthroughLayerComponent is deprecated, use persistent passthrough instead.") OCULUSXRPASSTHROUGH_API UOculusXRPassthroughLayerComponent : public UStereoLayerComponent
 {
 	GENERATED_UCLASS_BODY()
 

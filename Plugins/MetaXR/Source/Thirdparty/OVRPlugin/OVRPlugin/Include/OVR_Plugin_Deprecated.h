@@ -241,7 +241,7 @@ OVRP_EXPORT ovrpResult ovrp_GetReorientHMDOnControllerRecenter(ovrpBool* recente
 OVRP_EXPORT ovrpResult ovrp_SetReorientHMDOnControllerRecenter(ovrpBool recenter);
 OVRP_EXPORT ovrpBool ovrp_EndEye(ovrpEye eye);
 OVRP_EXPORT ovrpBool ovrp_EndFrame(int frameIndex);
-OVRP_EXPORT ovrpBool ovrpi_SetTrackingCalibratedOrigin();
+
 OVRP_EXPORT ovrpPosef ovrp_GetNodeVelocity2(ovrpStep step, ovrpNode nodeId);
 OVRP_EXPORT ovrpPosef ovrp_GetNodeAcceleration2(ovrpStep step, ovrpNode nodeId);
 OVRP_EXPORT ovrpFrustumf ovrp_GetNodeFrustum(ovrpNode nodeId);

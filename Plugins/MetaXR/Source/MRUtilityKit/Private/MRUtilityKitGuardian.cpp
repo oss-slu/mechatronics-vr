@@ -11,6 +11,11 @@ AMRUKGuardian::AMRUKGuardian(const FObjectInitializer& ObjectInitializer)
 
 void AMRUKGuardian::CreateGuardian(UProceduralMeshComponent* GuardianMesh)
 {
+	if (!GuardianMesh)
+	{
+		return;
+	}
+
 	GuardianMesh->SetupAttachment(RootComponent);
 	GuardianMesh->RegisterComponent();
 	GuardianMeshComponent = GuardianMesh;

@@ -119,13 +119,13 @@ namespace XRScene
 			{
 				if (IsSceneCaptureExtensionSupported())
 				{
-					const XrEventDataSceneCaptureCompleteFB* const event =
+					const XrEventDataSceneCaptureCompleteFB* const Event =
 						reinterpret_cast<const XrEventDataSceneCaptureCompleteFB*>(InHeader);
 
-					UE_LOG(LogOculusXRScene, Verbose, TEXT("[FSceneXR::OnEvent] XrEventDataSceneCaptureCompleteFB"));
-					UE_LOG(LogOculusXRScene, Verbose, TEXT("						Result: d"), event->result);
+					UE_LOG(LogOculusXRScene, Log, TEXT("[FSceneXR::OnEvent] XrEventDataSceneCaptureCompleteFB (%llu)"), Event->requestId);
+					UE_LOG(LogOculusXRScene, Log, TEXT("						Result: %d"), Event->result);
 
-					FOculusXRSceneEventDelegates::OculusSceneCaptureComplete.Broadcast(event->result, XR_SUCCEEDED(event->result));
+					FOculusXRSceneEventDelegates::OculusSceneCaptureComplete.Broadcast(Event->requestId, XR_SUCCEEDED(Event->result));
 				}
 				break;
 			}
