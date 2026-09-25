@@ -91,6 +91,8 @@ void UAssembleStep::EvaluateConnectionStatus()
 
 {
 
+	if (!bIsActive || bStepCompleted) return;
+
 	UE_LOG(LogTemp, Error, TEXT("=== EvaluateConnectionStatus ==="));
 	UE_LOG(LogTemp, Error, TEXT("  - bIsActive: %s"), bIsActive ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
 	UE_LOG(LogTemp, Error, TEXT("  - bStepCompleted: %s"), bStepCompleted ? TEXT("TRUE") : TEXT("FALSE"));  // ← Add this
