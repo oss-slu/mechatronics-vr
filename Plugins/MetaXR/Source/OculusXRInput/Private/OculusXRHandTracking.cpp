@@ -58,7 +58,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)
@@ -99,7 +99,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)
@@ -135,7 +135,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)
@@ -170,7 +170,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)
@@ -205,7 +205,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)
@@ -246,7 +246,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)
@@ -305,7 +305,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)
@@ -341,7 +341,7 @@ namespace OculusXRInput
 			if (OculusXRInputModule.IsValid())
 			{
 				const FInputDeviceId InDeviceId = GetDeviceID(ControllerIndex);
-				TArray<FOculusControllerPair> ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
+				const TArray<FOculusControllerPair>& ControllerPairs = OculusXRInputModule.Get()->ControllerPairs;
 				for (const FOculusControllerPair& HandPair : ControllerPairs)
 				{
 					if (HandPair.DeviceId == InDeviceId)

@@ -12,6 +12,10 @@
 #include "CommonRenderResources.h"
 #include "RHIStaticStates.h"
 
+#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+#include "XRCopyTexture.h"
+#endif
+
 #if PLATFORM_ANDROID
 #include "Android/AndroidJNI.h"
 #include "Android/AndroidApplication.h"
@@ -149,8 +153,8 @@ namespace OculusXRHMD
 		CheckInGameThread();
 
 		// OculusXRHMD is going away, but this object can live on until viewport is destroyed
-		ExecuteOnRenderThread([this]() {
-			ExecuteOnRHIThread([this]() {
+		RunOnRenderingThreadAndWait([this](FRHICommandListImmediate& RHICmdList) {
+			RunOnRHIThreadAndWait(RHICmdList, [this](FRHICommandListImmediate& RHICmdList) {
 				OculusXRHMD = nullptr;
 			});
 		});
@@ -161,7 +165,11 @@ namespace OculusXRHMD
 		return !bIsStandaloneStereoDevice;
 	}
 
+#if UE_VERSION_OLDER_THAN(5, 5, 0)
 	bool FCustomPresent::Present(int32& SyncInterval)
+#else
+	bool FCustomPresent::Present(IRHICommandContext& RHICmdContext_, int32& SyncInterval)
+#endif
 	{
 		CheckInRHIThread();
 
@@ -179,14 +187,20 @@ namespace OculusXRHMD
 		return NeedsNativePresent();
 	}
 
-	void FCustomPresent::UpdateMirrorTexture_RenderThread()
+	void FCustomPresent::UpdateMirrorTexture_RenderThread(FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BeginRendering);
 
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
+
+		const FGameFrame* CurrentFrame = OculusXRHMD->GetFrame_RenderThread();
+		if (!CurrentFrame)
+		{
+			return;
+		}
 
 		const ESpectatorScreenMode MirrorWindowMode = OculusXRHMD->GetSpectatorScreenMode_RenderThread();
-		const FIntPoint MirrorWindowSize = OculusXRHMD->GetFrame_RenderThread()->WindowSize;
+		const FIntPoint MirrorWindowSize = CurrentFrame->WindowSize;
 
 		if (FOculusXRHMDModule::GetPluginWrapper().GetInitialized())
 		{
@@ -196,7 +210,7 @@ namespace OculusXRHMD
 				const auto MirrorTextureSize = FIntPoint(MirrorTextureRHI->GetDesc().Extent.X, MirrorTextureRHI->GetDesc().Extent.Y);
 				if (MirrorWindowMode != ESpectatorScreenMode::Distorted || MirrorWindowSize != MirrorTextureSize)
 				{
-					ExecuteOnRHIThread([]() {
+					RunOnRHIThreadAndWait(RHICmdList, [](FRHICommandListImmediate& RHICmdList) {
 						FOculusXRHMDModule::GetPluginWrapper().DestroyMirrorTexture2();
 					});
 
@@ -211,15 +225,16 @@ namespace OculusXRHMD
 				const int Height = MirrorWindowSize.Y;
 				ovrpTextureHandle TextureHandle;
 
-				ExecuteOnRHIThread([&]() {
+				RHICmdList.EnqueueLambda([&](FRHICommandListImmediate& RHICmdList) { // Note the [&] capture requires a flush afterwards!
 					FOculusXRHMDModule::GetPluginWrapper().SetupMirrorTexture2(GetOvrpDevice(), Height, Width, GetDefaultOvrpTextureFormat(), &TextureHandle);
 				});
+				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread); // Note this is required because of the [&] capture, and maybe other reasons
 
 				UE_LOG(LogHMD, Log, TEXT("Allocated a new mirror texture (size %d x %d)"), Width, Height);
 
 				ETextureCreateFlags TexCreateFlags = TexCreate_ShaderResource | TexCreate_RenderTargetable;
 
-				MirrorTextureRHI = CreateTexture_RenderThread(Width, Height, GetDefaultPixelFormat(), FClearValueBinding::None, 1, 1, 1, RRT_Texture2D, TextureHandle, TexCreateFlags)->GetTexture2D();
+				MirrorTextureRHI = CreateTexture_RenderThread(RHICmdList, Width, Height, GetDefaultPixelFormat(), FClearValueBinding::None, 1, 1, 1, ETextureType::Texture2D, TextureHandle, TexCreateFlags)->GetTexture2D();
 			}
 		}
 	}
@@ -230,7 +245,8 @@ namespace OculusXRHMD
 		CheckInRHIThread();
 
 #if STATS
-		if (OculusXRHMD->GetFrame_RHIThread()->ShowFlags.Rendering)
+		const FGameFrame* StatsFrame = OculusXRHMD->GetFrame_RHIThread();
+		if (StatsFrame && StatsFrame->ShowFlags.Rendering)
 		{
 			ovrpAppLatencyTimings AppLatencyTimings;
 			if (OVRP_SUCCESS(FOculusXRHMDModule::GetPluginWrapper().GetAppLatencyTimings2(&AppLatencyTimings)))
@@ -349,28 +365,28 @@ namespace OculusXRHMD
 		return SystemRecommendedMSAALevel;
 	}
 
-	FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName)
+	FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName)
 	{
-		TArray<FTextureRHIRef> RHITextureSwapChain = CreateSwapChainTextures_RenderThread(InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples, InNumSamplesTileMem, InResourceType, InTextures, InTexCreateFlags, DebugName);
+		TArray<FTextureRHIRef> RHITextureSwapChain = CreateSwapChainTextures_RenderThread(RHICmdList, InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples, InNumSamplesTileMem, InResourceType, InTextures, InTexCreateFlags, DebugName);
 
 		FTextureRHIRef RHITexture = GDynamicRHI->RHICreateAliasedTexture(RHITextureSwapChain[0]);
 
 		return CreateXRSwapChain(MoveTemp(RHITextureSwapChain), RHITexture);
 	}
 
-	TArray<FTextureRHIRef> FCustomPresent::CreateSwapChainTextures_RenderThread(uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ERHIResourceType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName)
+	TArray<FTextureRHIRef> FCustomPresent::CreateSwapChainTextures_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InSizeX, uint32 InSizeY, EPixelFormat InFormat, FClearValueBinding InBinding, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, ETextureType InResourceType, const TArray<ovrpTextureHandle>& InTextures, ETextureCreateFlags InTexCreateFlags, const TCHAR* DebugName)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		TArray<FTextureRHIRef> RHITextureSwapChain;
 		{
 			for (int32 TextureIndex = 0; TextureIndex < InTextures.Num(); ++TextureIndex)
 			{
-				FTextureRHIRef TexRef = CreateTexture_RenderThread(InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples, InNumSamplesTileMem, InResourceType, InTextures[TextureIndex], InTexCreateFlags);
+				FTextureRHIRef TexRef = CreateTexture_RenderThread(RHICmdList, InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples, InNumSamplesTileMem, InResourceType, InTextures[TextureIndex], InTexCreateFlags);
 
 				FString TexName = FString::Printf(TEXT("%s (%d/%d)"), DebugName, TextureIndex, InTextures.Num());
 				TexRef->SetName(*TexName);
-				RHIBindDebugLabelName(TexRef, *TexName);
+				RHICmdList.BindDebugLabelName(TexRef, *TexName);
 
 				RHITextureSwapChain.Add(TexRef);
 			}
@@ -388,7 +404,7 @@ namespace OculusXRHMD
 	void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, IRendererModule* RendererModule, FRHITexture* DstTexture, FRHITexture* SrcTexture, FStaticFeatureLevel FeatureLevel, bool bUsingVulkan,
 		FIntRect DstRect, FIntRect SrcRect, bool bAlphaPremultiply, bool bNoAlphaWrite, bool bInvertY, bool sRGBSource, bool bInvertAlpha)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		FIntPoint DstSize;
 		FIntPoint SrcSize;
@@ -735,9 +751,62 @@ namespace OculusXRHMD
 		}
 	}
 
+	void FCustomPresent::AddInvertTextureAlphaPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRDGTextureRef TempTexture, const FIntRect& ViewportRect, FStaticFeatureLevel FeatureLevel, FStaticShaderPlatform ShaderPlatform)
+	{
+		{
+			FRDGTextureRef SrcTexture = Texture;
+			FRDGTextureRef DstTexture = TempTexture;
+			const FIntRect SrcRect(ViewportRect);
+			const FIntRect DstRect(0, 0, ViewportRect.Size().X, ViewportRect.Size().Y);
+
+#if !UE_VERSION_OLDER_THAN(5, 6, 0)
+			FXRCopyTextureOptions Options(FeatureLevel, ShaderPlatform);
+			Options.BlendMod = EXRCopyTextureBlendModifier::InvertAlpha;
+			AddXRCopyTexturePass(GraphBuilder, RDG_EVENT_NAME("OculusXRHMD_InvertAlpha"), SrcTexture, SrcRect, DstTexture, DstRect, Options);
+#else
+			AddPass(GraphBuilder, RDG_EVENT_NAME("OculusXR_InvertTextureAlpha"), [SrcTexture, DstTexture, SrcRect, DstRect](FRHICommandListImmediate& RHICmdList) {
+				const bool bAlphaPremultiply = false;
+				const bool bNoAlphaWrite = false;
+				const bool bInvertSrcY = false;
+				const bool sRGBSource = false;
+				const bool bInvertAlpha = true;
+				const bool bUsingVulkan = RHIGetInterfaceType() == ERHIInterfaceType::Vulkan;
+				const FStaticFeatureLevel FeatureLevel = GMaxRHIFeatureLevel;
+
+				static const FName RendererModuleName("Renderer");
+				IRendererModule* RendererModulePtr = FModuleManager::GetModulePtr<IRendererModule>(RendererModuleName);
+
+				OculusXRHMD::FCustomPresent::CopyTexture_RenderThread(RHICmdList, RendererModulePtr, DstTexture->GetRHI(), SrcTexture->GetRHI(),
+					FeatureLevel, bUsingVulkan, DstRect, SrcRect, bAlphaPremultiply, bNoAlphaWrite, bInvertSrcY, sRGBSource, bInvertAlpha);
+			});
+#endif
+		}
+
+		{
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.Size = FIntVector(ViewportRect.Size().X, ViewportRect.Size().Y, 1);
+			CopyInfo.SourcePosition = FIntVector::ZeroValue;
+			CopyInfo.DestPosition = FIntVector(ViewportRect.Min.X, ViewportRect.Min.Y, 0);
+			CopyInfo.SourceSliceIndex = 0;
+			CopyInfo.DestSliceIndex = 0;
+
+			FRDGTextureRef SrcTexture = TempTexture;
+			FRDGTextureRef DstTexture = Texture;
+			const FRHITextureDesc& SrcDesc = SrcTexture->Desc;
+			const FRHITextureDesc& DstDesc = DstTexture->Desc;
+
+			if (SrcDesc.IsTextureArray() && DstDesc.IsTextureArray())
+			{
+				CopyInfo.NumSlices = FMath::Min(SrcDesc.ArraySize, DstDesc.ArraySize);
+			}
+
+			::AddCopyTexturePass(GraphBuilder, SrcTexture, DstTexture, CopyInfo);
+		}
+	}
+
 	void FCustomPresent::SubmitGPUCommands_RenderThread(FRHICommandListImmediate& RHICmdList)
 	{
-		CheckInRenderThread();
+		CheckInRenderThread(RHICmdList);
 
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}

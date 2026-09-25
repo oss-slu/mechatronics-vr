@@ -9,8 +9,6 @@
 
 #include "OculusXRHMD_Settings.h"
 #include "OculusXRSimulator.h"
-#include "OculusXRSyntheticEnvironmentServer.h"
-
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 
@@ -56,6 +54,7 @@ UOculusXRHMDRuntimeSettings::UOculusXRHMDRuntimeSettings(const FObjectInitialize
 	bAnchorSupportEnabled = DefaultSettings.Flags.bAnchorSupportEnabled;
 	bAnchorSharingEnabled = DefaultSettings.Flags.bAnchorSharingEnabled;
 	bSceneSupportEnabled = DefaultSettings.Flags.bSceneSupportEnabled;
+	bPassthroughCameraAccessEnabled = DefaultSettings.Flags.bPassthroughCameraAccessEnabled;
 	bIterativeCookOnTheFly = DefaultSettings.Flags.bIterativeCookOnTheFly;
 	bSetActivePIEToPrimary = DefaultSettings.Flags.bSetActivePIEToPrimary;
 	bSetCVarPIEToPrimary = DefaultSettings.Flags.bSetCVarPIEToPrimary;
@@ -79,8 +78,6 @@ UOculusXRHMDRuntimeSettings::UOculusXRHMDRuntimeSettings(const FObjectInitialize
 
 	bThumbstickDpadEmulationEnabled = true;
 
-	bSupportSBC = DefaultSettings.Flags.bSupportSBC;
-	SBCPath = DefaultSettings.SBCPath;
 #else
 	// Some set of reasonable defaults, since blueprints are still available on non-Oculus platforms.
 	SystemSplashBackground = ESystemSplashBackgroundType::Black;
@@ -99,7 +96,7 @@ UOculusXRHMDRuntimeSettings::UOculusXRHMDRuntimeSettings(const FObjectInitialize
 	bHorizonOSVersionOverride = false;
 	MinOSVersion.Version = 0;
 	TargetOSVersion.Version = 0;
-	XrApi = EOculusXRXrApi::OVRPluginOpenXR;
+	XrApi = EOculusXRXrApi::NativeOpenXR;
 	bLateLatching = false;
 	ColorSpace = EOculusXRColorSpace::P3;
 	ControllerPoseAlignment = EOculusXRControllerPoseAlignment::Default;
@@ -112,11 +109,11 @@ UOculusXRHMDRuntimeSettings::UOculusXRHMDRuntimeSettings(const FObjectInitialize
 	bBodyTrackingEnabled = false;
 	bEyeTrackingEnabled = false;
 	bFaceTrackingEnabled = false;
-	bSupportSBC = false;
 	bFaceTrackingVisemesEnabled = false;
 	bAnchorSupportEnabled = false;
 	bAnchorSharingEnabled = false;
 	bSceneSupportEnabled = false;
+	bPassthroughCameraAccessEnabled = false;
 	bIterativeCookOnTheFly = false;
 	bSetActivePIEToPrimary = false;
 	bSetCVarPIEToPrimary = false;
@@ -149,8 +146,12 @@ bool UOculusXRHMDRuntimeSettings::CanEditChange(const FProperty* InProperty) con
 
 // Disable settings for marketplace release that are only compatible with the Oculus engine fork
 #ifndef WITH_OCULUS_BRANCH
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, FoveatedRenderingMethod) || PropertyName == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, bSupportEyeTrackedFoveatedRendering) || PropertyName == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, bDynamicResolution))
-
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, FoveatedRenderingMethod)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, bSupportEyeTrackedFoveatedRendering)
+#if !defined(WITH_OPENXR_BRANCH)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, bDynamicResolution)
+#endif
+		)
 		{
 			bIsEditable = false;
 		}
@@ -216,17 +217,7 @@ void UOculusXRHMDRuntimeSettings::PostEditChangeProperty(struct FPropertyChanged
 			SystemSplashBackground = ESystemSplashBackgroundType::Contextual;
 			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, SystemSplashBackground)), GetDefaultConfigFilename());
 		}
-
-		if (PropertyChangedEvent.Property->GetName() == GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, OculusXRSimulatorPreferredVersion))
-		{
-			FMetaXRSES::PopulateSynthEnvRooms();
-		}
 	}
-}
-
-TArray<FString> UOculusXRHMDRuntimeSettings::GetMetaXRSimulatorInstalledVersions() const
-{
-	return FMetaXRSimulator::Get().GetInstalledVersions();
 }
 
 #endif // WITH_EDITOR
@@ -251,7 +242,12 @@ void UOculusXRHMDRuntimeSettings::PostInitProperties()
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, SystemSplashBackground)), GetDefaultConfigFilename());
 	}
 
-	UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UOculusXRHMDRuntimeSettings, SBCPath)), GetDefaultConfigFilename());
+	// Only warn when the user actually has a choice. If the OpenXR plugin isn't loaded, the
+	// block above force-sets XrApi to OVRPluginOpenXR — warning then would be a dead-end.
+	if (XrApi == EOculusXRXrApi::OVRPluginOpenXR && FModuleManager::Get().IsModuleLoaded("OpenXRHMD"))
+	{
+		UE_LOG(LogHMD, Warning, TEXT("OculusXR: The 'Meta XR with OVRPlugin' XR API backend is deprecated and will be removed in a future release. Switch the project to 'Epic Native OpenXR' in Project Settings -> Plugins -> OculusXR -> XR API."));
+	}
 }
 
 void UOculusXRHMDRuntimeSettings::LoadFromIni()

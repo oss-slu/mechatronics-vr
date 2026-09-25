@@ -16,6 +16,8 @@ namespace OculusXR
 	TOptional<PFN_xrSetColorSpaceFB> xrSetColorSpaceFB = nullptr;
 	TOptional<PFN_xrGetPassthroughPreferencesMETA> xrGetPassthroughPreferencesMETA = nullptr;
 	TOptional<PFN_xrGetRecommendedLayerResolutionMETA> xrGetRecommendedLayerResolutionMETA = nullptr;
+	TOptional<PFN_xrSessionBeginDebugUtilsLabelRegionEXT> xrSessionBeginDebugUtilsLabelRegionEXT = nullptr;
+	TOptional<PFN_xrSessionEndDebugUtilsLabelRegionEXT> xrSessionEndDebugUtilsLabelRegionEXT = nullptr;
 
 	void InitOpenXRFunctions(XrInstance InInstance)
 	{
@@ -29,6 +31,8 @@ namespace OculusXR
 		OculusXR::XRGetInstanceProcAddr(InInstance, "xrSetColorSpaceFB", &xrSetColorSpaceFB);
 		OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetPassthroughPreferencesMETA", &xrGetPassthroughPreferencesMETA);
 		OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetRecommendedLayerResolutionMETA", &xrGetRecommendedLayerResolutionMETA);
+		OculusXR::XRGetInstanceProcAddr(InInstance, "xrSessionBeginDebugUtilsLabelRegionEXT", &xrSessionBeginDebugUtilsLabelRegionEXT);
+		OculusXR::XRGetInstanceProcAddr(InInstance, "xrSessionEndDebugUtilsLabelRegionEXT", &xrSessionEndDebugUtilsLabelRegionEXT);
 	}
 
 } // namespace OculusXR

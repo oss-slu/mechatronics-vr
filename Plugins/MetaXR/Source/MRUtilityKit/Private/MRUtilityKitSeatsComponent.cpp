@@ -7,7 +7,7 @@
 
 void UMRUKSeatsComponent::CalculateSeatPoses(double SeatWidth)
 {
-	const auto Anchor = Cast<AMRUKAnchor>(GetOwner());
+	const AMRUKAnchor* Anchor = Cast<AMRUKAnchor>(GetOwner());
 	if (!Anchor)
 	{
 		return;
@@ -15,11 +15,11 @@ void UMRUKSeatsComponent::CalculateSeatPoses(double SeatWidth)
 
 	SeatPoses.Empty();
 
-	const auto SurfaceDimensions = Anchor->PlaneBounds.GetExtent();
-	const auto SurfaceRatio = SurfaceDimensions.X / SurfaceDimensions.Y;
-	const auto SeatForward = Anchor->GetFacingDirection();
-	const auto SeatUp = FVector::UpVector;
-	const auto SeatRotation = UKismetMathLibrary::MakeRotFromXZ(SeatForward, SeatUp).Quaternion();
+	const FVector2D SurfaceDimensions = Anchor->PlaneBounds.GetExtent();
+	const double SurfaceRatio = SurfaceDimensions.X / SurfaceDimensions.Y;
+	const FVector SeatForward = Anchor->GetFacingDirection();
+	const FVector SeatUp = FVector::UpVector;
+	const FQuat SeatRotation = UKismetMathLibrary::MakeRotFromXZ(SeatForward, SeatUp).Quaternion();
 
 	if (SurfaceRatio < 2.0 && SurfaceRatio > 0.5)
 	{
@@ -31,19 +31,19 @@ void UMRUKSeatsComponent::CalculateSeatPoses(double SeatWidth)
 	}
 	else
 	{
-		const auto XLong = SurfaceDimensions.X > SurfaceDimensions.Y;
-		const auto LongestDimension = XLong ? SurfaceDimensions.X : SurfaceDimensions.Y;
-		const auto NumSeats = FMath::Floor(LongestDimension / SeatWidth);
+		const bool bXLong = SurfaceDimensions.X > SurfaceDimensions.Y;
+		const double LongestDimension = bXLong ? SurfaceDimensions.X : SurfaceDimensions.Y;
+		const int32 NumSeats = FMath::Floor(LongestDimension / SeatWidth);
 
-		const auto SeatPadding = (LongestDimension - (NumSeats * SeatWidth)) / NumSeats;
-		const auto FirstSeatOffset = (-LongestDimension + SeatPadding + SeatWidth) * 0.5;
+		const double SeatPadding = (LongestDimension - (NumSeats * SeatWidth)) / NumSeats;
+		const double FirstSeatOffset = (-LongestDimension + SeatPadding + SeatWidth) * 0.5;
 
-		for (int i = 0; i < NumSeats; ++i)
+		for (int32 i = 0; i < NumSeats; ++i)
 		{
-			const auto SeatRight = XLong ? Anchor->GetActorRightVector() : Anchor->GetActorUpVector();
+			const FVector SeatRight = bXLong ? Anchor->GetActorRightVector() : Anchor->GetActorUpVector();
 
-			const auto Offset = FirstSeatOffset + (SeatWidth + SeatPadding) * i;
-			const auto SeatPosition = Anchor->GetActorLocation() + SeatRight * Offset;
+			const double Offset = FirstSeatOffset + (SeatWidth + SeatPadding) * i;
+			const FVector SeatPosition = Anchor->GetActorLocation() + SeatRight * Offset;
 
 			FTransform SeatPose{};
 			SeatPose.SetLocation(SeatPosition);

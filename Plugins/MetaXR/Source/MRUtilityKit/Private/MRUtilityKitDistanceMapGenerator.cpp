@@ -101,30 +101,42 @@ void AMRUKDistanceMapGenerator::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SceneObjectMaskMaterial->EnsureIsComplete();
-	FloorMaskMaterial->EnsureIsComplete();
+	if (SceneObjectMaskMaterial)
+	{
+		SceneObjectMaskMaterial->EnsureIsComplete();
+	}
+	if (FloorMaskMaterial)
+	{
+		FloorMaskMaterial->EnsureIsComplete();
+	}
 
 	if (SpawnMode == EMRUKSpawnMode::CurrentRoomOnly)
 	{
-		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-		if (AMRUKRoom* CurrentRoom = Subsystem->GetCurrentRoom())
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		if (Subsystem)
 		{
-			CreateMaskMeshesForRoom(CurrentRoom);
-		}
-		else
-		{
-			Subsystem->OnRoomCreated.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::OnRoomCreated);
+			if (AMRUKRoom* CurrentRoom = Subsystem->GetCurrentRoom())
+			{
+				CreateMaskMeshesForRoom(CurrentRoom);
+			}
+			else
+			{
+				Subsystem->OnRoomCreated.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::OnRoomCreated);
+			}
 		}
 	}
 	else if (SpawnMode == EMRUKSpawnMode::AllRooms)
 	{
-		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-		for (auto& Room : Subsystem->Rooms)
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		if (Subsystem)
 		{
-			CreateMaskMeshesForRoom(Room);
-		}
+			for (const auto& Room : Subsystem->Rooms)
+			{
+				CreateMaskMeshesForRoom(Room);
+			}
 
-		Subsystem->OnRoomCreated.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::OnRoomCreated);
+			Subsystem->OnRoomCreated.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::OnRoomCreated);
+		}
 	}
 }
 
@@ -162,9 +174,9 @@ void AMRUKDistanceMapGenerator::CaptureInitialSceneMask()
 
 	UKismetRenderingLibrary::ClearRenderTarget2D(GetWorld(), RenderTarget1, FLinearColor::Black);
 
-	UCanvas* Canvas{};
-	FVector2D Size{};
-	FDrawToRenderTargetContext RenderTargetContext{};
+	UCanvas* Canvas = nullptr;
+	FVector2D Size;
+	FDrawToRenderTargetContext RenderTargetContext;
 	UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(GetWorld(), RenderTarget1, Canvas, Size, RenderTargetContext);
 
 	Canvas->K2_DrawMaterial(MaskMaterial, FVector2D::ZeroVector, Size, FVector2D::ZeroVector);
@@ -189,11 +201,11 @@ void AMRUKDistanceMapGenerator::RenderDistanceMap()
 
 	// Play buffer ping pong and execute the jump flood algorithm on each step
 
-	for (int32 I = 1; I <= LastIndex; ++I)
+	for (int32 i = 1; i <= LastIndex; ++i)
 	{
 		// Read from the render target that we have written before
 		JFPassMaterialInstance->SetTextureParameterValue(FName("RT"), RTs[RTIndex]);
-		const double Step = 1.0 / FMath::Pow(2.0, static_cast<double>(I));
+		const double Step = 1.0 / FMath::Pow(2.0, static_cast<double>(i));
 		JFPassMaterialInstance->SetScalarParameterValue(FName("Step"), Step);
 
 		// Make sure to render to the other render target
@@ -202,9 +214,9 @@ void AMRUKDistanceMapGenerator::RenderDistanceMap()
 
 		UKismetRenderingLibrary::ClearRenderTarget2D(GetWorld(), RT, FLinearColor::Black);
 
-		UCanvas* Canvas{};
-		FVector2D Size{};
-		FDrawToRenderTargetContext RenderTargetContext{};
+		UCanvas* Canvas = nullptr;
+		FVector2D Size;
+		FDrawToRenderTargetContext RenderTargetContext;
 		UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(GetWorld(), RT, Canvas, Size, RenderTargetContext);
 
 		Canvas->K2_DrawMaterial(JFPassMaterialInstance, FVector2D::ZeroVector, Size, FVector2D::ZeroVector);
@@ -219,9 +231,9 @@ void AMRUKDistanceMapGenerator::RenderDistanceMap()
 		UMaterialInstanceDynamic* RenderMaterial = nullptr;
 
 		UKismetRenderingLibrary::ClearRenderTarget2D(GetWorld(), DistanceMapRenderTarget);
-		UCanvas* Canvas{};
-		FVector2D Size{};
-		FDrawToRenderTargetContext RenderTargetContext{};
+		UCanvas* Canvas = nullptr;
+		FVector2D Size;
+		FDrawToRenderTargetContext RenderTargetContext;
 		UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(GetWorld(), DistanceMapRenderTarget, Canvas, Size, RenderTargetContext);
 		switch (DistanceMapGenerationMode)
 		{
@@ -249,10 +261,18 @@ void AMRUKDistanceMapGenerator::RenderDistanceMap()
 
 void AMRUKDistanceMapGenerator::OnRoomCreated(AMRUKRoom* Room)
 {
-	if (SpawnMode == EMRUKSpawnMode::CurrentRoomOnly && GetGameInstance()->GetSubsystem<UMRUKSubsystem>()->GetCurrentRoom() != Room)
+	if (SpawnMode == EMRUKSpawnMode::CurrentRoomOnly)
 	{
-		// Skip this room if it is not the current room
-		return;
+		UGameInstance* GameInstance = GetGameInstance();
+		if (GameInstance)
+		{
+			UMRUKSubsystem* Subsystem = GameInstance->GetSubsystem<UMRUKSubsystem>();
+			if (Subsystem && Subsystem->GetCurrentRoom() != Room)
+			{
+				// Skip this room if it is not the current room
+				return;
+			}
+		}
 	}
 
 	CreateMaskMeshesForRoom(Room);
@@ -293,7 +313,7 @@ void AMRUKDistanceMapGenerator::CreateMaskMeshesForRoom(AMRUKRoom* Room)
 
 	TArray<AActor*> SpawnedActors;
 
-	for (auto& Anchor : Room->AllAnchors)
+	for (const auto& Anchor : Room->AllAnchors)
 	{
 		if (!Anchor->VolumeBounds.IsValid)
 		{
@@ -303,13 +323,19 @@ void AMRUKDistanceMapGenerator::CreateMaskMeshesForRoom(AMRUKRoom* Room)
 		SpawnedActors.Push(CreateMaskMeshOfAnchor(Anchor));
 	}
 
-	SpawnedActors.Push(CreateMaskMeshOfAnchor(Room->FloorAnchor));
+	for (AMRUKAnchor* Anchor : Room->FloorAnchors)
+	{
+		SpawnedActors.Push(CreateMaskMeshOfAnchor(Anchor));
+	}
 
 	SpawnedMaskMeshes.Add(Room, SpawnedActors);
 
-	const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-	Subsystem->OnRoomRemoved.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::RemoveMaskMeshesFromRoom);
-	Subsystem->OnRoomUpdated.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::OnRoomUpdated);
+	UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	if (Subsystem)
+	{
+		Subsystem->OnRoomRemoved.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::RemoveMaskMeshesFromRoom);
+		Subsystem->OnRoomUpdated.AddUniqueDynamic(this, &AMRUKDistanceMapGenerator::OnRoomUpdated);
+	}
 
 	OnReady.Broadcast();
 }
@@ -318,28 +344,28 @@ AActor* AMRUKDistanceMapGenerator::CreateMaskMeshOfAnchor(AMRUKAnchor* Anchor)
 {
 	check(Anchor);
 
-	FActorSpawnParameters ActorSpawnParams{};
+	FActorSpawnParameters ActorSpawnParams;
 	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	ActorSpawnParams.Owner = Anchor;
 	AActor* Actor = GetWorld()->SpawnActor<AActor>(ActorSpawnParams);
 
 	Actor->Tags.Push(GMRUK_DISTANCE_MAP_ACTOR_TAG);
 
-	const auto R = NewObject<USceneComponent>(Actor, TEXT("Root"));
+	USceneComponent* R = NewObject<USceneComponent>(Actor, TEXT("Root"));
 	Actor->SetRootComponent(R);
 	R->RegisterComponent();
 	Actor->AddInstanceComponent(R);
 
 	Actor->AttachToActor(Anchor, FAttachmentTransformRules::KeepRelativeTransform);
 
-	const auto ProceduralMesh = NewObject<UProceduralMeshComponent>(Actor, TEXT("DistanceMapMesh"));
+	UProceduralMeshComponent* ProceduralMesh = NewObject<UProceduralMeshComponent>(Actor, TEXT("DistanceMapMesh"));
 	Anchor->GenerateProceduralAnchorMesh(ProceduralMesh, {}, {}, true, false);
 
 	// Set a material depending if the anchor is the floor or a scene object.
 	// The different materials have different colors. These colors will be used to create different
 	// initialization masks for the jump flood algorithm.
 
-	if (Anchor->Room->FloorAnchor == Anchor)
+	if (Anchor->Room->FloorAnchors.Contains(Anchor))
 	{
 		ProceduralMesh->SetMaterial(0, FloorMaskMaterial);
 	}
@@ -367,7 +393,7 @@ AActor* AMRUKDistanceMapGenerator::UpdateMaskMeshOfAnchor(AMRUKAnchor* Anchor)
 	TArray<AActor*> ChildActors;
 	Anchor->GetAllChildActors(ChildActors);
 
-	for (auto Child : ChildActors)
+	for (AActor* Child : ChildActors)
 	{
 		if (Child->ActorHasTag(GMRUK_DISTANCE_MAP_ACTOR_TAG))
 		{

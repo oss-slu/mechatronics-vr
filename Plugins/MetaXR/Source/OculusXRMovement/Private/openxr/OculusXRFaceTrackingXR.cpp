@@ -185,10 +185,13 @@ namespace XRMovement
 
 	void FFaceTrackingXR::InitOpenXRFunctions(XrInstance InInstance)
 	{
-		// XR_FB_Eye_Tracking_Social
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrCreateFaceTracker2FB", &xrCreateFaceTracker2FB);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrDestroyFaceTracker2FB", &xrDestroyFaceTracker2FB);
-		OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetFaceExpressionWeights2FB", &xrGetFaceExpressionWeights2FB);
+		// XR_FB_face_tracking2
+		if (IsFaceTrackingSupported())
+		{
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrCreateFaceTracker2FB", &xrCreateFaceTracker2FB);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrDestroyFaceTracker2FB", &xrDestroyFaceTracker2FB);
+			OculusXR::XRGetInstanceProcAddr(InInstance, "xrGetFaceExpressionWeights2FB", &xrGetFaceExpressionWeights2FB);
+		}
 	}
 
 	void FFaceTrackingXR::Update_GameThread(XrSession InSession)

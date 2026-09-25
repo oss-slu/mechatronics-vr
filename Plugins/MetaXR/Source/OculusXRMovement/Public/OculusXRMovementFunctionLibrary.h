@@ -13,7 +13,7 @@ class OCULUSXRMOVEMENT_API UOculusXRMovementFunctionLibrary : public UBlueprintF
 	GENERATED_BODY()
 public:
 	UFUNCTION(BlueprintCallable, Category = "OculusXR|Body")
-	static bool TryGetBodyState(FOculusXRBodyState& outBodyState, float WorldToMeters = 100.0f);
+	static bool TryGetBodyState(FOculusXRBodyState& outBodyState);
 
 	UFUNCTION(BlueprintCallable, Category = "OculusXR|Body")
 	static bool IsBodyTrackingEnabled();
@@ -67,7 +67,7 @@ public:
 	static bool StopFaceTracking();
 
 	UFUNCTION(BlueprintCallable, Category = "OculusXR|Eyes")
-	static bool TryGetEyeGazesState(FOculusXREyeGazesState& outEyeGazesState, float WorldToMeters = 100.0f);
+	static bool TryGetEyeGazesState(FOculusXREyeGazesState& outEyeGazesState);
 
 	UFUNCTION(BlueprintCallable, Category = "OculusXR|Eyes")
 	static bool IsEyeTrackingEnabled();

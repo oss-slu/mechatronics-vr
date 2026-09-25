@@ -47,12 +47,17 @@ void UMRUKGridSliceResizerComponent::PostEditChangeProperty(FPropertyChangedEven
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	if (!PropertyChangedEvent.Property)
+	{
+		return;
+	}
+
 	if (PropertyChangedEvent.Property->GetOwner<AActor>() == GetOwner())
 	{
 		return;
 	}
 
-	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	const FName PropertyName = PropertyChangedEvent.Property->GetFName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UMRUKGridSliceResizerComponent, BorderXNegative)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UMRUKGridSliceResizerComponent, BorderXPositive)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UMRUKGridSliceResizerComponent, BorderYNegative)
@@ -217,9 +222,9 @@ void UMRUKGridSliceResizerComponent::SliceMesh()
 	}
 
 	bool bScaleCenter[3] = {};
-	bScaleCenter[0] = ScaleCenterMode & static_cast<uint8>(EMRUKScaleCenterMode::XAxis) ? true : false;
-	bScaleCenter[1] = ScaleCenterMode & static_cast<uint8>(EMRUKScaleCenterMode::YAxis) ? true : false;
-	bScaleCenter[2] = ScaleCenterMode & static_cast<uint8>(EMRUKScaleCenterMode::ZAxis) ? true : false;
+	bScaleCenter[0] = (ScaleCenterMode & static_cast<uint8>(EMRUKScaleCenterMode::XAxis)) != 0;
+	bScaleCenter[1] = (ScaleCenterMode & static_cast<uint8>(EMRUKScaleCenterMode::YAxis)) != 0;
+	bScaleCenter[2] = (ScaleCenterMode & static_cast<uint8>(EMRUKScaleCenterMode::ZAxis)) != 0;
 
 	for (FVector& Position : Positions)
 	{

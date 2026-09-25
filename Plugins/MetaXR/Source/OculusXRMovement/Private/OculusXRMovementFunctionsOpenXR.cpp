@@ -12,13 +12,13 @@
 
 #define LOCTEXT_NAMESPACE "OculusXRMovement"
 
-bool FOculusXRMovementFunctionsOpenXR::GetBodyState(FOculusXRBodyState& outState, float WorldToMeters)
+bool FOculusXRMovementFunctionsOpenXR::GetBodyState(FOculusXRBodyState& outState)
 {
 	auto result = FOculusXRMovementModule::Get().GetXrBodyTracker()->GetCachedBodyState(outState);
 	return XR_SUCCEEDED(result);
 }
 
-bool FOculusXRMovementFunctionsOpenXR::GetBodySkeleton(FOculusXRBodySkeleton& outSkeleton, float WorldToMeters)
+bool FOculusXRMovementFunctionsOpenXR::GetBodySkeleton(FOculusXRBodySkeleton& outSkeleton)
 {
 	auto result = FOculusXRMovementModule::Get().GetXrBodyTracker()->GetBodySkeleton(outSkeleton);
 	return XR_SUCCEEDED(result);
@@ -125,7 +125,7 @@ bool FOculusXRMovementFunctionsOpenXR::IsFaceTrackingVisemesSupported()
 	return FOculusXRMovementModule::Get().GetXrFaceTracker()->IsFaceTrackingVisemesSupported();
 }
 
-bool FOculusXRMovementFunctionsOpenXR::GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState, float WorldToMeters)
+bool FOculusXRMovementFunctionsOpenXR::GetEyeGazesState(FOculusXREyeGazesState& outOculusXREyeGazesState)
 {
 	auto result = FOculusXRMovementModule::Get().GetXrEyeTracker()->GetCachedEyeState(outOculusXREyeGazesState);
 	return XR_SUCCEEDED(result);

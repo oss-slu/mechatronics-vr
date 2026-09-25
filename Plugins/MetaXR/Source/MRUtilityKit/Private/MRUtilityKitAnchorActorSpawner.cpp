@@ -46,7 +46,7 @@ void AMRUKAnchorActorSpawner::BeginPlay()
 
 	if (SpawnMode == EMRUKSpawnMode::CurrentRoomOnly)
 	{
-		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 		if (Subsystem->SceneLoadStatus == EMRUKInitStatus::Complete)
 		{
 			SpawnActors(Subsystem->GetCurrentRoom());
@@ -59,8 +59,8 @@ void AMRUKAnchorActorSpawner::BeginPlay()
 	}
 	else if (SpawnMode == EMRUKSpawnMode::AllRooms)
 	{
-		const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-		for (auto Room : Subsystem->Rooms)
+		UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+		for (AMRUKRoom* Room : Subsystem->Rooms)
 		{
 			SpawnActors(Room);
 		}
@@ -123,11 +123,17 @@ bool AMRUKAnchorActorSpawner::ShouldAnchorFallbackToProceduralMesh(const FMRUKSp
 	switch (SpawnGroup.FallbackToProcedural)
 	{
 		case EMRUKFallbackToProceduralOverwrite::Default:
+		{
 			return ShouldFallbackToProcedural;
+		}
 		case EMRUKFallbackToProceduralOverwrite::Fallback:
+		{
 			return true;
+		}
 		case EMRUKFallbackToProceduralOverwrite::NoFallback:
+		{
 			return false;
+		}
 	}
 	return false;
 }
@@ -135,20 +141,20 @@ bool AMRUKAnchorActorSpawner::ShouldAnchorFallbackToProceduralMesh(const FMRUKSp
 TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshesOnWallsIfNoWallActorGiven(AMRUKRoom* Room)
 {
 	TArray<AActor*> Actors;
-	const auto WallFace = SpawnGroups.Find(FMRUKLabels::WallFace);
-	const auto InnerWallFace = SpawnGroups.Find(FMRUKLabels::InnerWallFace);
-	const auto OtherRoomFace = SpawnGroups.Find(FMRUKLabels::OtherRoomFace);
+	const FMRUKSpawnGroup* WallFace = SpawnGroups.Find(FMRUKLabels::WallFace);
+	const FMRUKSpawnGroup* InnerWallFace = SpawnGroups.Find(FMRUKLabels::InnerWallFace);
+	const FMRUKSpawnGroup* OtherRoomFace = SpawnGroups.Find(FMRUKLabels::OtherRoomFace);
 
-	const bool SpawnWalls = (!WallFace || (WallFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*WallFace)))
+	const bool bSpawnWalls = (!WallFace || (WallFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*WallFace)))
 		&& (!InnerWallFace || (InnerWallFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*InnerWallFace)))
 		&& ((!OtherRoomFace || (OtherRoomFace->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*OtherRoomFace))));
 
-	if (SpawnWalls)
+	if (bSpawnWalls)
 	{
 		// If no wall mesh is given we want to spawn the walls procedural to make seamless UVs
 		TArray<FMRUKAnchorWithPlaneUVs> AnchorsWithPlaneUVs;
 		Room->ComputeWallMeshUVAdjustments({}, AnchorsWithPlaneUVs);
-		for (const auto& AnchorWithPlaneUVs : AnchorsWithPlaneUVs)
+		for (const FMRUKAnchorWithPlaneUVs& AnchorWithPlaneUVs : AnchorsWithPlaneUVs)
 		{
 			Actors.Push(SpawnProceduralMesh(AnchorWithPlaneUVs.Anchor, AnchorWithPlaneUVs.PlaneUVs, CutHoleLabels, ProceduralMaterial));
 		}
@@ -159,14 +165,17 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshesOnWallsIfNoWallAct
 TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshOnFloorIfNoFloorActorGiven(AMRUKRoom* Room)
 {
 	TArray<AActor*> Actors;
-	const auto Floor = SpawnGroups.Find(FMRUKLabels::Floor);
-	if (Room->FloorAnchor && (!Floor || (Floor->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*Floor))))
+	const FMRUKSpawnGroup* Floor = SpawnGroups.Find(FMRUKLabels::Floor);
+	if ((Room->FloorAnchors.Num() > 0) && (!Floor || (Floor->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*Floor))))
 	{
 		// Use metric scaling to match walls
 		const float WorldToMeters = GetWorldSettings()->WorldToMeters;
-		const FVector2D Scale = Room->FloorAnchor->PlaneBounds.GetSize() / WorldToMeters;
-		const TArray<FMRUKPlaneUV> PlaneUVAdj = { { FVector2D::ZeroVector, Scale } };
-		Actors.Push(SpawnProceduralMesh(Room->FloorAnchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial));
+		for (AMRUKAnchor* Anchor : Room->FloorAnchors)
+		{
+			const FVector2D Scale = Anchor->PlaneBounds.GetSize() / WorldToMeters;
+			const TArray<FMRUKPlaneUV> PlaneUVAdj = { { FVector2D::ZeroVector, Scale } };
+			Actors.Push(SpawnProceduralMesh(Anchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial));
+		}
 	}
 	return Actors;
 }
@@ -174,14 +183,17 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshOnFloorIfNoFloorActo
 TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(AMRUKRoom* Room)
 {
 	TArray<AActor*> Actors;
-	const auto Ceiling = SpawnGroups.Find(FMRUKLabels::Ceiling);
-	if (Room->CeilingAnchor && (!Ceiling || (Ceiling->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*Ceiling))))
+	const FMRUKSpawnGroup* Ceiling = SpawnGroups.Find(FMRUKLabels::Ceiling);
+	if ((Room->CeilingAnchors.Num() > 0) && (!Ceiling || (Ceiling->Actors.IsEmpty() && ShouldAnchorFallbackToProceduralMesh(*Ceiling))))
 	{
 		// Use metric scaling to match walls
 		const float WorldToMeters = GetWorldSettings()->WorldToMeters;
-		const FVector2D Scale = Room->CeilingAnchor->PlaneBounds.GetSize() / WorldToMeters;
-		const TArray<FMRUKPlaneUV> PlaneUVAdj = { { FVector2D::ZeroVector, Scale } };
-		Actors.Push(SpawnProceduralMesh(Room->CeilingAnchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial));
+		for (AMRUKAnchor* Anchor : Room->CeilingAnchors)
+		{
+			const FVector2D Scale = Anchor->PlaneBounds.GetSize() / WorldToMeters;
+			const TArray<FMRUKPlaneUV> PlaneUVAdj = { { FVector2D::ZeroVector, Scale } };
+			Actors.Push(SpawnProceduralMesh(Anchor, PlaneUVAdj, CutHoleLabels, ProceduralMaterial));
+		}
 	}
 	return Actors;
 }
@@ -227,12 +239,12 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnProceduralMeshesInRoom(AMRUKRoom* 
 		Actors.Append(WallActors);
 	}
 
-	TArray<AActor*> FloorActors = SpawnProceduralMeshOnFloorIfNoFloorActorGiven(Room);
+	const TArray<AActor*> FloorActors = SpawnProceduralMeshOnFloorIfNoFloorActorGiven(Room);
 	Actors.Append(FloorActors);
-	TArray<AActor*> CeilingActors = SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(Room);
+	const TArray<AActor*> CeilingActors = SpawnProceduralMeshOnCeilingIfNoCeilingActorGiven(Room);
 	Actors.Append(CeilingActors);
 
-	for (const auto& Anchor : Room->AllAnchors)
+	for (AMRUKAnchor* Anchor : Room->AllAnchors)
 	{
 		if (Anchor->HasLabel(FMRUKLabels::Floor) || Anchor->HasLabel(FMRUKLabels::Ceiling) || Anchor->HasLabel(FMRUKLabels::WallFace) || Anchor->HasLabel(FMRUKLabels::InnerWallFace) || Anchor->HasLabel(FMRUKLabels::OtherRoomFace))
 		{
@@ -256,18 +268,18 @@ bool AMRUKAnchorActorSpawner::SelectSpawnActorClosestSize(AMRUKAnchor* Anchor, c
 		return false;
 	}
 
-	int Index = 0;
+	int32 Index = 0;
 	if (SpawnGroup.Actors.Num() > 1)
 	{
 		if (Anchor->VolumeBounds.IsValid)
 		{
 			const double AnchorSize = FMath::Pow(Anchor->VolumeBounds.GetVolume(), 1.0 / 3.0);
 			double ClosestSizeDifference = UE_BIG_NUMBER;
-			for (int i = 0; i < SpawnGroup.Actors.Num(); ++i)
+			for (int32 i = 0; i < SpawnGroup.Actors.Num(); ++i)
 			{
-				const auto& SpawnActor = SpawnGroup.Actors[i];
-				const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
-				auto Bounds = Subsystem->GetActorClassBounds(SpawnActor.Actor);
+				const FMRUKSpawnActor& SpawnActor = SpawnGroup.Actors[i];
+				UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+				FBox Bounds = Subsystem->GetActorClassBounds(SpawnActor.Actor);
 				if (Bounds.IsValid)
 				{
 					const double SpawnActorSize = FMath::Pow(Bounds.GetVolume(), 1.0 / 3.0);
@@ -291,7 +303,7 @@ bool AMRUKAnchorActorSpawner::SelectSpawnActorRandom(const FMRUKSpawnGroup& Spaw
 	{
 		return false;
 	}
-	const int Index = RandomStream.RandRange(0, SpawnGroup.Actors.Num() - 1);
+	const int32 Index = RandomStream.RandRange(0, SpawnGroup.Actors.Num() - 1);
 	OutSpawnActor = SpawnGroup.Actors[Index];
 	return true;
 }
@@ -320,7 +332,7 @@ bool AMRUKAnchorActorSpawner::SelectSpawnActorFromSpawnGroup(AMRUKAnchor* Anchor
 
 void AMRUKAnchorActorSpawner::AttachAndFitActorToAnchor(AMRUKAnchor* Anchor, AActor* Actor, EMRUKSpawnerScalingMode ScalingMode, EMRUKAlignMode AlignMode, bool bCalculateFacingDirection, bool bMatchAspectRatio)
 {
-	auto ActorRoot = Actor->GetRootComponent();
+	USceneComponent* ActorRoot = Actor->GetRootComponent();
 	if (!ActorRoot)
 	{
 		UE_LOG(LogMRUK, Error, TEXT("Spawned actor does not have a root component."));
@@ -330,14 +342,14 @@ void AMRUKAnchorActorSpawner::AttachAndFitActorToAnchor(AMRUKAnchor* Anchor, AAc
 	Actor->AttachToComponent(Anchor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	Actor->SetActorRelativeScale3D(FVector::OneVector);
 
-	const auto ChildLocalBounds = Actor->CalculateComponentsBoundingBoxInLocalSpace(true);
+	const FBox ChildLocalBounds = Actor->CalculateComponentsBoundingBoxInLocalSpace(true);
 	FQuat Rotation = FQuat::Identity;
 	FVector Offset = FVector::ZeroVector;
 	FVector Scale = FVector::OneVector;
 
 	if (Anchor->VolumeBounds.IsValid)
 	{
-		int CardinalAxisIndex = 0;
+		int32 CardinalAxisIndex = 0;
 		if (bCalculateFacingDirection && !bMatchAspectRatio)
 		{
 			// Pick rotation that is pointing away from the closest wall
@@ -362,15 +374,15 @@ void AMRUKAnchorActorSpawner::AttachAndFitActorToAnchor(AMRUKAnchor* Anchor, AAc
 			float Distortion1 = FMath::Max(Scale.Y, Scale.Z) / FMath::Min(Scale.Y, Scale.Z);
 			float Distortion2 = FMath::Max(Scale2.Y, Scale2.Z) / FMath::Min(Scale2.Y, Scale2.Z);
 
-			bool FlipToMatchAspectRatio = Distortion1 > Distortion2;
-			if (FlipToMatchAspectRatio)
+			bool bFlipToMatchAspectRatio = Distortion1 > Distortion2;
+			if (bFlipToMatchAspectRatio)
 			{
 				CardinalAxisIndex = 1;
 				Scale = Scale2;
 			}
 			if (bCalculateFacingDirection)
 			{
-				UMRUKBPLibrary::ComputeDirectionAwayFromClosestWall(Anchor, CardinalAxisIndex, FlipToMatchAspectRatio ? TArray<int>{ 0, 2 } : TArray<int>{ 1, 3 });
+				UMRUKBPLibrary::ComputeDirectionAwayFromClosestWall(Anchor, CardinalAxisIndex, bFlipToMatchAspectRatio ? TArray<int32>{ 0, 2 } : TArray<int32>{ 1, 3 });
 			}
 			if (CardinalAxisIndex != 0)
 			{
@@ -383,20 +395,30 @@ void AMRUKAnchorActorSpawner::AttachAndFitActorToAnchor(AMRUKAnchor* Anchor, AAc
 		switch (ScalingMode)
 		{
 			case EMRUKSpawnerScalingMode::UniformScaling:
+			{
 				Scale.X = Scale.Y = Scale.Z = FMath::Min3(Scale.X, Scale.Y, Scale.Z);
 				break;
+			}
 			case EMRUKSpawnerScalingMode::UniformXYScale:
+			{
 				Scale.Y = Scale.Z = FMath::Min(Scale.Y, Scale.Z);
 				break;
+			}
 			case EMRUKSpawnerScalingMode::NoScaling:
+			{
 				Scale = FVector::OneVector;
 				break;
+			}
 			case EMRUKSpawnerScalingMode::Stretch:
+			{
 				// Nothing to do
 				break;
+			}
 			case EMRUKSpawnerScalingMode::Custom:
+			{
 				Scale = ComputeCustomScaling(Anchor, Actor, Scale);
 				break;
+			}
 		}
 
 		if (AlignMode == EMRUKAlignMode::Custom)
@@ -411,84 +433,100 @@ void AMRUKAnchorActorSpawner::AttachAndFitActorToAnchor(AMRUKAnchor* Anchor, AAc
 			switch (AlignMode)
 			{
 				case EMRUKAlignMode::CenterOnCenter:
+				{
 					ChildBase = FVector(0.5 * (ChildBounds.Min.X + ChildBounds.Max.X), 0.5 * (ChildBounds.Min.Y + ChildBounds.Max.Y), 0.5 * (ChildBounds.Min.Z + ChildBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::TopOnTop:
 				case EMRUKAlignMode::TopOnBottom:
+				{
 					ChildBase = FVector(ChildBounds.Min.X, 0.5 * (ChildBounds.Min.Y + ChildBounds.Max.Y), 0.5 * (ChildBounds.Min.Z + ChildBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::Default:
 				case EMRUKAlignMode::BottomOnBottom:
 				case EMRUKAlignMode::BottomOnTop:
+				{
 					ChildBase = FVector(ChildBounds.Max.X, 0.5 * (ChildBounds.Min.Y + ChildBounds.Max.Y), 0.5 * (ChildBounds.Min.Z + ChildBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::LeftOnLeft:
 				case EMRUKAlignMode::LeftOnRight:
+				{
 					ChildBase = FVector(0.5 * (ChildBounds.Min.X + ChildBounds.Max.X), 0.5 * (ChildBounds.Min.Y + ChildBounds.Max.Y), ChildBounds.Max.Z);
 					break;
-
+				}
 				case EMRUKAlignMode::RightOnRight:
 				case EMRUKAlignMode::RightOnLeft:
+				{
 					ChildBase = FVector(0.5 * (ChildBounds.Min.X + ChildBounds.Max.X), 0.5 * (ChildBounds.Min.Y + ChildBounds.Max.Y), ChildBounds.Min.Z);
 					break;
-
+				}
 				case EMRUKAlignMode::FrontOnFront:
 				case EMRUKAlignMode::FrontOnBack:
+				{
 					ChildBase = FVector(0.5 * (ChildBounds.Min.X + ChildBounds.Max.X), ChildBounds.Max.Y, 0.5 * (ChildBounds.Min.Z + ChildBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::BackOnBack:
 				case EMRUKAlignMode::BackOnFront:
+				{
 					ChildBase = FVector(0.5 * (ChildBounds.Min.X + ChildBounds.Max.X), ChildBounds.Min.Y, 0.5 * (ChildBounds.Min.Z + ChildBounds.Max.Z));
 					break;
+				}
 			}
 
 			switch (AlignMode)
 			{
 				case EMRUKAlignMode::CenterOnCenter:
+				{
 					VolumeBase = FVector(0.5 * (Anchor->VolumeBounds.Min.X + Anchor->VolumeBounds.Max.X), 0.5 * (Anchor->VolumeBounds.Min.Y + Anchor->VolumeBounds.Max.Y), 0.5 * (Anchor->VolumeBounds.Min.Z + Anchor->VolumeBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::TopOnTop:
 				case EMRUKAlignMode::BottomOnTop:
+				{
 					VolumeBase = FVector(Anchor->VolumeBounds.Min.X, 0.5 * (Anchor->VolumeBounds.Min.Y + Anchor->VolumeBounds.Max.Y), 0.5 * (Anchor->VolumeBounds.Min.Z + Anchor->VolumeBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::Default:
 				case EMRUKAlignMode::BottomOnBottom:
 				case EMRUKAlignMode::TopOnBottom:
+				{
 					VolumeBase = FVector(Anchor->VolumeBounds.Max.X, 0.5 * (Anchor->VolumeBounds.Min.Y + Anchor->VolumeBounds.Max.Y), 0.5 * (Anchor->VolumeBounds.Min.Z + Anchor->VolumeBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::LeftOnLeft:
 				case EMRUKAlignMode::RightOnLeft:
+				{
 					VolumeBase = FVector(0.5 * (Anchor->VolumeBounds.Min.X + Anchor->VolumeBounds.Max.X), 0.5 * (Anchor->VolumeBounds.Min.Y + Anchor->VolumeBounds.Max.Y), Anchor->VolumeBounds.Max.Z);
 					break;
-
+				}
 				case EMRUKAlignMode::RightOnRight:
 				case EMRUKAlignMode::LeftOnRight:
+				{
 					VolumeBase = FVector(0.5 * (Anchor->VolumeBounds.Min.X + Anchor->VolumeBounds.Max.X), 0.5 * (Anchor->VolumeBounds.Min.Y + Anchor->VolumeBounds.Max.Y), Anchor->VolumeBounds.Min.Z);
 					break;
-
+				}
 				case EMRUKAlignMode::FrontOnFront:
 				case EMRUKAlignMode::BackOnFront:
+				{
 					VolumeBase = FVector(0.5 * (Anchor->VolumeBounds.Min.X + Anchor->VolumeBounds.Max.X), Anchor->VolumeBounds.Max.Y, 0.5 * (Anchor->VolumeBounds.Min.Z + Anchor->VolumeBounds.Max.Z));
 					break;
-
+				}
 				case EMRUKAlignMode::BackOnBack:
 				case EMRUKAlignMode::FrontOnBack:
+				{
 					VolumeBase = FVector(0.5 * (Anchor->VolumeBounds.Min.X + Anchor->VolumeBounds.Max.X), Anchor->VolumeBounds.Min.Y, 0.5 * (Anchor->VolumeBounds.Min.Z + Anchor->VolumeBounds.Max.Z));
 					break;
+				}
 			}
 			Offset = VolumeBase - ChildBase * Scale;
 		}
 	}
 	else if (Anchor->PlaneBounds.bIsValid)
 	{
-		const auto XAxis = Anchor->GetTransform().GetUnitAxis(EAxis::X);
+		const FVector XAxis = Anchor->GetTransform().GetUnitAxis(EAxis::X);
 		// Adjust the rotation so that Z always points up. This enables assets to be authored in a more natural
 		// way and show up in the scene as expected.
 		if (XAxis.Z <= -UE_INV_SQRT_2)
@@ -507,27 +545,35 @@ void AMRUKAnchorActorSpawner::AttachAndFitActorToAnchor(AMRUKAnchor* Anchor, AAc
 			Rotation = FQuat::MakeFromEuler(FVector(0, 0, 180));
 		}
 
-		const auto ChildBounds = ChildLocalBounds.TransformBy(FTransform(Rotation));
-		const auto ChildBounds2D = FBox2D(FVector2D(ChildBounds.Min.Y, ChildBounds.Min.Z), FVector2D(ChildBounds.Max.Y, ChildBounds.Max.Z));
-		auto Scale2D = Anchor->PlaneBounds.GetSize() / ChildBounds2D.GetSize();
+		const FBox ChildBounds = ChildLocalBounds.TransformBy(FTransform(Rotation));
+		const FBox2D ChildBounds2D = FBox2D(FVector2D(ChildBounds.Min.Y, ChildBounds.Min.Z), FVector2D(ChildBounds.Max.Y, ChildBounds.Max.Z));
+		FVector2D Scale2D = Anchor->PlaneBounds.GetSize() / ChildBounds2D.GetSize();
 
 		switch (ScalingMode)
 		{
 			case EMRUKSpawnerScalingMode::UniformScaling:
 			case EMRUKSpawnerScalingMode::UniformXYScale:
+			{
 				Scale2D.X = Scale2D.Y = FMath::Min(Scale2D.X, Scale2D.Y);
 				break;
+			}
 			case EMRUKSpawnerScalingMode::NoScaling:
+			{
 				Scale2D = FVector2D::UnitVector;
 				break;
+			}
 			case EMRUKSpawnerScalingMode::Stretch:
+			{
 				// Nothing to do
 				break;
+			}
 			case EMRUKSpawnerScalingMode::Custom:
+			{
 				const FVector S = ComputeCustomScaling(Anchor, Actor, FVector(Scale2D.X, Scale2D.Y, 0.0));
 				Scale2D.X = S.X;
 				Scale2D.Y = S.Y;
 				break;
+			}
 		}
 
 		FVector2D Offset2D = FVector2D::ZeroVector;
@@ -538,40 +584,62 @@ void AMRUKAnchorActorSpawner::AttachAndFitActorToAnchor(AMRUKAnchor* Anchor, AAc
 			case EMRUKAlignMode::FrontOnFront:
 			case EMRUKAlignMode::FrontOnBack:
 			case EMRUKAlignMode::BackOnFront:
+			{
 				Offset = FVector::ZeroVector;
 				break;
+			}
 			case EMRUKAlignMode::Default:
 			case EMRUKAlignMode::CenterOnCenter:
+			{
 				Offset2D = Anchor->PlaneBounds.GetCenter() - ChildBounds2D.GetCenter() * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::BottomOnBottom:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.GetCenter().X, Anchor->PlaneBounds.Min.Y) - FVector2D(ChildBounds2D.GetCenter().X, ChildBounds2D.Min.Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::TopOnTop:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.GetCenter().X, Anchor->PlaneBounds.Max.Y) - FVector2D(ChildBounds2D.GetCenter().X, ChildBounds2D.Max.Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::LeftOnLeft:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.Max.X, Anchor->PlaneBounds.GetCenter().Y) - FVector2D(ChildBounds2D.Max.X, ChildBounds2D.GetCenter().Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::RightOnRight:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.Min.X, Anchor->PlaneBounds.GetCenter().Y) - FVector2D(ChildBounds2D.Min.X, ChildBounds2D.GetCenter().Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::BottomOnTop:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.GetCenter().X, Anchor->PlaneBounds.Max.Y) - FVector2D(ChildBounds2D.GetCenter().X, ChildBounds2D.Min.Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::TopOnBottom:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.GetCenter().X, Anchor->PlaneBounds.Min.Y) - FVector2D(ChildBounds2D.GetCenter().X, ChildBounds2D.Max.Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::LeftOnRight:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.Min.X, Anchor->PlaneBounds.GetCenter().Y) - FVector2D(ChildBounds2D.Max.X, ChildBounds2D.GetCenter().Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::RightOnLeft:
+			{
 				Offset2D = FVector2D(Anchor->PlaneBounds.Max.X, Anchor->PlaneBounds.GetCenter().Y) - FVector2D(ChildBounds2D.Min.X, ChildBounds2D.GetCenter().Y) * Scale2D;
 				break;
+			}
 			case EMRUKAlignMode::Custom:
+			{
 				Offset = ComputeCustomAlign(Anchor, Actor, FBox(FVector(ChildBounds2D.Min, 0.0), FVector(ChildBounds2D.Max, 0.0)), FVector(Scale2D.X, Scale2D.Y, 0.0));
 				Offset2D = FVector2D(Offset.X, Offset.Y);
 				break;
+			}
 		}
 
 		Offset = FVector(0.0, Offset2D.X, Offset2D.Y);
@@ -615,7 +683,7 @@ bool AMRUKAnchorActorSpawner::ShouldSpawnActorForAnchor(AMRUKAnchor* Anchor, con
 		return false;
 	}
 
-	const auto SpawnGroup = SpawnGroups.Find(Label);
+	const FMRUKSpawnGroup* SpawnGroup = SpawnGroups.Find(Label);
 	if (!SpawnGroup)
 	{
 		return false;
@@ -651,7 +719,7 @@ TArray<AActor*> AMRUKAnchorActorSpawner::SpawnAnchorActorsInRoom_Implementation(
 
 	SpawnedActorsInRoom.Append(SpawnProceduralMeshesInRoom(Room));
 
-	for (const auto& Anchor : Room->AllAnchors)
+	for (AMRUKAnchor* Anchor : Room->AllAnchors)
 	{
 		if (!IsValid(Anchor))
 		{
@@ -715,7 +783,7 @@ void AMRUKAnchorActorSpawner::SpawnActors(AMRUKRoom* Room)
 	const TArray<AActor*>& Actors = SpawnAnchorActorsInRoom(Room, RandomStream);
 	SpawnedActors.Add(Room, Actors);
 
-	const auto Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	UMRUKSubsystem* Subsystem = GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 	Subsystem->OnRoomUpdated.AddUniqueDynamic(this, &AMRUKAnchorActorSpawner::OnRoomUpdated);
 	Subsystem->OnRoomRemoved.AddUniqueDynamic(this, &AMRUKAnchorActorSpawner::OnRoomRemoved);
 
@@ -724,15 +792,15 @@ void AMRUKAnchorActorSpawner::SpawnActors(AMRUKRoom* Room)
 
 void AMRUKAnchorActorSpawner::GetSpawnedActorsByRoom(AMRUKRoom* Room, TArray<AActor*>& Actors)
 {
-	if (const TArray<AActor*>* A = SpawnedActors.Find(Room))
+	if (const TArray<AActor*>* FoundActors = SpawnedActors.Find(Room))
 	{
-		Actors.Append(*A);
+		Actors.Append(*FoundActors);
 	}
 }
 
 void AMRUKAnchorActorSpawner::GetSpawnedActors(TArray<AActor*>& Actors)
 {
-	for (const auto& KeyValue : SpawnedActors)
+	for (const TPair<AMRUKRoom*, TArray<AActor*>>& KeyValue : SpawnedActors)
 	{
 		Actors.Append(KeyValue.Value);
 	}

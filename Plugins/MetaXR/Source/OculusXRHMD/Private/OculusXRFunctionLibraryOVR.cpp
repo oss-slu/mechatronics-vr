@@ -911,4 +911,40 @@ namespace OculusXRHMD
 		FOculusXRHMDModule::GetPluginWrapper().UnregisterOpenXREventHandler(OpenXrEventHandler);
 	}
 
+	void FOculusXRFunctionLibraryOVR::BeginProfilingRegion(const FString& RegionName)
+	{
+		UE_LOG(LogHMD, Log, TEXT("BeginProfilingRegion: %s"), *RegionName);
+
+		if (FOculusXRHMDModule::GetPluginWrapper().GetInitialized())
+		{
+			ovrpResult Result = FOculusXRHMDModule::GetPluginWrapper().BeginProfilingRegion(TCHAR_TO_ANSI(*RegionName));
+			if (OVRP_FAILURE(Result))
+			{
+				UE_LOG(LogHMD, Warning, TEXT("BeginProfilingRegion failed for region: %s (Result: %d)"), *RegionName, (int32)Result);
+			}
+		}
+		else
+		{
+			UE_LOG(LogHMD, Warning, TEXT("BeginProfilingRegion called but OculusXR plugin is not initialized"));
+		}
+	}
+
+	void FOculusXRFunctionLibraryOVR::EndProfilingRegion()
+	{
+		UE_LOG(LogHMD, Log, TEXT("EndProfilingRegion"));
+
+		if (FOculusXRHMDModule::GetPluginWrapper().GetInitialized())
+		{
+			ovrpResult Result = FOculusXRHMDModule::GetPluginWrapper().EndProfilingRegion();
+			if (OVRP_FAILURE(Result))
+			{
+				UE_LOG(LogHMD, Warning, TEXT("EndProfilingRegion failed (Result: %d)"), (int32)Result);
+			}
+		}
+		else
+		{
+			UE_LOG(LogHMD, Warning, TEXT("EndProfilingRegion called but OculusXR plugin is not initialized"));
+		}
+	}
+
 } // namespace OculusXRHMD

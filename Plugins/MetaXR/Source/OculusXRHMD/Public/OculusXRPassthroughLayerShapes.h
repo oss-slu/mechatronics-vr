@@ -125,9 +125,9 @@ public:
 	virtual IStereoLayerShape* Clone() const override { return new FReconstructedLayer(*this); }
 
 public:
-	FReconstructedLayer(){};
+	FReconstructedLayer() {};
 	FReconstructedLayer(const FEdgeStyleParameters& EdgeStyleParameters, EOculusXRPassthroughLayerOrder PassthroughLayerOrder)
-		: EdgeStyleParameters(EdgeStyleParameters), PassthroughLayerOrder(PassthroughLayerOrder){};
+		: EdgeStyleParameters(EdgeStyleParameters), PassthroughLayerOrder(PassthroughLayerOrder) {};
 	FEdgeStyleParameters EdgeStyleParameters;
 	EOculusXRPassthroughLayerOrder PassthroughLayerOrder;
 };
@@ -138,7 +138,7 @@ struct FUserDefinedGeometryDesc
 		: MeshName(MeshName)
 		, PassthroughMesh(PassthroughMesh)
 		, Transform(Transform)
-		, bUpdateTransform(bUpdateTransform){};
+		, bUpdateTransform(bUpdateTransform) {};
 
 	FString MeshName;
 	OculusXRHMD::FOculusPassthroughMeshRef PassthroughMesh;
@@ -154,7 +154,7 @@ public:
 	virtual IStereoLayerShape* Clone() const override { return new FUserDefinedLayer(*this); }
 
 public:
-	FUserDefinedLayer(){};
+	FUserDefinedLayer() {};
 	FUserDefinedLayer(TArray<FUserDefinedGeometryDesc> InUserGeometryList, const FEdgeStyleParameters& EdgeStyleParameters, EOculusXRPassthroughLayerOrder PassthroughLayerOrder)
 		: UserGeometryList{}
 		, EdgeStyleParameters(EdgeStyleParameters)

@@ -36,8 +36,8 @@ public:
 		bVisible = true;
 		Priority = 0;
 
-		TempShape_LayerOrder = EOculusXRPassthroughLayerOrder::PassthroughLayerOrder_Overlay;
-		TempShape_TextureOpacityFactor = 0.f;
+		TempShape_LayerOrder = EOculusXRPassthroughLayerOrder::PassthroughLayerOrder_Underlay;
+		TempShape_TextureOpacityFactor = 1.0f;
 		TempShape_bEnableEdgeColor = false;
 		TempShape_EdgeColor = FLinearColor::Black;
 		TempShape_bEnableColorMap = false;
@@ -48,10 +48,10 @@ public:
 		TempShape_Brightness = 0.f;
 		TempShape_Posterize = 0.f;
 		TempShape_Saturation = 0.f;
-		TempShape_LutWeight = 0.f;
+		TempShape_LutWeight = 1.0f;
 		TempShape_ColorLUTSource = nullptr;
 		TempShape_ColorLUTTarget = nullptr;
-		TempShape_ColorScale = FLinearColor::Black;
+		TempShape_ColorScale = FLinearColor::White;
 		TempShape_ColorOffset = FLinearColor::Black;
 	}
 

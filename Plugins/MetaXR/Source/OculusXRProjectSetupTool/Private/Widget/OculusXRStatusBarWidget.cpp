@@ -39,18 +39,18 @@ void SOculusXRStatusBarWidget::Construct(const FArguments& InArgs)
 								+ SOverlay::Slot()
 									[SNew(SHorizontalBox)
 										+ SHorizontalBox::Slot()
-											  .AutoWidth()
-												  [SNew(SImage)
-														  .Image(FOculusXRProjectSetupToolModule::GetSlateStyle()->GetBrush("ProjectSetupTool.MetaLogo"))
-														  .DesiredSizeOverride(FVector2D(22.0f, 22.0f))]]
+											.AutoWidth()
+												[SNew(SImage)
+														.Image(FOculusXRProjectSetupToolModule::GetSlateStyle()->GetBrush("ProjectSetupTool.MetaLogo"))
+														.DesiredSizeOverride(FVector2D(22.0f, 22.0f))]]
 								+ SOverlay::Slot()
 									[SNew(SHorizontalBox)
 										+ SHorizontalBox::Slot()
-											  .AutoWidth()
-											  .Padding(16, 4, -2, 10)
-												  [SNew(SImage)
-														  .Image_Static(SOculusXRStatusBarWidget::GetDotImage)
-														  .DesiredSizeOverride(FVector2D(8.0f, 8.0f))]]]]];
+											.AutoWidth()
+											.Padding(16, 4, -2, 10)
+												[SNew(SImage)
+														.Image_Static(SOculusXRStatusBarWidget::GetDotImage)
+														.DesiredSizeOverride(FVector2D(8.0f, 8.0f))]]]]];
 }
 
 /**

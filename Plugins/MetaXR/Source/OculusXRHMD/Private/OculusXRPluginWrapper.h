@@ -233,6 +233,7 @@ struct OculusPluginWrapper
 	OCULUS_DECLARE_ENTRY_POINT(GetHandState);
 	OCULUS_DECLARE_ENTRY_POINT(GetHandState2);
 	OCULUS_DECLARE_ENTRY_POINT(GetHandTrackingState);
+	OCULUS_DECLARE_ENTRY_POINT(GetHandPoseSourceInferred);
 	OCULUS_DECLARE_ENTRY_POINT(GetSkeleton2);
 	OCULUS_DECLARE_ENTRY_POINT(GetSkeleton3);
 	OCULUS_DECLARE_ENTRY_POINT(GetMesh);
@@ -419,6 +420,9 @@ struct OculusPluginWrapper
 	OCULUS_DECLARE_ENTRY_POINT(SetSimultaneousHandsAndControllersEnabled);
 	OCULUS_DECLARE_ENTRY_POINT(IsMultimodalHandsControllersSupported);
 
+
+	OCULUS_DECLARE_ENTRY_POINT(BeginProfilingRegion);
+	OCULUS_DECLARE_ENTRY_POINT(EndProfilingRegion);
 
 	static bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper);
 	static void DestroyOculusPluginWrapper(OculusPluginWrapper* wrapper);

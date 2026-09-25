@@ -154,6 +154,12 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAnchorRemoved, AMRUKAnchor*, Anchor);
 
 	/**
+	 * The scene model from which the room was loaded.
+	 */
+	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
+	EMRUKSceneModel SceneModel;
+
+	/**
 	 * The space handle of this anchor
 	 */
 	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
@@ -199,22 +205,52 @@ public:
 	FBox RoomBounds;
 
 	/**
-	 * Edges of the room.
+	 * Edges of the room. Only valid when using a single floor.
 	 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "MR Utility Kit")
-	TArray<FVector> RoomEdges;
+	UPROPERTY(Transient, BlueprintReadOnly, BlueprintGetter = GetRoomEdges, Category = "MR Utility Kit")
+	TArray<FVector> RoomEdges_DEPRECATED;
+
+	UFUNCTION(BlueprintGetter)
+	TArray<FVector> GetRoomEdges() const
+	{
+		return RoomEdges_DEPRECATED;
+	}
 
 	/**
-	 * The floor anchor of this room.
+	 * The floor anchor of this room. Deprecated, only kept for compatibility.
 	 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "MR Utility Kit")
-	TObjectPtr<AMRUKAnchor> FloorAnchor;
+	UPROPERTY(Transient, BlueprintReadOnly, BlueprintGetter = GetFloorAnchor, Category = "MR Utility Kit")
+	TObjectPtr<AMRUKAnchor> FloorAnchor_DEPRECATED;
+
+	UFUNCTION(BlueprintGetter)
+	AMRUKAnchor* GetFloorAnchor() const
+	{
+		return FloorAnchor_DEPRECATED;
+	}
 
 	/**
-	 * The ceiling anchor of this room.
+	 * The floor anchors of this room.
 	 */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "MR Utility Kit")
-	TObjectPtr<AMRUKAnchor> CeilingAnchor;
+	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
+	TArray<TObjectPtr<AMRUKAnchor>> FloorAnchors;
+
+	/**
+	 * The ceiling anchor of this room. Deprecated, only kept for compatibility.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, BlueprintGetter = GetCeilingAnchor, Category = "MR Utility Kit")
+	TObjectPtr<AMRUKAnchor> CeilingAnchor_DEPRECATED;
+
+	UFUNCTION(BlueprintGetter)
+	AMRUKAnchor* GetCeilingAnchor() const
+	{
+		return CeilingAnchor_DEPRECATED;
+	}
+
+	/**
+	 * The ceiling anchors of this room.
+	 */
+	UPROPERTY(VisibleInstanceOnly, Transient, BlueprintReadOnly, Category = "MR Utility Kit")
+	TArray<TObjectPtr<AMRUKAnchor>> CeilingAnchors;
 
 	/**
 	 * The wall anchors of this room.
@@ -526,8 +562,8 @@ private:
 	void ComputeSeats();
 	void ComputeRoomEdges();
 
-	class UProceduralMeshComponent* GetOrCreateGlobalMeshProceduralMeshComponent(bool& OutExistedAlready) const;
-	void SetupGlobalMeshProceduralMeshComponent(UProceduralMeshComponent& ProcMeshComponent, bool ExistedAlready, UMaterialInterface* Material) const;
+	class UProceduralMeshComponent* GetOrCreateGlobalMeshProceduralMeshComponent(bool& bOutExistedAlready) const;
+	void SetupGlobalMeshProceduralMeshComponent(UProceduralMeshComponent& ProcMeshComponent, bool bExistedAlready, UMaterialInterface* Material) const;
 
 	/**
 	 * Get the list of walls in an order such that each one wall shares an edge with the next
@@ -545,7 +581,7 @@ private:
 	{
 		AMRUKAnchor* Anchor;
 		float UsableArea;
-		bool IsPlane;
+		bool bIsPlane;
 		FBox2D Bounds;
 		EMRUKBoxSide Side;
 	};

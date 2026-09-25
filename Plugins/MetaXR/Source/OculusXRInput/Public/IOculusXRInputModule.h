@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 
-#define OCULUS_INPUT_SUPPORTED_PLATFORMS (PLATFORM_WINDOWS && WINVER > 0x0502) || (PLATFORM_ANDROID_ARM || PLATFORM_ANDROID_ARM64 || PLATFORM_ANDROID_X64)
+#define OCULUS_INPUT_SUPPORTED_PLATFORMS (PLATFORM_WINDOWS && WINVER > 0x0502) || (PLATFORM_ANDROID_ARM || PLATFORM_ANDROID_ARM64 || PLATFORM_ANDROID_X64) || PLATFORM_MAC
 
 /**
  * The public interface to this module.  In most cases, this interface is only public to sibling modules

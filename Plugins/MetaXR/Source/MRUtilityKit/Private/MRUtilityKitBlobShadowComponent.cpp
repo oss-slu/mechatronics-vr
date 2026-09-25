@@ -76,28 +76,48 @@ void UMRUKBlobShadowComponent::UpdatePlaneSizeAndPosition()
 	double Yaw;
 	ComputeOwner2DBounds(Origin, Extent, Yaw);
 
-	Extent += FVector2D::UnitVector * ExtraExtent; // Additional extent
-	SetWorldScale3D(FVector(Extent * 0.02f, 1.f)); // Plane mesh is 100x100, multiplying by 0.02f to match the correct size when scaling
+	// Additional extent
+	Extent += FVector2D::UnitVector * ExtraExtent;
+	// Plane mesh is 100x100, multiplying by 0.02f to match the correct size when scaling
+	SetWorldScale3D(FVector(Extent * 0.02f, 1.f));
 	SetWorldRotation(FRotator(0.f, Yaw, 0.f));
 
 	// Sphere trace to the ground
-	FHitResult Hit;
+	FHitResult OutHit;
 	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(GetOwner());
-	const bool bHasHit = UKismetSystemLibrary::SphereTraceSingle(this, Origin, Origin + FVector::DownVector * MaxVerticalDistance, Extent.Length() * 0.5f, TraceTypeQuery1,
-		true, ActorsToIgnore, EDrawDebugTrace::None, Hit, true);
+	if (AActor* Owner = GetOwner())
+	{
+		ActorsToIgnore.Add(Owner);
+	}
+	const bool bHasHit = UKismetSystemLibrary::SphereTraceSingle(
+		this,
+		Origin,
+		Origin + FVector::DownVector * MaxVerticalDistance,
+		Extent.Length() * 0.5f,
+		TraceTypeQuery1,
+		true,
+		ActorsToIgnore,
+		EDrawDebugTrace::None,
+		OutHit,
+		true);
 	float Opacity = 0.f;
 	if (bHasHit)
 	{
-		SetHiddenInGame(false);										   // Make plane visible
-		SetWorldLocation(Hit.ImpactPoint + FVector::UpVector * 0.02f); // Impact + some offset to avoid Z-fighting
+		// Make plane visible
+		SetHiddenInGame(false);
+		// Impact + some offset to avoid Z-fighting
+		SetWorldLocation(OutHit.ImpactPoint + FVector::UpVector * 0.02f);
+		// Set opacity based on distance to ground
 		Opacity = FMath::GetMappedRangeValueClamped(
 			FVector2D(MaxVerticalDistance - FadeDistance, MaxVerticalDistance),
 			FVector2D(1.f, 0.f),
-			Hit.Distance); // Set opacity based on distance to ground
+			OutHit.Distance);
 	}
 	else
-		SetHiddenInGame(true); // Hide plane
+	{
+		// Hide plane
+		SetHiddenInGame(true);
+	}
 
 	// Update material's parameters
 	if (DynMaterial)
@@ -107,7 +127,8 @@ void UMRUKBlobShadowComponent::UpdatePlaneSizeAndPosition()
 		DynMaterial->SetScalarParameterValue("GradientPower", GradientPower);
 		DynMaterial->SetScalarParameterValue("Opacity", Opacity);
 	}
-	else // In case DynMaterial doesn't exist (e.g. in editor), update values directly on the mesh
+	// In case DynMaterial doesn't exist (e.g. in editor), update values directly on the mesh
+	else
 	{
 		SetScalarParameterValueOnMaterials("CornerWorldSize", FMath::Min(Extent.X, Extent.Y) * Roundness);
 		SetScalarParameterValueOnMaterials("Gradient", Gradient);
@@ -116,9 +137,16 @@ void UMRUKBlobShadowComponent::UpdatePlaneSizeAndPosition()
 	}
 }
 
-void UMRUKBlobShadowComponent::ComputeOwner2DBounds(FVector& Origin, FVector2D& Extent, double& Yaw) const
+void UMRUKBlobShadowComponent::ComputeOwner2DBounds(FVector& OutOrigin, FVector2D& OutExtent, double& OutYaw) const
 {
 	const AActor* Actor = GetOwner();
+	if (!Actor)
+	{
+		OutOrigin = FVector::ZeroVector;
+		OutExtent = FVector2D::ZeroVector;
+		OutYaw = 0.0;
+		return;
+	}
 
 	// Calculate local space BoundingBox from all components, but keep yaw to have a correct 2D bounding box at the end
 	FBox Box(ForceInit);
@@ -139,7 +167,7 @@ void UMRUKBlobShadowComponent::ComputeOwner2DBounds(FVector& Origin, FVector2D& 
 	// Project 3D extent to 2D
 	const FVector ProjectedExtent = FVector::VectorPlaneProject(Box.GetExtent(), FVector::UpVector);
 
-	Origin = ActorToWorld.TransformPosition(Box.GetCenter());
-	Extent = FVector2D(ProjectedExtent);
-	Yaw = Transform.GetRotation().Rotator().Yaw;
+	OutOrigin = ActorToWorld.TransformPosition(Box.GetCenter());
+	OutExtent = FVector2D(ProjectedExtent);
+	OutYaw = Transform.GetRotation().Rotator().Yaw;
 }

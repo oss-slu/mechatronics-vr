@@ -76,6 +76,8 @@ namespace OculusXRHMD
 		virtual void GetNextPredictedDisplayTime(uint64_t* NextPredictedDisplayTime) = 0;
 		virtual void RegisterOpenXrEventHandler(void (*OpenXrEventHandler)(void* data, void* context), void* Context) = 0;
 		virtual void UnregisterOpenXrEventHandler(void (*OpenXrEventHandler)(void* data, void* context)) = 0;
+		virtual void BeginProfilingRegion(const FString& RegionName) = 0;
+		virtual void EndProfilingRegion() = 0;
 	};
 } // namespace OculusXRHMD
 
@@ -433,6 +435,23 @@ class OCULUSXRHMD_API UOculusXRFunctionLibrary : public UBlueprintFunctionLibrar
 	 */
 	UFUNCTION(BlueprintPure, Category = "OculusLibrary")
 	static EOculusXRXrApi GetXrApi();
+
+	/**
+	 * Begin a named profiling region for performance analysis.
+	 * This marks the start of a region that can be measured by profiling tools.
+	 * Call EndProfilingRegion() to end the region.
+	 *
+	 * @param RegionName (in) Name of the profiling region to begin
+	 */
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Performance")
+	static void BeginProfilingRegion(const FString& RegionName);
+
+	/**
+	 * End the currently active profiling region that was started with BeginProfilingRegion().
+	 * Profiling regions must be properly paired with begin/end calls.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "OculusLibrary|Performance")
+	static void EndProfilingRegion();
 
 	/* GUARDIAN API */
 	/**

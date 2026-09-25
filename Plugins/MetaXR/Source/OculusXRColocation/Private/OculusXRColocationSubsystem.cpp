@@ -73,7 +73,9 @@ const FOculusXRColocationSession& UOculusXRColocationSubsystem::GetLocalSession(
 
 void UOculusXRColocationSubsystem::SetDiscoveryRequest(TSharedPtr<OculusXRColocation::FDiscoverSessionsRequest> Request)
 {
-	check(!DiscoverSessionsRequest.IsValid());
+	check(Request.IsValid());
+	check(!DiscoverSessionsRequest.IsValid() || DiscoverSessionsRequest->GetRequestId() == Request->GetRequestId());
+
 	DiscoverSessionsRequest = Request;
 }
 

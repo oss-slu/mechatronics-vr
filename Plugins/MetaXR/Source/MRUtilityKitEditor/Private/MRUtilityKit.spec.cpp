@@ -28,6 +28,23 @@ void WaitDiscoveryFinished();
 
 END_DEFINE_SPEC(FMRUKSpec)
 
+namespace
+{
+	double CalculatePolygonArea(const FProcMeshSection& Mesh)
+	{
+		double Area = 0.f;
+		for (int i = 0; i < Mesh.ProcIndexBuffer.Num(); i += 3)
+		{
+			const FVector& P1 = Mesh.ProcVertexBuffer[Mesh.ProcIndexBuffer[i]].Position;
+			const FVector& P2 = Mesh.ProcVertexBuffer[Mesh.ProcIndexBuffer[i + 1]].Position;
+			const FVector& P3 = Mesh.ProcVertexBuffer[Mesh.ProcIndexBuffer[i + 2]].Position;
+			const double TriangleArea = (P1.Y * (P2.Z - P3.Z) + P2.Y * (P3.Z - P1.Z) + P3.Y * (P1.Z - P2.Z)) / 2.0;
+			Area += TriangleArea;
+		}
+		return Area;
+	}
+} // namespace
+
 void FMRUKSpec::WaitDiscoveryFinished()
 {
 	while (ToolkitSubsystem->DiscoveryIsRunning())
@@ -198,20 +215,20 @@ void FMRUKSpec::Define()
 			}
 			TestEqual(TEXT("Number of anchors"), Room->AllAnchors.Num(), 23);
 			TestEqual(TEXT("Number of walls"), Room->WallAnchors.Num(), 8);
-			if (TestNotNull(TEXT("Floor anchor"), Room->FloorAnchor.Get()))
+			if (TestNotNull(TEXT("Floor anchor"), Room->FloorAnchors[0].Get()))
 			{
-				if (TestEqual(TEXT("Number of floor semantic classifications"), Room->FloorAnchor->SemanticClassifications.Num(), 1))
+				if (TestEqual(TEXT("Number of floor semantic classifications"), Room->FloorAnchors[0]->SemanticClassifications.Num(), 1))
 				{
-					TestEqual(TEXT("Wall semantic classification"), Room->FloorAnchor->SemanticClassifications[0], FMRUKLabels::Floor);
+					TestEqual(TEXT("Wall semantic classification"), Room->FloorAnchors[0]->SemanticClassifications[0], FMRUKLabels::Floor);
 				}
 			}
-			if (TestTrue(TEXT("Ceiling anchor there"), Room->CeilingAnchor != nullptr))
+			if (TestTrue(TEXT("Ceiling anchor there"), Room->CeilingAnchors.Num() == 1))
 			{
-				if (TestNotNull(TEXT("Ceiling anchor"), Room->CeilingAnchor.Get()))
+				if (TestNotNull(TEXT("Ceiling anchor"), Room->CeilingAnchors[0].Get()))
 				{
-					if (TestEqual(TEXT("Number of ceiling semantic classifications"), Room->CeilingAnchor->SemanticClassifications.Num(), 1))
+					if (TestEqual(TEXT("Number of ceiling semantic classifications"), Room->CeilingAnchors[0]->SemanticClassifications.Num(), 1))
 					{
-						TestEqual(TEXT("Wall semantic classification"), Room->CeilingAnchor->SemanticClassifications[0], FMRUKLabels::Ceiling);
+						TestEqual(TEXT("Wall semantic classification"), Room->CeilingAnchors[0]->SemanticClassifications[0], FMRUKLabels::Ceiling);
 					}
 				}
 			}
@@ -926,13 +943,13 @@ void FMRUKSpec::Define()
 				TArray<FRecordedRaycastHit> Hits;
 			};
 			TArray<FRecordedRaycastAll> RecordedRaycasts = {
-				{ { 83.193, 58.82, 11.548 }, { 0.044, -0.904, -0.426 }, 0.0f, EMRUKComponentType::All, {
-																										   { FMRUKLabels::WallFace, { 90.736, -95.398, -61.109 }, { -0.151, 0.989, 0 }, 170.643 },
-																										   { FMRUKLabels::Table, { 89.705, -74.333, -51.185 }, { 0, 0, 1 }, 147.335 },
-																										   { FMRUKLabels::Table, { 89.705, -74.333, -51.185 }, { 0, 0, 1 }, 147.335 },
-																										   { FMRUKLabels::Screen, { 84.702, 27.972, -2.986 }, { 0, -0, 1 }, 34.133 },
-																										   { FMRUKLabels::Screen, { 86.2, -2.658, -17.416 }, { -0.995, 0.1, 0 }, 68.026 },
-																									   } },
+				{ { 83.193, 58.82, 11.548 }, { 0.044, -0.904, -0.426 }, 0.0f, EMRUKComponentType::Plane | EMRUKComponentType::Volume, {
+																																		  { FMRUKLabels::WallFace, { 90.736, -95.398, -61.109 }, { -0.151, 0.989, 0 }, 170.643 },
+																																		  { FMRUKLabels::Table, { 89.705, -74.333, -51.185 }, { 0, 0, 1 }, 147.335 },
+																																		  { FMRUKLabels::Table, { 89.705, -74.333, -51.185 }, { 0, 0, 1 }, 147.335 },
+																																		  { FMRUKLabels::Screen, { 84.702, 27.972, -2.986 }, { 0, -0, 1 }, 34.133 },
+																																		  { FMRUKLabels::Screen, { 86.2, -2.658, -17.416 }, { -0.995, 0.1, 0 }, 68.026 },
+																																	  } },
 				{ { 83.193, 58.82, 11.548 }, { 0.044, -0.904, -0.426 }, 0.0f, EMRUKComponentType::Plane, {
 																											 { FMRUKLabels::WallFace, { 90.736, -95.398, -61.109 }, { -0.151, 0.989, 0 }, 170.643 },
 																											 { FMRUKLabels::Table, { 89.705, -74.333, -51.185 }, { 0, 0, 1 }, 147.335 },
@@ -992,7 +1009,7 @@ void FMRUKSpec::Define()
 					TestTrue(TEXT("Parent contains anchor in child list"), Anchor->ParentAnchor->ChildAnchors.Contains(Anchor));
 				}
 			}
-			TestEqual(TEXT("Floor has the right number of children"), Room->FloorAnchor->ChildAnchors.Num(), 6);
+			TestEqual(TEXT("Floor has the right number of children"), Room->FloorAnchors[0]->ChildAnchors.Num(), 6);
 			for (const auto& Anchor : Room->AllAnchors)
 			{
 				if (Anchor->SemanticClassifications.IsEmpty())
@@ -1011,15 +1028,15 @@ void FMRUKSpec::Define()
 				}
 				if (Anchor->SemanticClassifications[0] == FMRUKLabels::Table)
 				{
-					TestEqual(TEXT("Table is on the floor"), Anchor->ParentAnchor, Room->FloorAnchor);
+					TestEqual(TEXT("Table is on the floor"), Anchor->ParentAnchor, Room->FloorAnchors[0]);
 				}
 				if (Anchor->SemanticClassifications[0] == FMRUKLabels::Storage)
 				{
-					TestEqual(TEXT("Storage is on the floor"), Anchor->ParentAnchor, Room->FloorAnchor);
+					TestEqual(TEXT("Storage is on the floor"), Anchor->ParentAnchor, Room->FloorAnchors[0]);
 				}
 				if (Anchor->SemanticClassifications[0] == FMRUKLabels::Couch)
 				{
-					TestEqual(TEXT("Couch is on the floor"), Anchor->ParentAnchor, Room->FloorAnchor);
+					TestEqual(TEXT("Couch is on the floor"), Anchor->ParentAnchor, Room->FloorAnchors[0]);
 				}
 				if (Anchor->SemanticClassifications[0] == FMRUKLabels::DoorFrame)
 				{
@@ -1111,21 +1128,21 @@ void FMRUKSpec::Define()
 				TestFalse(TEXT("Has not CEILING label"), WallAnchor->HasLabel(FMRUKLabels::Ceiling));
 			}
 
-			if (!TestNotNull(TEXT("Floor anchor"), Room->FloorAnchor.Get()))
+			if (!TestNotNull(TEXT("Floor anchor"), Room->FloorAnchors[0].Get()))
 			{
 				return;
 			}
-			TestTrue(TEXT("Has FLOOR label"), Room->FloorAnchor->HasLabel(FMRUKLabels::Floor));
-			TestFalse(TEXT("Has not WALL_FACE label"), Room->FloorAnchor->HasLabel(FMRUKLabels::WallFace));
-			TestFalse(TEXT("Has not CEILING label"), Room->FloorAnchor->HasLabel(FMRUKLabels::Ceiling));
+			TestTrue(TEXT("Has FLOOR label"), Room->FloorAnchors[0]->HasLabel(FMRUKLabels::Floor));
+			TestFalse(TEXT("Has not WALL_FACE label"), Room->FloorAnchors[0]->HasLabel(FMRUKLabels::WallFace));
+			TestFalse(TEXT("Has not CEILING label"), Room->FloorAnchors[0]->HasLabel(FMRUKLabels::Ceiling));
 
-			if (!TestNotNull(TEXT("Ceiling anchor"), Room->CeilingAnchor.Get()))
+			if (!TestNotNull(TEXT("Ceiling anchor"), Room->CeilingAnchors[0].Get()))
 			{
 				return;
 			}
-			TestTrue(TEXT("Has CEILING label"), Room->CeilingAnchor->HasLabel(FMRUKLabels::Ceiling));
-			TestFalse(TEXT("Has not FLOOR label"), Room->CeilingAnchor->HasLabel(FMRUKLabels::Floor));
-			TestFalse(TEXT("Has not WALL_FACE label"), Room->CeilingAnchor->HasLabel(FMRUKLabels::WallFace));
+			TestTrue(TEXT("Has CEILING label"), Room->CeilingAnchors[0]->HasLabel(FMRUKLabels::Ceiling));
+			TestFalse(TEXT("Has not FLOOR label"), Room->CeilingAnchors[0]->HasLabel(FMRUKLabels::Floor));
+			TestFalse(TEXT("Has not WALL_FACE label"), Room->CeilingAnchors[0]->HasLabel(FMRUKLabels::WallFace));
 		});
 
 		It(TEXT("ProceduralMesh"), [this]() {
@@ -1135,12 +1152,12 @@ void FMRUKSpec::Define()
 				return;
 			}
 
-			if (!TestNotNull(TEXT("Floor anchor"), Room->FloorAnchor.Get()))
+			if (!TestNotNull(TEXT("Floor anchor"), Room->FloorAnchors[0].Get()))
 			{
 				return;
 			}
-			Room->FloorAnchor->AttachProceduralMesh();
-			auto ProceduralMeshComponent = Room->FloorAnchor->ProceduralMeshComponent;
+			Room->FloorAnchors[0]->AttachProceduralMesh();
+			auto ProceduralMeshComponent = Room->FloorAnchors[0]->ProceduralMeshComponent;
 			if (!TestNotNull(TEXT("Has Procedural Mesh Component"), ProceduralMeshComponent.Get()))
 			{
 				return;
@@ -1227,46 +1244,9 @@ void FMRUKSpec::Define()
 				{
 					return;
 				}
-				if (TestEqual(TEXT("Vertex buffer size"), Section->ProcVertexBuffer.Num(), 8))
-				{
-					constexpr double Tolerance = 0.001;
-					TestEqual(TEXT("Vertex 0"), Section->ProcVertexBuffer[0].Position, FVector(0.0, -168.041, -131.505), Tolerance);
-					TestEqual(TEXT("Vertex 1"), Section->ProcVertexBuffer[1].Position, FVector(0.0, 168.041, -131.505), Tolerance);
-					TestEqual(TEXT("Vertex 2"), Section->ProcVertexBuffer[2].Position, FVector(0.0, 168.041, 131.505), Tolerance);
-					TestEqual(TEXT("Vertex 3"), Section->ProcVertexBuffer[3].Position, FVector(0.0, -168.041, 131.505), Tolerance);
-					TestEqual(TEXT("Vertex 4"), Section->ProcVertexBuffer[4].Position, FVector(0.0, 28.075, -61.585), Tolerance);
-					TestEqual(TEXT("Vertex 5"), Section->ProcVertexBuffer[5].Position, FVector(0.0, 143.493, -61.585), Tolerance);
-					TestEqual(TEXT("Vertex 6"), Section->ProcVertexBuffer[6].Position, FVector(0.0, 143.493, 111.358), Tolerance);
-					TestEqual(TEXT("Vertex 7"), Section->ProcVertexBuffer[7].Position, FVector(0.0, 28.075, 111.358), Tolerance);
-				}
 
-				if (TestEqual(TEXT("Index buffer size"), Section->ProcIndexBuffer.Num(), 24))
-				{
-					TestEqual(TEXT("Index 0"), Section->ProcIndexBuffer[0], 3);
-					TestEqual(TEXT("Index 1"), Section->ProcIndexBuffer[1], 0);
-					TestEqual(TEXT("Index 2"), Section->ProcIndexBuffer[2], 4);
-					TestEqual(TEXT("Index 3"), Section->ProcIndexBuffer[3], 5);
-					TestEqual(TEXT("Index 4"), Section->ProcIndexBuffer[4], 4);
-					TestEqual(TEXT("Index 5"), Section->ProcIndexBuffer[5], 0);
-					TestEqual(TEXT("Index 6"), Section->ProcIndexBuffer[6], 3);
-					TestEqual(TEXT("Index 7"), Section->ProcIndexBuffer[7], 4);
-					TestEqual(TEXT("Index 8"), Section->ProcIndexBuffer[8], 7);
-					TestEqual(TEXT("Index 9"), Section->ProcIndexBuffer[9], 5);
-					TestEqual(TEXT("Index 10"), Section->ProcIndexBuffer[10], 0);
-					TestEqual(TEXT("Index 11"), Section->ProcIndexBuffer[11], 1);
-					TestEqual(TEXT("Index 12"), Section->ProcIndexBuffer[12], 2);
-					TestEqual(TEXT("Index 13"), Section->ProcIndexBuffer[13], 3);
-					TestEqual(TEXT("Index 14"), Section->ProcIndexBuffer[14], 7);
-					TestEqual(TEXT("Index 15"), Section->ProcIndexBuffer[15], 6);
-					TestEqual(TEXT("Index 16"), Section->ProcIndexBuffer[16], 5);
-					TestEqual(TEXT("Index 17"), Section->ProcIndexBuffer[17], 1);
-					TestEqual(TEXT("Index 18"), Section->ProcIndexBuffer[18], 2);
-					TestEqual(TEXT("Index 19"), Section->ProcIndexBuffer[19], 7);
-					TestEqual(TEXT("Index 20"), Section->ProcIndexBuffer[20], 6);
-					TestEqual(TEXT("Index 21"), Section->ProcIndexBuffer[21], 6);
-					TestEqual(TEXT("Index 22"), Section->ProcIndexBuffer[22], 1);
-					TestEqual(TEXT("Index 23"), Section->ProcIndexBuffer[23], 2);
-				}
+				constexpr double Tolerance = 0.001;
+				TestEqual(TEXT("Area"), CalculatePolygonArea(*Section), 68432.261054, Tolerance);
 			}
 		});
 

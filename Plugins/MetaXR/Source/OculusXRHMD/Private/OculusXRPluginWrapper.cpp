@@ -4,8 +4,11 @@
 #include "OculusXRPluginWrapper.h"
 #include "OculusXRHMDModule.h"
 
-#if PLATFORM_ANDROID
+#if PLATFORM_ANDROID || PLATFORM_MAC
 #include <dlfcn.h>
+#endif
+
+#if PLATFORM_ANDROID
 #define MIN_SDK_VERSION 29
 #endif
 
@@ -231,6 +234,7 @@ bool OculusPluginWrapper::InitializeOculusPluginWrapper(OculusPluginWrapper* wra
 		OCULUS_BIND_ENTRY_POINT(GetHandState),
 		OCULUS_BIND_ENTRY_POINT(GetHandState2),
 		OCULUS_BIND_ENTRY_POINT(GetHandTrackingState),
+		OCULUS_BIND_ENTRY_POINT(GetHandPoseSourceInferred),
 		OCULUS_BIND_ENTRY_POINT(GetSkeleton2),
 		OCULUS_BIND_ENTRY_POINT(GetSkeleton3),
 		OCULUS_BIND_ENTRY_POINT(GetMesh),
@@ -415,6 +419,8 @@ bool OculusPluginWrapper::InitializeOculusPluginWrapper(OculusPluginWrapper* wra
 		OCULUS_BIND_ENTRY_POINT(SetControllerDrivenHandPosesAreNatural),
 		OCULUS_BIND_ENTRY_POINT(SetSimultaneousHandsAndControllersEnabled),
 		OCULUS_BIND_ENTRY_POINT(IsMultimodalHandsControllersSupported),
+		OCULUS_BIND_ENTRY_POINT(BeginProfilingRegion),
+		OCULUS_BIND_ENTRY_POINT(EndProfilingRegion),
 	};
 
 #undef OCULUS_BIND_ENTRY_POINT
@@ -467,7 +473,7 @@ static void* LoadEntryPoint(void* Handle, const char* EntryPointName)
 		UE_LOG(LogOculusPluginWrapper, Error, TEXT("Unable to load entry point: %s"), ANSI_TO_TCHAR(EntryPointName));
 	}
 	return ptr;
-#elif PLATFORM_ANDROID
+#elif PLATFORM_ANDROID || PLATFORM_MAC
 	void* ptr = dlsym(Handle, EntryPointName);
 	if (ptr == nullptr)
 	{

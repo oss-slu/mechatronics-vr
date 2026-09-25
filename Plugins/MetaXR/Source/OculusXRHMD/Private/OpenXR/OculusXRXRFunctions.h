@@ -17,6 +17,9 @@ namespace OculusXR
 	extern TOptional<PFN_xrSetColorSpaceFB> xrSetColorSpaceFB;
 	extern TOptional<PFN_xrGetPassthroughPreferencesMETA> xrGetPassthroughPreferencesMETA;
 	extern TOptional<PFN_xrGetRecommendedLayerResolutionMETA> xrGetRecommendedLayerResolutionMETA;
+	extern TOptional<PFN_xrSessionBeginDebugUtilsLabelRegionEXT> xrSessionBeginDebugUtilsLabelRegionEXT;
+	extern TOptional<PFN_xrSessionEndDebugUtilsLabelRegionEXT> xrSessionEndDebugUtilsLabelRegionEXT;
 
 	void InitOpenXRFunctions(XrInstance InInstance);
+
 } // namespace OculusXR

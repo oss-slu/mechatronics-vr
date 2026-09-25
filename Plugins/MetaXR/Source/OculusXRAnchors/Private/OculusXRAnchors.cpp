@@ -673,6 +673,16 @@ namespace OculusXRAnchors
 		return request;
 	}
 
+	bool FOculusXRAnchors::HasAnchorQueryBinding(uint64 RequestId) const
+	{
+		return AnchorQueryBindings.Contains(RequestId) || GetSharedAnchorsBindings.Contains(RequestId);
+	}
+
+	bool FOculusXRAnchors::HasDiscoveryBinding(uint64 RequestId) const
+	{
+		return AnchorDiscoveryBindings.Contains(RequestId);
+	}
+
 	void FOculusXRAnchors::HandleSpatialAnchorCreateComplete(FOculusXRUInt64 RequestId, EOculusXRAnchorResult::Type Result, FOculusXRUInt64 Space, FOculusXRUUID UUID)
 	{
 		OculusXRTelemetry::Events::FAnchorsCreateResponse(static_cast<int>(GetTypeHash(RequestId)))
@@ -680,7 +690,7 @@ namespace OculusXRAnchors
 		CreateAnchorBinding* AnchorDataPtr = CreateSpatialAnchorBindings.Find(RequestId.GetValue());
 		if (AnchorDataPtr == nullptr)
 		{
-			UE_LOG(LogOculusXRAnchors, Error, TEXT("Couldn't find anchor data binding for create spatial anchor! Request: %llu"), RequestId.GetValue());
+			UE_LOG(LogOculusXRAnchors, Log, TEXT("Ignoring unrelated create spatial anchor event from request: %llu"), RequestId.GetValue());
 			return;
 		}
 
@@ -784,7 +794,7 @@ namespace OculusXRAnchors
 		SaveAnchorBinding* SaveAnchorData = AnchorSaveBindings.Find(RequestId.GetValue());
 		if (SaveAnchorData == nullptr)
 		{
-			UE_LOG(LogOculusXRAnchors, Error, TEXT("Couldn't find binding for save anchor! Request: %llu"), RequestId.GetValue());
+			UE_LOG(LogOculusXRAnchors, Log, TEXT("Ignoring unrelated for save anchor event from request: %llu"), RequestId.GetValue());
 			return;
 		}
 
@@ -810,7 +820,7 @@ namespace OculusXRAnchors
 		SaveAnchorListBinding* SaveListData = AnchorSaveListBindings.Find(RequestId.GetValue());
 		if (SaveListData == nullptr)
 		{
-			UE_LOG(LogOculusXRAnchors, Error, TEXT("Couldn't find binding for save anchor list! Request: %llu"), RequestId.GetValue());
+			UE_LOG(LogOculusXRAnchors, Log, TEXT("Ignoring unrelated for save anchor event from request: %llu"), RequestId.GetValue());
 			return;
 		}
 
@@ -965,7 +975,7 @@ namespace OculusXRAnchors
 		SaveAnchorsBinding SaveData;
 		if (!SaveAnchorsBindings.RemoveAndCopyValue(RequestId.GetValue(), SaveData))
 		{
-			UE_LOG(LogOculusXRAnchors, Error, TEXT("Couldn't find binding for save anchors! Request: %llu"), RequestId.GetValue());
+			UE_LOG(LogOculusXRAnchors, Log, TEXT("Ignoring unrelated create spatial anchor event from request: %llu"), RequestId.GetValue());
 			return;
 		}
 

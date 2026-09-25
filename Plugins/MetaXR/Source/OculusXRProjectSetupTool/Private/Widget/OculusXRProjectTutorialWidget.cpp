@@ -122,16 +122,16 @@ void SOculusXRTutorialWindow::BuildGuidedTutorialLayout(const TSharedPtr<SVertic
 	InstructionsPanel->AddSlot()
 		[SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-				  .Padding(40)
-				  .VAlign(VAlign_Center)
-					  [TextWidget.ToSharedRef()]];
+				.Padding(40)
+				.VAlign(VAlign_Center)
+					[TextWidget.ToSharedRef()]];
 
 	InstructionsPanel->AddSlot()
 		[SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-				  .Padding(40, 20)
-				  .VAlign(VAlign_Bottom)
-					  [ButtonsWidget.ToSharedRef()]];
+				.Padding(40, 20)
+				.VAlign(VAlign_Bottom)
+					[ButtonsWidget.ToSharedRef()]];
 
 	// Construct the main panel
 

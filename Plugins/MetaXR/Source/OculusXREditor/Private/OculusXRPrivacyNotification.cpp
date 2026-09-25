@@ -85,32 +85,32 @@ namespace OculusXRTelemetry
 				[SNew(SBox)
 						[SNew(SHorizontalBox)
 							+ SHorizontalBox::Slot()
-								  .AutoWidth()
-								  .VAlign(VAlign_Top)
-								  .HAlign(HAlign_Left)
-									  [SNew(SOverlay)
-										  + SOverlay::Slot()
-												.VAlign(VAlign_Center)
-												.HAlign(HAlign_Center)
-													[SNew(SImage)
-															.Image(FOculusToolStyle::Get().GetBrush("OculusTool.MetaLogo"))
-															.DesiredSizeOverride(FVector2D(32, 32))]]
+								.AutoWidth()
+								.VAlign(VAlign_Top)
+								.HAlign(HAlign_Left)
+									[SNew(SOverlay)
+										+ SOverlay::Slot()
+											.VAlign(VAlign_Center)
+											.HAlign(HAlign_Center)
+												[SNew(SImage)
+														.Image(FOculusToolStyle::Get().GetBrush("OculusTool.MetaLogo"))
+														.DesiredSizeOverride(FVector2D(32, 32))]]
 							+ SHorizontalBox::Slot()
-								  .Padding(10.f, 0.f, 5.f, 0.f)
-									  [InteractiveWidgetsBox]
+								.Padding(10.f, 0.f, 5.f, 0.f)
+									[InteractiveWidgetsBox]
 							+ SHorizontalBox::Slot()
-								  .AutoWidth()
-								  .VAlign(VAlign_Top)
-								  .HAlign(HAlign_Right)
-									  [SNew(SButton)
-											  .Cursor(EMouseCursor::Default)
-											  .ButtonStyle(FAppStyle::Get(), "SimpleButton")
-											  .ContentPadding(0.0f)
-											  .OnClicked(this, &SOculusXRPrivacyNotification::CloseButtonClicked)
-											  .Content()
-												  [SNew(SImage)
-														  .Image(FAppStyle::GetBrush("Icons.X"))
-														  .ColorAndOpacity(FSlateColor::UseForeground())]]]];
+								.AutoWidth()
+								.VAlign(VAlign_Top)
+								.HAlign(HAlign_Right)
+									[SNew(SButton)
+											.Cursor(EMouseCursor::Default)
+											.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+											.ContentPadding(0.0f)
+											.OnClicked(this, &SOculusXRPrivacyNotification::CloseButtonClicked)
+											.Content()
+												[SNew(SImage)
+														.Image(FAppStyle::GetBrush("Icons.X"))
+														.ColorAndOpacity(FSlateColor::UseForeground())]]]];
 		}
 
 	private:
@@ -189,16 +189,16 @@ namespace OculusXRTelemetry
 			RootContainer->AddSlot()
 				[SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
-						  .Padding(20, 20, 20, 20)
-						  .VAlign(VAlign_Center)
-							  [TextWidget.ToSharedRef()]];
+						.Padding(20, 20, 20, 20)
+						.VAlign(VAlign_Center)
+							[TextWidget.ToSharedRef()]];
 
 			RootContainer->AddSlot()
 				[SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
-						  .Padding(20, 20)
-						  .VAlign(VAlign_Bottom)
-							  [ButtonsWidget.ToSharedRef()]];
+						.Padding(20, 20)
+						.VAlign(VAlign_Bottom)
+							[ButtonsWidget.ToSharedRef()]];
 			ChildSlot
 				[SNew(SBox)
 						.WidthOverride(960)

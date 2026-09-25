@@ -2,6 +2,7 @@
 
 #include "MRUtilityKitSubsystem.h"
 #include "MRUtilityKitAnchor.h"
+#include "MRUtilityKitTrackable.h"
 #include "Kismet/GameplayStatics.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "MRUtilityKitPositionGenerator.h"
@@ -16,17 +17,19 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #endif // WITH_EDITOR
+#if PLATFORM_ANDROID
+#include "IVulkanDynamicRHI.h"
+#endif
 #include "OculusXRFunctionLibrary.h"
-#include "Generated/MRUtilityKitShared.h"
 #include "XRTrackingSystemBase.h"
 #include "OculusXRHMDRuntimeSettings.h"
 #include "MRUtilityKitSharedHelper.h"
 #include "MRUtilityKitTelemetry.h"
-#include "OculusXRRoomLayoutManagerComponent.h"
+#include "MRUtilityKit.h"
 
-AMRUKRoom* FindRoomByUuid(UMRUKSubsystem* Subsystem, const FOculusXRUUID& RoomUuid)
+static AMRUKRoom* FindRoomByUuid(UMRUKSubsystem* Subsystem, const FOculusXRUUID& RoomUuid)
 {
-	for (int i = 0; i < Subsystem->Rooms.Num(); ++i)
+	for (int32 i = 0; i < Subsystem->Rooms.Num(); ++i)
 	{
 		if (RoomUuid == Subsystem->Rooms[i]->AnchorUUID)
 		{
@@ -36,71 +39,84 @@ AMRUKRoom* FindRoomByUuid(UMRUKSubsystem* Subsystem, const FOculusXRUUID& RoomUu
 	return nullptr;
 }
 
-static void UpdateRoomAnchorProperties(const MRUKShared::MrukRoomAnchor* RoomAnchor, AMRUKRoom* Room)
+static void UpdateRoomAnchorProperties(const MRUKShared::RoomAnchor* RoomAnchor, AMRUKRoom* Room)
 {
 	const float WorldToMeters = Room->GetWorld() ? Room->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
 
+	Room->SceneModel = ToUnreal(RoomAnchor->sceneModel);
 	Room->AnchorUUID = ToUnreal(RoomAnchor->uuid);
 	Room->SpaceHandle = RoomAnchor->space;
 	Room->SetActorTransform(ToUnreal(RoomAnchor->pose, WorldToMeters));
 	Room->RoomMesh = NewObject<UMRUKRoomMesh>(Room);
 
-	const MRUKShared::MrukRoomMesh& RoomMesh = RoomAnchor->roomMesh;
+	const MRUKShared::RoomMesh& RoomMesh = RoomAnchor->roomMesh;
 
 	// Set the vertex buffer of the room mesh
 	Room->RoomMesh->Vertices.SetNum(RoomMesh.verticesCount);
-	for (uint32_t i = 0; i < RoomMesh.verticesCount; ++i)
+	for (uint32 i = 0; i < RoomMesh.verticesCount; ++i)
 	{
 		Room->RoomMesh->Vertices[i] = PositionToUnreal(RoomMesh.vertices[i], WorldToMeters);
 	}
 
 	// Set the faces of the room mesh
 	Room->RoomMesh->Faces.SetNum(RoomMesh.facesCount);
-	for (uint32_t i = 0; i < RoomMesh.facesCount; ++i)
+	for (uint32 i = 0; i < RoomMesh.facesCount; ++i)
 	{
-		const MRUKShared::MrukRoomFace& face = RoomMesh.faces[i];
+		const MRUKShared::RoomFace& Face = RoomMesh.faces[i];
 		FMRUKRoomFace& RoomFace = Room->RoomMesh->Faces[i];
-		RoomFace.Uuid = ToUnreal(face.uuid);
-		RoomFace.ParentUuid = ToUnreal(face.parentUuid);
-		RoomFace.SemanticClassification = ToUnreal(face.semanticLabel);
-		RoomFace.Indices.SetNum(face.indicesCount);
-		for (uint32_t j = 0; j < face.indicesCount; ++j)
+		RoomFace.Uuid = ToUnreal(Face.uuid);
+		RoomFace.ParentUuid = ToUnreal(Face.parentUuid);
+		RoomFace.SemanticClassification = ToUnreal(Face.semanticLabel);
+		RoomFace.Indices.SetNum(Face.indicesCount);
+		for (uint32 j = 0; j < Face.indicesCount; ++j)
 		{
-			RoomFace.Indices[j] = face.indices[j];
+			RoomFace.Indices[j] = Face.indices[j];
 		}
 	}
 }
 
-static void MrukSetTrackingSpacePose(MRUKShared::MrukPosef Pose)
+static void MrukSetTrackingSpacePose(MRUKShared::Posef Pose)
 {
 	if (const APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GEngine, 0))
 	{
 		if (APawn* Pawn = PlayerController->GetPawn())
 		{
 			const float WorldToMeters = Pawn->GetWorld() ? Pawn->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
-			auto Transform = ToUnreal(Pose, WorldToMeters);
+			const FTransform Transform = ToUnreal(Pose, WorldToMeters);
 			Pawn->SetActorLocationAndRotation(Transform.GetLocation(), Transform.GetRotation());
 		}
 	}
 }
 
-static MRUKShared::MrukPosef MrukGetTrackingSpacePose()
+static MRUKShared::Posef MrukGetTrackingSpacePose()
 {
 	const FXRTrackingSystemBase* TS = static_cast<FXRTrackingSystemBase*>(GEngine->XRSystem.Get());
-	const auto TrackingToWorld = TS->GetTrackingToWorldTransform();
-	return ToMrukShared(TrackingToWorld, TS->GetWorldToMetersScale());
+
+	FTransform TrackingToWorld;
+	double Scale;
+	if (TS)
+	{
+		TrackingToWorld = TS->GetTrackingToWorldTransform();
+		Scale = TS->GetWorldToMetersScale();
+	}
+	else
+	{
+		TrackingToWorld = FTransform::Identity;
+		Scale = 100.0;
+	}
+	return ToMrukShared(TrackingToWorld, Scale);
 }
 
-static void MrukOnPreRoomAnchorAdded(const MRUKShared::MrukRoomAnchor* RoomAnchor, void* UserContext)
+static void MrukOnPreRoomAnchorAdded(const MRUKShared::RoomAnchor* RoomAnchor, void* UserContext)
 {
-	auto* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
+	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = Subsystem->SpawnRoom();
 	UpdateRoomAnchorProperties(RoomAnchor, Room);
 }
 
-static void MrukOnRoomAnchorAdded(const MRUKShared::MrukRoomAnchor* RoomAnchor, void* UserContext)
+static void MrukOnRoomAnchorAdded(const MRUKShared::RoomAnchor* RoomAnchor, void* UserContext)
 {
-	auto* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
+	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(RoomAnchor->uuid));
 	// Room has been added before in MrukOnPreRoomAnchorAdded()
 	check(Room);
@@ -108,7 +124,7 @@ static void MrukOnRoomAnchorAdded(const MRUKShared::MrukRoomAnchor* RoomAnchor, 
 	Subsystem->OnRoomCreated.Broadcast(Room);
 }
 
-static void MrukOnRoomAnchorUpdated(const MRUKShared::MrukRoomAnchor* RoomAnchor, const MRUKShared::MrukUuid* OldRoomAnchorUuid, bool SignificantChange, void* UserContext)
+static void MrukOnRoomAnchorUpdated(const MRUKShared::RoomAnchor* RoomAnchor, const MRUKShared::Uuid* OldRoomAnchorUuid, bool SignificantChange, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(*OldRoomAnchorUuid));
@@ -121,7 +137,7 @@ static void MrukOnRoomAnchorUpdated(const MRUKShared::MrukRoomAnchor* RoomAnchor
 	}
 }
 
-static void MrukOnRoomAnchorRemoved(const MRUKShared::MrukRoomAnchor* RoomAnchor, void* UserContext)
+static void MrukOnRoomAnchorRemoved(const MRUKShared::RoomAnchor* RoomAnchor, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(RoomAnchor->uuid));
@@ -130,28 +146,20 @@ static void MrukOnRoomAnchorRemoved(const MRUKShared::MrukRoomAnchor* RoomAnchor
 	Room->Destroy();
 }
 
-static void UpdateAnchorProperties(const MRUKShared::MrukSceneAnchor* SceneAnchor, AMRUKRoom* Room, AMRUKAnchor* Anchor)
+static void UpdateAnchorProperties(const MRUKShared::SceneAnchor* SceneAnchor, AMRUKRoom* Room, AMRUKAnchor* Anchor)
 {
-	FBox2D Plane;
+	FBox2D Plane(ForceInit);
 	TArray<FVector2D> PlaneBoundary;
 	if (SceneAnchor->hasPlane)
 	{
 		Plane = ToUnreal(Room->GetWorld(), SceneAnchor->plane);
 		PlaneBoundary = ToUnreal(Room->GetWorld(), SceneAnchor->planeBoundary, SceneAnchor->planeBoundaryCount);
 	}
-	else
-	{
-		Plane.bIsValid = false;
-	}
 
-	FBox3d Volume;
+	FBox3d Volume(ForceInit);
 	if (SceneAnchor->hasVolume)
 	{
 		Volume = ToUnreal(Room->GetWorld(), SceneAnchor->volume);
-	}
-	else
-	{
-		Volume.IsValid = false;
 	}
 
 	TArray<FVector> GlobalMeshPositions;
@@ -159,7 +167,7 @@ static void UpdateAnchorProperties(const MRUKShared::MrukSceneAnchor* SceneAncho
 	if (SceneAnchor->globalMeshPositionsCount > 0 && SceneAnchor->globalMeshIndicesCount > 0)
 	{
 		GlobalMeshIndices.SetNum(SceneAnchor->globalMeshIndicesCount);
-		memcpy(GlobalMeshIndices.GetData(), SceneAnchor->globalMeshIndices, GlobalMeshIndices.Num() * sizeof(int));
+		FMemory::Memcpy(GlobalMeshIndices.GetData(), SceneAnchor->globalMeshIndices, GlobalMeshIndices.Num() * sizeof(int));
 
 		GlobalMeshPositions.SetNum(SceneAnchor->globalMeshPositionsCount);
 		for (uint32 i = 0; i < SceneAnchor->globalMeshPositionsCount; ++i)
@@ -176,7 +184,7 @@ static void UpdateAnchorProperties(const MRUKShared::MrukSceneAnchor* SceneAncho
 		PlaneBoundary, Volume, std::move(GlobalMeshPositions), std::move(GlobalMeshIndices));
 }
 
-static void MrukOnSceneAnchorAdded(const MRUKShared::MrukSceneAnchor* SceneAnchor, void* UserContext)
+static void MrukOnSceneAnchorAdded(const MRUKShared::SceneAnchor* SceneAnchor, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(SceneAnchor->roomUuid));
@@ -187,7 +195,7 @@ static void MrukOnSceneAnchorAdded(const MRUKShared::MrukSceneAnchor* SceneAncho
 	Room->OnAnchorCreated.Broadcast(Anchor);
 }
 
-static void MrukOnSceneAnchorUpdated(const MRUKShared::MrukSceneAnchor* SceneAnchor, bool SignificantChange, void* UserContext)
+static void MrukOnSceneAnchorUpdated(const MRUKShared::SceneAnchor* SceneAnchor, bool SignificantChange, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(SceneAnchor->roomUuid));
@@ -201,7 +209,7 @@ static void MrukOnSceneAnchorUpdated(const MRUKShared::MrukSceneAnchor* SceneAnc
 	}
 }
 
-static void MrukOnSceneAnchorRemoved(const MRUKShared::MrukSceneAnchor* SceneAnchor, void* UserContext)
+static void MrukOnSceneAnchorRemoved(const MRUKShared::SceneAnchor* SceneAnchor, void* UserContext)
 {
 	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
 	AMRUKRoom* Room = FindRoomByUuid(Subsystem, ToUnreal(SceneAnchor->roomUuid));
@@ -211,11 +219,11 @@ static void MrukOnSceneAnchorRemoved(const MRUKShared::MrukSceneAnchor* SceneAnc
 	Room->RemoveAnchor(Anchor);
 }
 
-static void MrukOnDiscoveryFinished(MRUKShared::MrukResult Result, void* UserContext)
+static void MrukOnDiscoveryFinished(MRUKShared::Result Result, void* UserContext)
 {
-	auto* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
-	const bool Success = Result == MRUKShared::MRUK_SUCCESS;
-	if (Success)
+	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
+	const bool bSuccess = Result == MRUKShared::Result::Success;
+	if (bSuccess)
 	{
 		Subsystem->SceneLoadStatus = EMRUKInitStatus::Complete;
 	}
@@ -224,20 +232,186 @@ static void MrukOnDiscoveryFinished(MRUKShared::MrukResult Result, void* UserCon
 		Subsystem->SceneLoadStatus = EMRUKInitStatus::Failed;
 	}
 
+	bool bHiFiSceneUsed = false;
+	for (AMRUKRoom* Room : Subsystem->Rooms)
+	{
+		if (Room->SceneModel == EMRUKSceneModel::V2 || Room->SceneModel == EMRUKSceneModel::V2FallbackV1)
+		{
+			// V2_Fallback_V1 isn't a valid value for scene model. Handle it anyway for robustness.
+			bHiFiSceneUsed = true;
+			break;
+		}
+	}
+
 	if (Subsystem->Rooms.Num() > 0 && Subsystem->Rooms[Subsystem->Rooms.Num() - 1]->SpaceHandle != FOculusXRUInt64{})
 	{
 		OculusXRTelemetry::TScopedMarker<MRUKTelemetry::FLoadSceneFromDeviceMarker> Event(static_cast<int>(GetTypeHash(Subsystem)));
 		Event.AddAnnotation("NumRooms", TCHAR_TO_ANSI(*FString::FromInt(Subsystem->Rooms.Num())));
+		Event.AddAnnotation("HiFiScene", bHiFiSceneUsed ? "true" : "false");
 		Event.SetResult(Subsystem->Rooms.Num() > 0 ? OculusXRTelemetry::EAction::Success : OculusXRTelemetry::EAction::Fail);
 	}
 	else
 	{
 		OculusXRTelemetry::TScopedMarker<MRUKTelemetry::FLoadSceneFromJsonMarker> Event(static_cast<int>(GetTypeHash(Subsystem)));
 		Event.AddAnnotation("NumRooms", TCHAR_TO_ANSI(*FString::FromInt(Subsystem->Rooms.Num())));
+		Event.AddAnnotation("HiFiScene", bHiFiSceneUsed ? "true" : "false");
 		Event.SetResult(Subsystem->Rooms.Num() > 0 ? OculusXRTelemetry::EAction::Success : OculusXRTelemetry::EAction::Fail);
 	}
 
-	Subsystem->OnSceneLoaded.Broadcast(Success);
+	Subsystem->OnSceneLoaded.Broadcast(bSuccess);
+}
+
+static EMRUKTrackableType ToUnreal(MRUKShared::TrackableType Type)
+{
+	switch (Type)
+	{
+		case MRUKShared::TrackableType::Keyboard:
+			return EMRUKTrackableType::Keyboard;
+		case MRUKShared::TrackableType::Qrcode:
+			return EMRUKTrackableType::QRCode;
+		default:
+			return EMRUKTrackableType::None;
+	}
+}
+
+static EMRUKMarkerPayloadType ToUnreal(MRUKShared::MarkerPayloadType Type)
+{
+	switch (Type)
+	{
+		case MRUKShared::MarkerPayloadType::BinaryQrcode:
+			return EMRUKMarkerPayloadType::BinaryPayload;
+
+		case MRUKShared::MarkerPayloadType::StringQrcode:
+			return EMRUKMarkerPayloadType::StringPayload;
+
+		case MRUKShared::MarkerPayloadType::InvalidQrcode:
+			return EMRUKMarkerPayloadType::InvalidPayload;
+
+		case MRUKShared::MarkerPayloadType::None:
+			return EMRUKMarkerPayloadType::NonePayload;
+	}
+
+	return EMRUKMarkerPayloadType::InvalidPayload;
+}
+
+static void UpdateTrackableProperties(const MRUKShared::Trackable* TrackableData, UMRUKSubsystem* Subsystem, AMRUKTrackable* Trackable)
+{
+	const float WorldToMeters = Subsystem->GetWorld() ? Subsystem->GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
+
+	FBox2D Plane(ForceInit);
+	TArray<FVector2D> PlaneBoundary;
+	if (TrackableData->hasPlane)
+	{
+		Plane = ToUnreal(Subsystem->GetWorld(), TrackableData->plane);
+		PlaneBoundary = ToUnreal(Subsystem->GetWorld(), TrackableData->planeBoundary, TrackableData->planeBoundaryCount);
+	}
+
+	FBox3d Volume(ForceInit);
+	if (TrackableData->hasVolume)
+	{
+		Volume = ToUnreal(Subsystem->GetWorld(), TrackableData->volume);
+	}
+
+	FString PayloadString;
+	TArray<uint8> PayloadBytes;
+	if (TrackableData->payload && TrackableData->payloadCount > 0)
+	{
+		if (TrackableData->markerPayloadType == MRUKShared::MarkerPayloadType::StringQrcode)
+		{
+			PayloadString = FString(TrackableData->payloadCount, UTF8_TO_TCHAR(reinterpret_cast<const char*>(TrackableData->payload)));
+		}
+		else
+		{
+			PayloadBytes.SetNumUninitialized(TrackableData->payloadCount);
+			FMemory::Memcpy(PayloadBytes.GetData(), TrackableData->payload, TrackableData->payloadCount);
+		}
+	}
+
+	Trackable->UpdateProperties(
+		ToUnreal(TrackableData->pose, WorldToMeters),
+		ToUnreal(TrackableData->trackableType),
+		TrackableData->isTracked,
+		Plane,
+		std::move(PlaneBoundary),
+		Volume,
+		ToUnreal(TrackableData->markerPayloadType),
+		std::move(PayloadString),
+		std::move(PayloadBytes));
+}
+
+static void MrukOnTrackersConfigured(MRUKShared::Result Result, void* UserContext)
+{
+	if (Result == MRUKShared::Result::Success)
+	{
+		UE_LOG(LogMRUK, Log, TEXT("Trackers configured successfully"));
+	}
+	else
+	{
+		UE_LOG(LogMRUK, Warning, TEXT("Failed to configure trackers: %d"), Result);
+	}
+
+	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
+	Subsystem->OnTrackablesConfigured.Broadcast(Result == MRUKShared::Result::Success);
+}
+
+static void MrukOnTrackableAdded(const MRUKShared::Trackable* TrackableData, void* UserContext)
+{
+	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
+
+	FMRUKTrackableKey Key{ TrackableData->space, TrackableData->entityId };
+	if (Subsystem->Trackables.Contains(Key))
+	{
+		UE_LOG(LogMRUK, Warning, TEXT("Trackable already exists: Space=%llu, EntityId=%llu"), TrackableData->space, TrackableData->entityId);
+		return;
+	}
+
+	FActorSpawnParameters ActorSpawnParams;
+	ActorSpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AMRUKTrackable* Trackable = Subsystem->GetWorld()->SpawnActor<AMRUKTrackable>(ActorSpawnParams);
+
+#if WITH_EDITOR
+	const FString TrackableName = FString::Printf(TEXT("Trackable_%s"), *UEnum::GetValueAsString(ToUnreal(TrackableData->trackableType)));
+	Trackable->SetActorLabel(TrackableName);
+#endif
+
+	UpdateTrackableProperties(TrackableData, Subsystem, Trackable);
+	Subsystem->Trackables.Add(Key, Trackable);
+
+	Subsystem->OnTrackableAdded.Broadcast(Trackable);
+}
+
+static void MrukOnTrackableUpdated(const MRUKShared::Trackable* TrackableData, void* UserContext)
+{
+	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
+
+	const FMRUKTrackableKey Key{ TrackableData->space, TrackableData->entityId };
+	const TObjectPtr<AMRUKTrackable>* TrackablePtr = Subsystem->Trackables.Find(Key);
+	if (!TrackablePtr || !TrackablePtr->Get())
+	{
+		UE_LOG(LogMRUK, Warning, TEXT("Trackable not found for update: Space=%llu, EntityId=%llu"), TrackableData->space, TrackableData->entityId);
+		return;
+	}
+
+	AMRUKTrackable* Trackable = TrackablePtr->Get();
+	UpdateTrackableProperties(TrackableData, Subsystem, Trackable);
+
+	Subsystem->OnTrackableUpdated.Broadcast(Trackable);
+}
+
+static void MrukOnTrackableRemoved(const MRUKShared::Trackable* TrackableData, void* UserContext)
+{
+	UMRUKSubsystem* Subsystem = static_cast<UMRUKSubsystem*>(UserContext);
+
+	const FMRUKTrackableKey Key{ TrackableData->space, TrackableData->entityId };
+	TObjectPtr<AMRUKTrackable> Trackable;
+	if (!Subsystem->Trackables.RemoveAndCopyValue(Key, Trackable) || !Trackable.Get())
+	{
+		UE_LOG(LogMRUK, Warning, TEXT("Trackable not found for removal: Space=%llu, EntityId=%llu"), TrackableData->space, TrackableData->entityId);
+		return;
+	}
+
+	Subsystem->OnTrackableRemoved.Broadcast(Trackable.Get());
+	Trackable->Destroy();
 }
 
 AMRUKAnchor* UMRUKSubsystem::Raycast(const FVector& Origin, const FVector& Direction, float MaxDist, const FMRUKLabelFilter& LabelFilter, FMRUKHit& OutHit)
@@ -263,7 +437,7 @@ AMRUKAnchor* UMRUKSubsystem::Raycast(const FVector& Origin, const FVector& Direc
 
 bool UMRUKSubsystem::RaycastAll(const FVector& Origin, const FVector& Direction, float MaxDist, const FMRUKLabelFilter& LabelFilter, TArray<FMRUKHit>& OutHits, TArray<AMRUKAnchor*>& OutAnchors)
 {
-	bool HitAnything = false;
+	bool bHitAnything = false;
 	for (const auto& Room : Rooms)
 	{
 		if (!Room)
@@ -272,10 +446,10 @@ bool UMRUKSubsystem::RaycastAll(const FVector& Origin, const FVector& Direction,
 		}
 		if (Room->RaycastAll(Origin, Direction, MaxDist, LabelFilter, OutHits, OutAnchors))
 		{
-			HitAnything = true;
+			bHitAnything = true;
 		}
 	}
-	return HitAnything;
+	return bHitAnything;
 }
 
 static void OpenXrEventHandler(void* Data, void* Context)
@@ -289,23 +463,60 @@ static bool IsOpenXRSystem()
 	return GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetSystemName() == SystemName);
 }
 
-static void SharedLibraryLogPrinter(MRUKShared::MrukLogLevel Level, const char* Message, uint32_t Length)
+static void SharedLibraryLogPrinter(MRUKShared::LogLevel Level, const char* Message, uint32_t Length)
 {
 	switch (Level)
 	{
-		case MRUKShared::MRUK_LOG_LEVEL_DEBUG:
-			UE_LOG(LogMRUK, Verbose, TEXT("MRUK Shared: %.*hs"), Length, Message);
-			break;
-		case MRUKShared::MRUK_LOG_LEVEL_INFO:
+		case MRUKShared::LogLevel::Debug:
+		case MRUKShared::LogLevel::Info:
 			UE_LOG(LogMRUK, Log, TEXT("MRUK Shared: %.*hs"), Length, Message);
 			break;
-		case MRUKShared::MRUK_LOG_LEVEL_WARN:
+		case MRUKShared::LogLevel::Warn:
 			UE_LOG(LogMRUK, Warning, TEXT("MRUK Shared: %.*hs"), Length, Message);
 			break;
-		case MRUKShared::MRUK_LOG_LEVEL_ERROR:
+		case MRUKShared::LogLevel::Error:
 			UE_LOG(LogMRUK, Error, TEXT("MRUK Shared: %.*hs"), Length, Message);
 			break;
 	}
+}
+
+void UMRUKSubsystem::InitializeOpenXR()
+{
+	if (bOpenXRInitialized)
+	{
+		return;
+	}
+
+	uint64_t OpenXrInstance = 0;
+	uint64_t OpenXrSession = 0;
+	UOculusXRFunctionLibrary::GetNativeOpenXRHandles(&OpenXrInstance, &OpenXrSession);
+	if (OpenXrInstance == 0 || OpenXrSession == 0)
+	{
+		return;
+	}
+
+	void* OpenXrInstanceProcAddr = nullptr;
+	UOculusXRFunctionLibrary::GetOpenXRInstanceProcAddrFunc(&OpenXrInstanceProcAddr);
+	ensureMsgf(OpenXrInstanceProcAddr, TEXT("OpenXrInstanceProcAddr is not set"));
+
+	uint64_t AppSpace = 0;
+	UOculusXRFunctionLibrary::GetAppSpace(&AppSpace);
+	OpenXrBaseSpace = AppSpace;
+
+	MRUKShared::Result Result = MRUKShared::GetInstance()->InitOpenXr(OpenXrInstance, OpenXrSession, OpenXrInstanceProcAddr, AppSpace, nullptr, 0);
+	if (Result != MRUKShared::Result::Success)
+	{
+		UE_LOG(LogMRUK, Error, TEXT("Failed to initialize Open XR. It will not be possible to load anchors: %d"), Result);
+		return;
+	}
+	if (!IsOpenXRSystem())
+	{
+		UOculusXRFunctionLibrary::RegisterOpenXrEventHandler(OpenXrEventHandler, this);
+	}
+
+	bOpenXRInitialized = true;
+
+	UE_LOG(LogMRUK, Log, TEXT("Open XR initialized successfully"));
 }
 
 void UMRUKSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -318,60 +529,36 @@ void UMRUKSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		MRUKModule.OpenXrExtension->OpenXrEventHandler = OpenXrEventHandler;
 		MRUKModule.OpenXrExtension->Context = this;
+		MRUKModule.OpenXrExtension->MrukSubsystem = this;
 	}
 
 	MRUKShared::LoadMRUKSharedLibrary();
 
 	MRUKShared::GetInstance()->SetLogPrinter(SharedLibraryLogPrinter);
 
-	MRUKShared::MrukResult result = MRUKShared::GetInstance()->CreateGlobalContext();
-	if (result != MRUKShared::MRUK_SUCCESS)
+	MRUKShared::Config MrukConfig{};
+	MrukConfig.isLinearColorSpace = true;
+	MrukConfig.useScenelessWorldLocking = Settings->bUseScenelessWorldLocking;
+	MRUKShared::Result Result = MRUKShared::GetInstance()->CreateGlobalContext(&MrukConfig);
+	if (Result != MRUKShared::Result::Success)
 	{
-		UE_LOG(LogMRUK, Error, TEXT("Failed to initialize global context. It will not be possible to load anchors: %d"), result);
+		UE_LOG(LogMRUK, Error, TEXT("Failed to initialize global context. It will not be possible to load anchors: %d"), Result);
 	}
 	else
 	{
 		UE_LOG(LogMRUK, Log, TEXT("Global context initialized successfully"));
 	}
 
-	uint64_t OpenXrInstance = 0;
-	uint64_t OpenXrSession = 0;
-	UOculusXRFunctionLibrary::GetNativeOpenXRHandles(&OpenXrInstance, &OpenXrSession);
-	if (OpenXrInstance == 0 || OpenXrSession == 0)
+#if PLATFORM_ANDROID
+	if (GetIVulkanDynamicRHI())
 	{
-		// We are probably running in unit tests
-		EnableOpenXr = false;
+		MRUKShared::GetInstance()->InitGraphics(MRUKShared::RendererType::Vulkan);
 	}
-	else
-	{
-		EnableOpenXr = true;
-	}
+#endif
 
-	if (EnableOpenXr)
-	{
-		void* OpenXrInstanceProcAddr = nullptr;
-		UOculusXRFunctionLibrary::GetOpenXRInstanceProcAddrFunc(&OpenXrInstanceProcAddr);
-		ensureMsgf(OpenXrInstanceProcAddr != nullptr, TEXT("OpenXrInstanceProcAddr is not set"));
+	InitializeOpenXR();
 
-		UOculusXRFunctionLibrary::GetAppSpace(&OpenXrBaseSpace);
-		ensureMsgf(OpenXrBaseSpace != 0, TEXT("BaseSpace not set"));
-		if (!IsOpenXRSystem())
-		{
-			UOculusXRFunctionLibrary::RegisterOpenXrEventHandler(OpenXrEventHandler, this);
-		}
-
-		result = MRUKShared::GetInstance()->InitOpenXr(OpenXrInstance, OpenXrSession, OpenXrInstanceProcAddr, OpenXrBaseSpace, NULL, 0);
-		if (result != MRUKShared::MRUK_SUCCESS)
-		{
-			UE_LOG(LogMRUK, Error, TEXT("Failed to initialize Open XR. It will not be possible to load anchors: %d"), result);
-		}
-		else
-		{
-			UE_LOG(LogMRUK, Log, TEXT("Open XR initialized successfully"));
-		}
-	}
-
-	MRUKShared::MrukEventListener EventListener{
+	MRUKShared::EventListener EventListener{
 		.onPreRoomAnchorAdded = MrukOnPreRoomAnchorAdded,
 		.onRoomAnchorAdded = MrukOnRoomAnchorAdded,
 		.onRoomAnchorUpdated = MrukOnRoomAnchorUpdated,
@@ -380,6 +567,10 @@ void UMRUKSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		.onSceneAnchorUpdated = MrukOnSceneAnchorUpdated,
 		.onSceneAnchorRemoved = MrukOnSceneAnchorRemoved,
 		.onDiscoveryFinished = MrukOnDiscoveryFinished,
+		.onTrackersConfigured = MrukOnTrackersConfigured,
+		.onTrackableAdded = MrukOnTrackableAdded,
+		.onTrackableUpdated = MrukOnTrackableUpdated,
+		.onTrackableRemoved = MrukOnTrackableRemoved,
 		.userContext = this,
 	};
 	MRUKShared::GetInstance()->RegisterEventListener(EventListener);
@@ -389,7 +580,7 @@ void UMRUKSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UMRUKSubsystem::Deinitialize()
 {
-	if (EnableOpenXr)
+	if (bOpenXRInitialized && !IsOpenXRSystem())
 	{
 		UOculusXRFunctionLibrary::UnregisterOpenXrEventHandler(OpenXrEventHandler);
 	}
@@ -404,23 +595,24 @@ void UMRUKSubsystem::Deinitialize()
 	FMRUKModule& MRUKModule = FMRUKModule::GetInstance();
 	MRUKModule.OpenXrExtension->OpenXrEventHandler = nullptr;
 	MRUKModule.OpenXrExtension->Context = nullptr;
+	MRUKModule.OpenXrExtension->MrukSubsystem = nullptr;
 }
 
 void UMRUKSubsystem::UnregisterRoom(AMRUKRoom* Room)
 {
-	bool Found = false;
+	bool bFound = false;
 	for (const AMRUKRoom* R : Rooms)
 	{
 		if (Room->AnchorUUID == R->AnchorUUID)
 		{
-			Found = true;
+			bFound = true;
 			break;
 		}
 	}
-	if (Found)
+	if (bFound)
 	{
-		MRUKShared::MrukUuid Uuid{};
-		memcpy(&Uuid.data, Room->AnchorUUID.UUIDBytes, 2 * sizeof(uint64_t));
+		MRUKShared::Uuid Uuid{};
+		FMemory::Memcpy(&Uuid.data, Room->AnchorUUID.UUIDBytes, 2 * sizeof(uint64_t));
 		MRUKShared::GetInstance()->ClearRoom(Uuid);
 	}
 }
@@ -474,13 +666,13 @@ AMRUKRoom* UMRUKSubsystem::GetCurrentRoom() const
 
 FString UMRUKSubsystem::SaveSceneToJsonString()
 {
-	const char* Json = MRUKShared::GetInstance()->SaveSceneToJson(true, NULL, 0);
+	const char* Json = MRUKShared::GetInstance()->SaveSceneToJson(true, nullptr, 0);
 	const FString Result(Json);
 	MRUKShared::GetInstance()->FreeJson(Json);
 	return Result;
 }
 
-void UMRUKSubsystem::LoadSceneFromJsonString(const FString& String)
+void UMRUKSubsystem::LoadSceneFromJsonString(const FString& String, EMRUKSceneModel SceneModel)
 {
 	if (SceneLoadStatus == EMRUKInitStatus::Busy)
 	{
@@ -488,17 +680,22 @@ void UMRUKSubsystem::LoadSceneFromJsonString(const FString& String)
 		return;
 	}
 
+	if (SceneModel == EMRUKSceneModel::V2 || SceneModel == EMRUKSceneModel::V2FallbackV1)
+	{
+		OculusXRTelemetry::TScopedMarker<MRUKTelemetry::FLoadHiFiScene> Event(static_cast<int>(GetTypeHash(this)));
+	}
+
 	const UOculusXRHMDRuntimeSettings* Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
 	SceneLoadStatus = EMRUKInitStatus::Busy;
-	MRUKShared::MrukResult result = MRUKShared::GetInstance()->LoadSceneFromJson(TCHAR_TO_ANSI(*String), true, MRUKShared::MRUK_SCENE_MODEL_V1);
-	if (result != MRUKShared::MRUK_SUCCESS)
+	MRUKShared::Result Result = MRUKShared::GetInstance()->LoadSceneFromJson(TCHAR_TO_ANSI(*String), true, ToMrukShared(SceneModel));
+	if (Result != MRUKShared::Result::Success)
 	{
 		SceneLoadStatus = EMRUKInitStatus::Failed;
-		MrukOnDiscoveryFinished(result, this);
+		MrukOnDiscoveryFinished(Result, this);
 	}
 }
 
-void UMRUKSubsystem::LoadSceneFromDevice()
+void UMRUKSubsystem::LoadSceneFromDevice(EMRUKSceneModel SceneModel)
 {
 	if (SceneLoadStatus == EMRUKInitStatus::Busy)
 	{
@@ -506,14 +703,19 @@ void UMRUKSubsystem::LoadSceneFromDevice()
 		return;
 	}
 
+	if (SceneModel == EMRUKSceneModel::V2 || SceneModel == EMRUKSceneModel::V2FallbackV1)
+	{
+		OculusXRTelemetry::TScopedMarker<MRUKTelemetry::FLoadHiFiScene> Event(static_cast<int>(GetTypeHash(this)));
+	}
+
 	SceneLoadStatus = EMRUKInitStatus::Busy;
 	const UOculusXRHMDRuntimeSettings* Settings = GetMutableDefault<UOculusXRHMDRuntimeSettings>();
-	MRUKShared::MrukResult result = MRUKShared::GetInstance()->StartDiscovery(true, MRUKShared::MRUK_SCENE_MODEL_V1);
-	if (result != MRUKShared::MRUK_SUCCESS)
+	MRUKShared::Result Result = MRUKShared::GetInstance()->StartDiscovery(true, ToMrukShared(SceneModel));
+	if (Result != MRUKShared::Result::Success)
 	{
 		SceneLoadStatus = EMRUKInitStatus::Failed;
-		UE_LOG(LogMRUK, Error, TEXT("Failed to start anchor discovery: %d"), result);
-		MrukOnDiscoveryFinished(result, this);
+		UE_LOG(LogMRUK, Error, TEXT("Failed to start anchor discovery: %d"), Result);
+		MrukOnDiscoveryFinished(Result, this);
 	}
 }
 
@@ -661,8 +863,8 @@ TArray<AActor*> UMRUKSubsystem::SpawnInteriorFromStream(const TMap<FString, FMRU
 
 bool UMRUKSubsystem::LaunchSceneCapture()
 {
-	const bool Success = GetRoomLayoutManager()->LaunchCaptureFlow();
-	if (Success)
+	const bool bSuccess = GetRoomLayoutManager()->LaunchCaptureFlow();
+	if (bSuccess)
 	{
 		UE_LOG(LogMRUK, Log, TEXT("Capture flow launched with success"));
 	}
@@ -670,17 +872,148 @@ bool UMRUKSubsystem::LaunchSceneCapture()
 	{
 		UE_LOG(LogMRUK, Error, TEXT("Launching capture flow failed!"));
 	}
-	return Success;
+	return bSuccess;
+}
+
+void UMRUKSubsystem::CreateEnvironmentRaycaster()
+{
+	MRUKShared::Result Result = MRUKShared::GetInstance()->CreateEnvironmentRaycaster();
+	if (Result != MRUKShared::Result::Success)
+	{
+		UE_LOG(LogMRUK, Error, TEXT("Failed to create environment raycaster: %d"), Result);
+	}
+}
+
+void UMRUKSubsystem::DestroyEnvironmentRaycaster()
+{
+	MRUKShared::GetInstance()->DestroyEnvironmentRaycaster();
+}
+
+EMRUKEnvironmentRaycasterStatus UMRUKSubsystem::EnvironmentRaycasterStatus() const
+{
+	switch (MRUKShared::GetInstance()->EnvironmentRaycasterStatus())
+	{
+		case MRUKShared::EnvironmentRaycasterStatus::Creating:
+			return EMRUKEnvironmentRaycasterStatus::Creating;
+		case MRUKShared::EnvironmentRaycasterStatus::Stopped:
+			return EMRUKEnvironmentRaycasterStatus::Stopped;
+		case MRUKShared::EnvironmentRaycasterStatus::Ready:
+			return EMRUKEnvironmentRaycasterStatus::Ready;
+	}
+
+	return EMRUKEnvironmentRaycasterStatus::Stopped;
+}
+
+FMRUKEnvironmentRaycastHit UMRUKSubsystem::RaycastEnvironment(const FVector& Origin, const FVector& Direction, float MaxDistance)
+{
+	const FXRTrackingSystemBase* TS = static_cast<FXRTrackingSystemBase*>(GEngine->XRSystem.Get());
+	if (!TS)
+	{
+		UE_LOG(LogMRUK, Error, TEXT("Unable to do environment raycast without tracking system"));
+		FMRUKEnvironmentRaycastHit Hit{};
+		Hit.status = EMRUKEnvironmentRaycastHitStatus::Failure;
+		return Hit;
+	}
+	const FTransform TrackingToWorld = TS->GetTrackingToWorldTransform();
+	const FTransform WorldToTracking = TrackingToWorld.Inverse();
+
+	const FVector DirectionNormalized = Direction.GetSafeNormal();
+	const float WorldToMeters = GetWorld()->GetWorldSettings()->WorldToMeters;
+
+	if (MaxDistance == 0.0f)
+	{
+		MaxDistance = FLT_MAX;
+	}
+	else
+	{
+		MaxDistance /= WorldToMeters;
+	}
+
+	MRUKShared::EnvironmentRaycastHitPointGetInfo Info{};
+	Info.startPoint = PositionToMrukShared(WorldToTracking.TransformPosition(Origin), WorldToMeters);
+	Info.direction = UnitVectorToMrukShared(WorldToTracking.TransformVector(DirectionNormalized));
+	Info.maxDistance = MaxDistance;
+
+	MRUKShared::EnvironmentRaycastHitPoint HitPoint{};
+	MRUKShared::Result Result = MRUKShared::GetInstance()->RaycastEnvironment(&Info, &HitPoint);
+
+	FMRUKEnvironmentRaycastHit RaycastHit{};
+	RaycastHit.point = TrackingToWorld.TransformPosition(PositionToUnreal(HitPoint.point, WorldToMeters));
+	RaycastHit.normal = TrackingToWorld.TransformVector(-UnitVectorToUnreal(HitPoint.normal)).GetSafeNormal();
+	RaycastHit.orientation = TrackingToWorld.TransformRotation(ToUnreal(HitPoint.orientation));
+
+	if (Result != MRUKShared::Result::Success)
+	{
+		RaycastHit.status = EMRUKEnvironmentRaycastHitStatus::Failure;
+	}
+	else
+	{
+		switch (HitPoint.status)
+		{
+			case MRUKShared::EnvironmentRaycastStatus::InvalidOrientation:
+			case MRUKShared::EnvironmentRaycastStatus::Hit:
+				RaycastHit.status = EMRUKEnvironmentRaycastHitStatus::Hit;
+				break;
+
+			case MRUKShared::EnvironmentRaycastStatus::NoHit:
+				RaycastHit.status = EMRUKEnvironmentRaycastHitStatus::NoHit;
+				break;
+			case MRUKShared::EnvironmentRaycastStatus::HitPointOccluded:
+				RaycastHit.status = EMRUKEnvironmentRaycastHitStatus::HitPointOccluded;
+				break;
+			case MRUKShared::EnvironmentRaycastStatus::HitPointOutsideFov:
+				RaycastHit.status = EMRUKEnvironmentRaycastHitStatus::HitPointOutsideFov;
+				break;
+			case MRUKShared::EnvironmentRaycastStatus::RayOccluded:
+				RaycastHit.status = EMRUKEnvironmentRaycastHitStatus::RayOccluded;
+				break;
+			case MRUKShared::EnvironmentRaycastStatus::Max:
+				RaycastHit.status = EMRUKEnvironmentRaycastHitStatus::Failure;
+				break;
+		}
+	}
+
+	return RaycastHit;
+}
+
+void UMRUKSubsystem::ConfigureTrackers(const FMRUKTrackerConfiguration& Configuration)
+{
+	uint32_t TrackableMask = 0;
+
+	if (Configuration.bEnableKeyboardTracking)
+	{
+		TrackableMask |= static_cast<uint32_t>(MRUKShared::TrackableType::Keyboard);
+	}
+
+	if (Configuration.bEnableQRCodeTracking)
+	{
+		TrackableMask |= static_cast<uint32_t>(MRUKShared::TrackableType::Qrcode);
+	}
+
+	UE_LOG(LogMRUK, Log, TEXT("Configuring trackers: Keyboard=%d, QRCode=%d"), Configuration.bEnableKeyboardTracking, Configuration.bEnableQRCodeTracking);
+	MRUKShared::GetInstance()->ConfigureTrackers(TrackableMask);
+}
+
+void UMRUKSubsystem::DisableTrackers()
+{
+	ConfigureTrackers({});
 }
 
 FBox UMRUKSubsystem::GetActorClassBounds(TSubclassOf<AActor> Actor)
 {
-	if (const auto Entry = ActorClassBoundsCache.Find(Actor))
+	if (const FBox* Entry = ActorClassBoundsCache.Find(Actor))
 	{
 		return *Entry;
 	}
-	const auto TempActor = GetWorld()->SpawnActor(Actor);
-	const auto Bounds = TempActor->CalculateComponentsBoundingBoxInLocalSpace(true);
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	AActor* TempActor = GetWorld()->SpawnActor(Actor, nullptr, nullptr, SpawnParams);
+	if (!TempActor)
+	{
+		UE_LOG(LogMRUK, Warning, TEXT("Failed to spawn actor for bounds calculation"));
+		return FBox(ForceInit);
+	}
+	const FBox Bounds = TempActor->CalculateComponentsBoundingBoxInLocalSpace(true);
 	TempActor->Destroy();
 	ActorClassBoundsCache.Add(Actor, Bounds);
 	return Bounds;
@@ -751,13 +1084,13 @@ void UMRUKSubsystem::Tick(float DeltaTime)
 		{
 			if (APawn* Pawn = PlayerController->GetPawn())
 			{
-				MRUKShared::MrukPosef SharedLibOffset;
+				MRUKShared::Posef SharedLibOffset;
 				SharedLibOffset.position = { 0.0f, 0.0f, 0.0f };
 				SharedLibOffset.rotation = { 0.0f, 0.0f, 0.0f, 1.0f };
 				if (MRUKShared::GetInstance()->GetWorldLockOffset(&SharedLibOffset))
 				{
 					const float WorldToMeters = GetWorld() ? GetWorld()->GetWorldSettings()->WorldToMeters : 100.0f;
-					auto Transform = ToUnreal(SharedLibOffset, WorldToMeters);
+					const FTransform Transform = ToUnreal(SharedLibOffset, WorldToMeters);
 					Pawn->SetActorLocationAndRotation(Transform.GetTranslation(), Transform.GetRotation());
 				}
 			}
@@ -765,14 +1098,14 @@ void UMRUKSubsystem::Tick(float DeltaTime)
 	}
 
 	uint64_t NextPredictedDisplayTime = 0;
-	if (EnableOpenXr)
+	if (bOpenXRInitialized)
 	{
 		uint64_t NewBaseSpace = 0;
 		UOculusXRFunctionLibrary::GetAppSpace(&NewBaseSpace);
 		if (NewBaseSpace != OpenXrBaseSpace)
 		{
 			OpenXrBaseSpace = NewBaseSpace;
-			MRUKShared::GetInstance()->SetBaseSpace(OpenXrBaseSpace);
+			MRUKShared::GetInstance()->SetBaseSpace(NewBaseSpace);
 		}
 
 		UOculusXRFunctionLibrary::GetNextPredictedDisplayTime(&NextPredictedDisplayTime);

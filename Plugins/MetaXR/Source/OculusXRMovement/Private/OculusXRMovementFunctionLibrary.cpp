@@ -9,9 +9,9 @@
 #include "OculusXRHMD.h"
 #include "OculusXRMovementLiveLink.h"
 
-bool UOculusXRMovementFunctionLibrary::TryGetBodyState(FOculusXRBodyState& outBodyState, float WorldToMeters)
+bool UOculusXRMovementFunctionLibrary::TryGetBodyState(FOculusXRBodyState& outBodyState)
 {
-	return OculusXRMovement::GetBodyState(outBodyState, WorldToMeters);
+	return OculusXRMovement::GetBodyState(outBodyState);
 }
 
 bool UOculusXRMovementFunctionLibrary::IsBodyTrackingEnabled()
@@ -99,9 +99,9 @@ bool UOculusXRMovementFunctionLibrary::StopFaceTracking()
 	return OculusXRMovement::StopFaceTracking();
 }
 
-bool UOculusXRMovementFunctionLibrary::TryGetEyeGazesState(FOculusXREyeGazesState& outEyeGazesState, float WorldToMeters)
+bool UOculusXRMovementFunctionLibrary::TryGetEyeGazesState(FOculusXREyeGazesState& outEyeGazesState)
 {
-	return OculusXRMovement::GetEyeGazesState(outEyeGazesState, WorldToMeters);
+	return OculusXRMovement::GetEyeGazesState(outEyeGazesState);
 }
 
 bool UOculusXRMovementFunctionLibrary::IsEyeTrackingEnabled()

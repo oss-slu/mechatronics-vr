@@ -6,7 +6,7 @@
 #include "Misc/EngineVersionComparison.h"
 
 #include "VariableRateShadingImageManager.h"
-#include "XRSwapchain.h"
+#include "XRSwapChain.h"
 
 class FOculusXRFoveatedRenderingImageGenerator : public IVariableRateShadingImageGenerator
 {

@@ -48,7 +48,14 @@ public class MRUtilityKit : ModuleRules
                 "MRUtilityKitShared",
                 "OpenXR",
                 "OpenXRHMD",
+                "RHI",
             });
+
+        // VulkanRHI is not available on Mac
+        if (Target.Platform != UnrealTargetPlatform.Mac)
+        {
+            PrivateDependencyModuleNames.Add("VulkanRHI");
+        }
 
         if (Target.bBuildEditor == true)
         {

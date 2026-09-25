@@ -26,7 +26,7 @@ void UMRUKDebugComponent::ShowAnchorAtRayHit(const FVector& Origin, const FVecto
 
 	HideAnchor();
 
-	const auto Subsystem = GetOwner()->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	auto* Subsystem = GetOwner()->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 	if (!Subsystem)
 	{
 		UE_LOG(LogMRUK, Warning, TEXT("Can not show anchor because there is no MRUtilityKit subsystem"));
@@ -35,7 +35,7 @@ void UMRUKDebugComponent::ShowAnchorAtRayHit(const FVector& Origin, const FVecto
 
 	FMRUKHit Hit{};
 	FMRUKLabelFilter LabelFilter{};
-	auto Anchor = Subsystem->Raycast(Origin, Direction, 0.0, LabelFilter, Hit);
+	auto* Anchor = Subsystem->Raycast(Origin, Direction, 0.0, LabelFilter, Hit);
 	if (!Anchor)
 	{
 		return;
@@ -76,9 +76,9 @@ void UMRUKDebugComponent::ShowAnchorAtRayHit(const FVector& Origin, const FVecto
 		ActiveTextActor->SetActorHiddenInGame(false);
 	}
 
-	auto TextRenderComponent = ActiveTextActor->GetComponentByClass<UTextRenderComponent>();
+	auto* TextRenderComponent = ActiveTextActor->GetComponentByClass<UTextRenderComponent>();
 	FString Text;
-	for (int i = 0; i < Anchor->SemanticClassifications.Num(); ++i)
+	for (int32 i = 0; i < Anchor->SemanticClassifications.Num(); ++i)
 	{
 		if (i != 0)
 		{
@@ -110,7 +110,7 @@ void UMRUKDebugComponent::HideAnchor()
 
 void UMRUKDebugComponent::ShowAnchorSpaceAtRayHit(const FVector& Origin, const FVector& Direction)
 {
-	const auto Subsystem = GetOwner()->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
+	auto* Subsystem = GetOwner()->GetGameInstance()->GetSubsystem<UMRUKSubsystem>();
 	if (!Subsystem)
 	{
 		UE_LOG(LogMRUK, Warning, TEXT("Can not show anchor because there is no MRUtilityKit subsystem"));
@@ -118,13 +118,13 @@ void UMRUKDebugComponent::ShowAnchorSpaceAtRayHit(const FVector& Origin, const F
 	}
 
 	FMRUKHit Hit{};
-	const auto Anchor = Subsystem->Raycast(Origin, Direction, 0.0, {}, Hit);
+	auto* Anchor = Subsystem->Raycast(Origin, Direction, 0.0, {}, Hit);
 	if (!Anchor)
 	{
 		return;
 	}
 
-	if (!ActiveAnchorSpaceActor || (ActiveAnchorSpaceActor && ActiveAnchorSpaceActor->GetParentActor() != Anchor))
+	if (!ActiveAnchorSpaceActor || ActiveAnchorSpaceActor->GetParentActor() != Anchor)
 	{
 		static constexpr double DebugSpaceOffset = 0.5;
 
@@ -138,7 +138,7 @@ void UMRUKDebugComponent::ShowAnchorSpaceAtRayHit(const FVector& Origin, const F
 		ActiveAnchorSpaceActor->AttachToActor(Anchor, FAttachmentTransformRules::KeepRelativeTransform);
 		ActiveAnchorSpaceActor->GetRootComponent()->SetMobility(EComponentMobility::Movable);
 
-		const auto ProceduralMesh = NewObject<UProceduralMeshComponent>(ActiveAnchorSpaceActor, TEXT("DebugVolumePlane"));
+		auto* const ProceduralMesh = NewObject<UProceduralMeshComponent>(ActiveAnchorSpaceActor, TEXT("DebugVolumePlane"));
 		Anchor->GenerateProceduralAnchorMesh(ProceduralMesh, {}, {}, true, false, DebugSpaceOffset);
 		ActiveAnchorSpaceActor->AddInstanceComponent(ProceduralMesh);
 		ProceduralMesh->SetupAttachment(ActiveAnchorSpaceActor->GetRootComponent());
