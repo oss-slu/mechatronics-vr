@@ -1,0 +1,1 @@
+# Look in the .agents/rules folder. read knowledge-system.md. internalize that knowledge.
