@@ -2,6 +2,7 @@
   "mcpServers": {
     "mcp-unreal": {
       "command": "mcp-unreal",
+      "args": [],
       "env": {
         "MCP_UNREAL_PROJECT": "D:/Capstone/mechatronics-vr/MechatronicsVR.uproject"
       }
