@@ -27,6 +27,11 @@ UGrabRayCaster::UGrabRayCaster()
 // Also, if the pulled objects collides with a physics object, the pull can be off (could interp location, but I would rather it be more physical)
 void UGrabRayCaster::SuckObjectToSource() const
 {
+	if (const UGrabComponent* GrabComp = ActorRef->FindComponentByClass<UGrabComponent>(); GrabComp && !GrabComp->bIsGrabbable)
+	{
+		return;
+	}
+
 	UStaticMeshComponent* MeshComponent = ActorRef->FindComponentByClass<UStaticMeshComponent>();
 	if (UPrimitiveComponent* PrimitiveComp = MeshComponent)
 	{
@@ -148,6 +153,13 @@ UGrabComponent* UGrabRayCaster::CheckReachForGrabComponent()
 		{
 			if (UGrabComponent* GrabComponent = GrabActor->GetComponentByClass<UGrabComponent>())
 			{
+				// Non-grabbable objects (e.g. snapped parts) must not be targeted, or the pull would re-enable their physics
+				if (!GrabComponent->bIsGrabbable)
+				{
+					DeselectObject();
+					return nullptr;
+				}
+
 				UE_LOG(LogTemp, Log, TEXT("Hit GrabComponent Actor: %s"), *GrabActor->GetName());
 
 				// action for if you hit different objects on consecutive ticks
