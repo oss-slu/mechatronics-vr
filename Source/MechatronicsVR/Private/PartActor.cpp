@@ -290,7 +290,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 			Mesh->SetSimulatePhysics(false);
 			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		}
-		GrabComponent->SetActive(false);
+		GrabComponent->bIsGrabbable = false;
 		HideGhostOutline();
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
@@ -318,7 +318,7 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 					Mesh->SetSimulatePhysics(false);
 					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 				}
-				GrabComponent->SetActive(false);
+				GrabComponent->bIsGrabbable = false;
 				HideGhostOutline();
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
