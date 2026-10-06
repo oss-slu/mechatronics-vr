@@ -3,6 +3,8 @@ Current Tech Lead:** Cole Patrick [<img src="/img/github.svg" alt="github" width
 Current Developers:
    - Alexander Myers [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/CosmicOriginDev)
    - William Kraus (https://github.com/27williamkraus)
+   - Jafet Calderon [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/ja-c-31)
+
 Past Developers:
    - Anthony Russo (alumni, prior tech lead) [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/AanthonyRusso)
    - Bryce Hayes (alumni) [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/bhayes04)
