@@ -1,14 +1,15 @@
-Current Tech Lead:** Cole Patrick [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/colepatrick) [<img src="/img/linkedin.svg" alt="linkedin" width="25" height="25" />](https://www.linkedin.com/in/cole-patrick/)
+Current Tech Lead:** Cole Patrick (https://github.com/colepatrick) (https://www.linkedin.com/in/cole-patrick/)
 
 Current Developers:
-   - Alexander Myers [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/CosmicOriginDev)
+   - Alexander Myers (https://github.com/CosmicOriginDev)
    - William Kraus (https://github.com/27williamkraus)
-   - Jafet Calderon [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/ja-c-31)
+   - Jafet Calderon (https://github.com/ja-c-31)
 
 Past Developers:
-   - Anthony Russo (alumni, prior tech lead) [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/AanthonyRusso)
-   - Bryce Hayes (alumni) [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/bhayes04)
-   - Matthew Murawski (alumni) [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/MatthewMurawski)
-   - Julian Shniter (alumni, prior tech lead) [<img src="/img/github.svg" alt="github" width="25" height="25" />](https://github.com/smallrussian)
+   - Anthony Russo (alumni, prior tech lead) (https://github.com/AanthonyRusso)
+   - Bryce Hayes (alumni) (https://github.com/bhayes04)
+   - Matthew Murawski (alumni) (https://github.com/MatthewMurawski)
+   - Julian Shniter (alumni, prior tech lead) (https://github.com/smallrussian)
    
 Outside Contributors:
+- 
