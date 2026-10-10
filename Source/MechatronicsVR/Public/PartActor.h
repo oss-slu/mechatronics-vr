@@ -57,6 +57,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Snap")
 	bool TrySnapToPreview();
 
+	bool IsPlacedInAssembly() const;
+	bool ForceSnapIntoAssembly(int32 RecursionDepth = 0);
+
 
 	
 	/** Preview mesh that shows where this part will snap */
@@ -220,6 +223,8 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 private:
+	USnapPointComponent* FindAssemblySnapTarget() const;
+
 	UPROPERTY()
 	TObjectPtr<APartActor> PartAssembledOnto = nullptr;
 

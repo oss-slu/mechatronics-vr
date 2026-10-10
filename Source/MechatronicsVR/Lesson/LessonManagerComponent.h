@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "InputCoreTypes.h"
 #include "LessonTypes.h"
 #include "LessonDataAsset.h"
 #include "LessonStep.h"
@@ -19,6 +20,8 @@ class UInteractionStep;
 class AAssemblyActor;
 class APartActor;
 class UMechatronicsGameInstance;
+class UInputComponent;
+class APlayerController;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManagerLessonStarted, ULessonDataAsset*, LessonData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnManagerLessonCompleted, ULessonDataAsset*, LessonData);
@@ -79,7 +82,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|Settings")
 	float StepTransitionDelay = 1.0f;
 
-	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|Debug")
+	bool bEnableDebugSkipStepKey = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lesson Manager|Debug")
+	FKey DebugSkipStepKey = EKeys::F10;
+
 
 	// === EVENTS ===
     
@@ -155,9 +163,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lesson System")
 	void SetUIManager(ULessonUIManagerComponent* InUIManager);
 
+	void DebugSkipCurrentStep();
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction);
 
 	// === STEP MANAGEMENT ===
@@ -197,6 +208,10 @@ protected:
 	void FindExternalReferences();
 	void ConnectToExistingSystems();
 
+	void BindDebugSkipStepKey();
+	void HandleDebugSkipStepKey();
+	void PlaceTargetPartsUpToStep(int32 LastStepIndex);
+
 private:
 	// === INTERNAL STATE ===
     
@@ -205,7 +220,12 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
-	
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputComponent> DebugInputComponent = nullptr;
+
+	TWeakObjectPtr<APlayerController> DebugInputController;
+
 
 
 

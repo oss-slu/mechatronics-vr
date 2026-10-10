@@ -88,6 +88,8 @@ void UAssembleStep::BindAssemblyEvents()
 
 void UAssembleStep::UnbindAssemblyEvents()
 {
+	if (!IsValid(AssemblyActor)) return;
+
 	AssemblyActor->OnAssemblyStateChanged.RemoveDynamic(this, &UAssembleStep::HandleAssemblyStateChanged);
 
 	AssemblyActor->OnPartsConnected.RemoveDynamic(this, &UAssembleStep::HandlePartsConnected);

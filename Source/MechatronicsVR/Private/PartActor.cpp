@@ -160,7 +160,12 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
 			}
 		}
 	}
-	
+
+	return FindAssemblySnapTarget();
+}
+
+USnapPointComponent* APartActor::FindAssemblySnapTarget() const
+{
     // Get all my snap points 
     TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
     
@@ -328,6 +333,91 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 		}
 	
 	return false;
+}
+
+bool APartActor::IsPlacedInAssembly() const
+{
+	if (bIsSnapped)
+	{
+		return true;
+	}
+
+	TArray<USnapPointComponent*> MountSnapPoints;
+	if (IsValid(PartAssembledOnto))
+	{
+		MountSnapPoints.Append(PartAssembledOnto->GetSnapPoints());
+	}
+	if (IsValid(AssemblyActor))
+	{
+		MountSnapPoints.Append(AssemblyActor->GetBaseSnapPoints());
+	}
+
+	for (USnapPointComponent* MySnap : GetSnapPoints())
+	{
+		if (!MySnap || !MySnap->bIsAssembled)
+		{
+			continue;
+		}
+		for (USnapPointComponent* MountSnap : MountSnapPoints)
+		{
+			if (MountSnap && MountSnap->bIsAssembled &&
+				MySnap->CanAcceptPoint(MountSnap) && MountSnap->CanAcceptPoint(MySnap))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool APartActor::ForceSnapIntoAssembly(int32 RecursionDepth)
+{
+	constexpr int32 MaxRecursionDepth = 16;
+
+	if (IsPlacedInAssembly())
+	{
+		return true;
+	}
+
+	if (!IsValid(AssemblyActor))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s: ForceSnapIntoAssembly - No AssemblyActor, cannot place part"), *GetName());
+		return false;
+	}
+
+	if (IsValid(PartAssembledOnto) && !PartAssembledOnto->IsPlacedInAssembly())
+	{
+		if (RecursionDepth >= MaxRecursionDepth || !PartAssembledOnto->ForceSnapIntoAssembly(RecursionDepth + 1))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("%s: ForceSnapIntoAssembly - Could not place parent part %s first"),
+				*GetName(), *PartAssembledOnto->GetName());
+		}
+	}
+
+	if (GrabComponent && GrabComponent->IsGrabbed())
+	{
+		GrabComponent->TryRelease();
+		if (IsPlacedInAssembly())
+		{
+			return true;
+		}
+	}
+
+	USnapPointComponent* TargetSnapPoint = FindAssemblySnapTarget();
+	USnapPointComponent* MySnapPointForTarget = TargetSnapPoint ? GetBestSnapPointFor(TargetSnapPoint) : nullptr;
+	if (!MySnapPointForTarget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s: ForceSnapIntoAssembly - No free compatible snap target found"), *GetName());
+		return false;
+	}
+
+	SetActorTransform(CalculateSnapTransform(MySnapPointForTarget, TargetSnapPoint), false, nullptr, ETeleportType::TeleportPhysics);
+	CurrentTargetSnapPoint = TargetSnapPoint;
+
+	const bool bSnapped = TrySnapToPreview();
+	UE_LOG(LogTemp, Log, TEXT("%s: ForceSnapIntoAssembly - %s to %s"), *GetName(),
+		bSnapped ? TEXT("Snapped") : TEXT("FAILED to snap"), *TargetSnapPoint->GetName());
+	return bSnapped;
 }
 
 bool APartActor::IsAttachedToMotionController() const
