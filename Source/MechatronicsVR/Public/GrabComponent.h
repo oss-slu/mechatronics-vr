@@ -27,6 +27,10 @@ public:
 	// Sets default values for this component's properties
 	UGrabComponent();
 
+	/** Whether this component can be grabbed. TryGrab returns false when this is false. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Grab")
+	bool bIsGrabbable = true;
+
 	/** Whether this component is currently held */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Grab")
 	bool bIsHeld = false;

@@ -1,0 +1,97 @@
+name: Repository SBOM (Syft)
+
+# Generates a Software Bill of Materials (SBOM) for the repository contents on every
+# push to main, keeps it as a downloadable workflow artifact, and attests it so anyone
+# can verify with the GitHub CLI that a given SBOM file came from this workflow at a
+# given commit.
+#
+# Scope: the repository checkout (plugins, committed third-party binaries, C++ source,
+# configuration, workflows). This is the repository-level half of the OSS-SLU
+# Supply-Chain Security Baseline for game-engine projects. The other half, scanning the
+# packaged Windows shipping build, is a manual step on the packager's workstation and is
+# documented in ue5_shipping_build_packaging_guide.md, because shipping builds are not
+# produced on GitHub runners.
+#
+# No Unreal Engine, no compilation, no devices involved.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # manual run from the Actions tab, e.g. to test a change to this file
+
+permissions:
+  contents: read           # check out the repository
+  id-token: write          # request the short-lived OIDC token that signs the attestation
+  attestations: write      # store the signed attestation in GitHub's attestation log
+  artifact-metadata: write # link the attestation to this repository's artifacts
+
+env:
+  SBOM_FILE: mechatronics_vr-sbom.spdx.json
+
+jobs:
+  sbom:
+    name: Generate, preserve, and attest repository SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20 # the checkout is a few GB of content assets; the scan itself takes seconds
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Generate SPDX JSON SBOM with Syft
+        # anchore/sbom-action wraps Syft. Pinned so every run measures with the same tool.
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: ${{ env.SBOM_FILE }}
+          syft-version: v1.52.0
+          upload-artifact: false # uploaded explicitly in the next step under a stable name
+          upload-release-assets: false
+
+      - name: Summarize what was found
+        shell: bash
+        run: |
+          python3 - "$SBOM_FILE" >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          import json, sys
+          doc = json.load(open(sys.argv[1]))
+          pkgs = doc.get("packages", [])
+          print("## Repository SBOM")
+          print()
+          print(f"`{sys.argv[1]}` — SPDX {doc.get('spdxVersion','?').replace('SPDX-','')} JSON, "
+                f"{len(pkgs)} package entries, {len(doc.get('files', []))} file entries.")
+          print()
+          print("| Package | Version |")
+          print("|---|---|")
+          for p in sorted(pkgs, key=lambda p: p["name"].lower()):
+              print(f"| `{p['name']}` | {p.get('versionInfo', 'NOASSERTION')} |")
+          print()
+          print("Unreal Engine itself, engine-bundled plugins and `.uplugin`/`.Build.cs` declarations "
+                "have no Syft cataloger and are not listed. See `ue5_shipping_build_packaging_guide.md` "
+                "for scanning a packaged shipping build.")
+          EOF
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mechatronics_vr-sbom
+          path: ${{ env.SBOM_FILE }}
+          if-no-files-found: error
+
+      - name: Attest build provenance of the SBOM file
+        # Signs the SBOM file's digest with this workflow's identity (repository, workflow
+        # path, commit). Verify a downloaded copy with:
+        #   gh attestation verify mechatronics_vr-sbom.spdx.json --owner oss-slu
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ env.SBOM_FILE }}
+
+      - name: Attest SBOM contents
+        # A second attestation whose predicate is the SPDX document itself, so the SBOM's
+        # contents (not just the file's digest) are bound to this commit. Verify with:
+        #   gh attestation verify mechatronics_vr-sbom.spdx.json --owner oss-slu \
+        #     --predicate-type https://spdx.dev/Document/v2.3
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ env.SBOM_FILE }}
+          sbom-path: ${{ env.SBOM_FILE }}

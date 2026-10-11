@@ -88,6 +88,8 @@ void UAssembleStep::BindAssemblyEvents()
 
 void UAssembleStep::UnbindAssemblyEvents()
 {
+	if (!IsValid(AssemblyActor)) return;
+
 	AssemblyActor->OnAssemblyStateChanged.RemoveDynamic(this, &UAssembleStep::HandleAssemblyStateChanged);
 
 	AssemblyActor->OnPartsConnected.RemoveDynamic(this, &UAssembleStep::HandlePartsConnected);
@@ -243,7 +245,7 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 // Helper function to check if a single part is a target
 bool UAssembleStep::IsTargetPart(APartActor* Part) const
 {
-	if (!Part) return false;
+	if (!IsValid(Part)) return false;
 
 	for (TSubclassOf<APartActor> TargetClass : TargetPartClasses)
 	{
@@ -285,7 +287,7 @@ void UAssembleStep::FindTargetPartInstances(TArray<APartActor*>& OutParts) const
 	for (TActorIterator<APartActor> It(World); It; ++It)
 	{
 		APartActor* Part = *It;
-		if (!Part || !Part->IsValidLowLevelFast())
+		if (!IsValid(Part))
 		{
 			continue;
 		}

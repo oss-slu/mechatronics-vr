@@ -11,7 +11,9 @@
 #include "AssemblyActor.h"
 #include "EngineUtils.h"
 #include "PartActor.h"
+#include "Components/InputComponent.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
@@ -80,10 +82,20 @@ void ULessonManagerComponent::BeginPlay()
 	// The GameMode will call InitializeLessonFromDataAsset() directly when ready
 	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent: Waiting for GameMode to initialize lesson"));
 	bInitialized = true;
-	// ...
-	
-	
-	
+
+	BindDebugSkipStepKey();
+}
+
+void ULessonManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (DebugInputComponent && DebugInputController.IsValid())
+	{
+		DebugInputController->PopInputComponent(DebugInputComponent);
+	}
+	DebugInputComponent = nullptr;
+	DebugInputController.Reset();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 
@@ -501,7 +513,118 @@ void ULessonManagerComponent::HandleStepTransitionDelay()
 	bWaitingForStepTransition = false;
 	AdvanceStep();
 
-	
+
+}
+
+void ULessonManagerComponent::BindDebugSkipStepKey()
+{
+#if WITH_EDITOR
+	UWorld* World = GetWorld();
+	if (!bEnableDebugSkipStepKey || !World || !World->IsPlayInEditor() || DebugInputComponent)
+	{
+		return;
+	}
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (!PC)
+	{
+		World->GetTimerManager().SetTimerForNextTick(this, &ULessonManagerComponent::BindDebugSkipStepKey);
+		return;
+	}
+
+	DebugInputComponent = NewObject<UInputComponent>(this, TEXT("LessonDebugInput"));
+	DebugInputComponent->BindKey(DebugSkipStepKey, IE_Pressed, this, &ULessonManagerComponent::HandleDebugSkipStepKey);
+	PC->PushInputComponent(DebugInputComponent);
+	DebugInputController = PC;
+
+	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent: PIE debug - press %s to skip the current lesson step"),
+		*DebugSkipStepKey.GetDisplayName().ToString());
+#endif
+}
+
+void ULessonManagerComponent::HandleDebugSkipStepKey()
+{
+	DebugSkipCurrentStep();
+}
+
+void ULessonManagerComponent::DebugSkipCurrentStep()
+{
+	if (!bIsLessonActive || bIsLessonCompleted)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::DebugSkipCurrentStep - No active lesson"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::DebugSkipCurrentStep - Skipping step %d"), CurrentStepIndex);
+
+	PlaceTargetPartsUpToStep(CurrentStepIndex);
+
+	if (!bIsLessonActive || bIsLessonCompleted)
+	{
+		return;
+	}
+
+	if (CurrentStep && !CurrentStep->bStepCompleted)
+	{
+		if (CurrentStep->IsActive())
+		{
+			CurrentStep->CompleteStep();
+		}
+		else
+		{
+			CompleteCurrentStep();
+		}
+	}
+
+	if (!bIsLessonActive || bIsLessonCompleted)
+	{
+		return;
+	}
+
+	GetWorld()->GetTimerManager().ClearTimer(StepTransitionTimer);
+	bWaitingForStepTransition = false;
+	AdvanceStep();
+}
+
+void ULessonManagerComponent::PlaceTargetPartsUpToStep(int32 LastStepIndex)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<APartActor*> PartsToPlace;
+	for (int32 StepIndex = 0; StepIndex <= LastStepIndex && StepIndex < LessonSteps.Num(); ++StepIndex)
+	{
+		const UAssembleStep* AssembleStep = Cast<UAssembleStep>(LessonSteps[StepIndex]);
+		if (!AssembleStep)
+		{
+			continue;
+		}
+
+		for (TActorIterator<APartActor> It(World); It; ++It)
+		{
+			if (AssembleStep->IsTargetPart(*It))
+			{
+				PartsToPlace.AddUnique(*It);
+			}
+		}
+	}
+
+	for (APartActor* Part : PartsToPlace)
+	{
+		if (!IsValid(Part) || Part->IsPlacedInAssembly())
+		{
+			continue;
+		}
+
+		if (!Part->ForceSnapIntoAssembly())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::PlaceTargetPartsUpToStep - Could not place %s"),
+				*Part->GetName());
+		}
+	}
 }
 
 // === QUERY FUNCTIONS ===

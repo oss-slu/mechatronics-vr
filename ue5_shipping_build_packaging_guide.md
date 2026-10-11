@@ -99,7 +99,30 @@ Once packaging completes, navigate to the output directory and confirm the follo
 
 ---
 
-## Step 6 — Document the Build
+## Step 6 — Generate a Shipping SBOM
+
+A Software Bill of Materials (SBOM) is an inventory of every component inside the packaged build. Generate one for each shipping build, after validation in Step 5, using [Syft](https://github.com/anchore/syft) (install once with `winget install Anchore.Syft` or `choco install syft`).
+
+1. Open PowerShell in the Staging Directory from Step 2 (the folder containing `Windows\`).
+2. Run Syft against the packaged output, replacing `<COMMIT_SHA>` with the commit the build was packaged from (`git rev-parse --short HEAD` in the repository):
+```powershell
+   syft scan dir:.\Windows --source-name mechatronics-vr-shipping --source-version <COMMIT_SHA> -o spdx-json=mechatronics_vr_shipping-sbom.spdx.json
+```
+3. Keep `mechatronics_vr_shipping-sbom.spdx.json` **next to** the distribution `.zip` (not inside it), and record checksums for both so downloaders can confirm they are unaltered:
+```powershell
+   Get-FileHash -Algorithm SHA256 *.zip, *.spdx.json | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Set-Content SHA256SUMS.txt
+```
+4. Publish the `.zip`, the SBOM, and `SHA256SUMS.txt` together (as GitHub Release assets, or in the same folder wherever the build is handed off).
+
+> **Note:** A second, repository-level SBOM is generated automatically by `.github/workflows/sbom.yml` on every push to `main` and is cryptographically attested by GitHub. The shipping SBOM cannot be attested, because attestations are only issued to workflows running on GitHub Actions — the checksums above serve that role. To verify the repository SBOM for the packaged commit, download `mechatronics_vr-sbom.spdx.json` from that commit's run on the Actions tab and run (with the [GitHub CLI](https://cli.github.com/) signed in):
+> ```
+> gh attestation verify mechatronics_vr-sbom.spdx.json --owner oss-slu
+> ```
+> Success prints the repository, workflow, and commit SHA that produced the file; confirm the SHA matches the packaged commit.
+
+---
+
+## Step 7 — Document the Build
 
 After validation, create or update the project's packaging report to record:
 
@@ -108,6 +131,7 @@ After validation, create or update the project's packaging report to record:
 - Desktop validation status
 - VR validation status (if applicable)
 - Any known issues or pending follow-up items
+- The shipping SBOM file name and its SHA-256 checksum
 
 This ensures the team maintains a clear record of each build's state and readiness for release.
 
