@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "mcp-unreal": {
-      "command": "/home/mudkipindisguise/gopath/bin/mcp-unreal",
+      "command": "mcp-unreal",
       "env": {
         "MCP_UNREAL_PROJECT": "D:/Capstone/mechatronics-vr/MechatronicsVR.uproject"
       }
