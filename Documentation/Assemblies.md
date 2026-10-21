@@ -31,3 +31,28 @@
     - The motor's speed, max rpm, and axis of rotation can all be changed in the details menu
 - Each part actor contains a reference to the base assembly
     - This allows the part actor to know what assembly it should belong to
+
+# Electrical Parts
+- Part actors can be marked as electrical to show which direction electricity flows through them
+- Moving arrows appear on the surface of the part, pointing in the direction of flow
+- To make a part electrical, open its blueprint, go to the Electrical category in the details menu, and check Is Electrical
+- The direction of flow is set with these properties
+    - Electrical Flow Mode
+        - Linear: electricity flows along the axis, like current through a wire
+        - Circular: electricity loops around the axis, like current through a coil
+    - Electrical Flow Axis
+        - The axis is relative to the part, so it rotates with the part
+    - Reverse Electrical Flow
+        - Flips the direction of flow
+- The arrows can be adjusted in the Electrical > Arrows category
+    - Lanes is the number of rows of arrows
+    - Arrows Per Lane is the number of arrows in each row
+    - Speed is how fast the arrows move, 0 makes them static
+    - Size is the arrow length in cm, larger parts need larger arrows
+    - Color, mesh, and material can also be changed
+- Electricity can be turned on or off while the lesson is running
+    - Call Set Electrical Flow Enabled from a blueprint or the lesson system
+    - Electrical Flow Enabled in the details menu sets whether the part starts on or off
+- Notes
+    - Arrows only appear in play mode, not in the editor viewport
+    - Arrows are placed on the part's collision, so thin parts or parts with gaps may show fewer arrows

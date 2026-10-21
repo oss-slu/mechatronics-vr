@@ -13,6 +13,14 @@ class USnapPointComponent;
 class AAssemblyActor;
 class UGrabComponent;
 class AssemblyStep;
+class UStaticMesh;
+
+UENUM(BlueprintType)
+enum class EElectricalFlowMode : uint8
+{
+	Linear   UMETA(DisplayName = "Linear (Along Axis)"),
+	Circular UMETA(DisplayName = "Circular (Around Axis)")
+};
 
 UCLASS()
 class MECHATRONICSVR_API APartActor : public AActor
@@ -182,6 +190,48 @@ public:
 	UFUNCTION(BlueprintPure,Category="Motor")
 	float GetCurrentRPM() const {return MotorSpeed * MaxRPM;}
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical")
+	bool bIsElectrical = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Electrical", meta = (EditCondition = "bIsElectrical"))
+	bool bElectricalFlowEnabled = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical", meta = (EditCondition = "bIsElectrical"))
+	EElectricalFlowMode ElectricalFlowMode = EElectricalFlowMode::Linear;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical", meta = (EditCondition = "bIsElectrical"))
+	FVector ElectricalFlowAxis = FVector::ForwardVector;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical", meta = (EditCondition = "bIsElectrical"))
+	bool bReverseElectricalFlow = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical|Arrows", meta = (EditCondition = "bIsElectrical", ClampMin = "1", ClampMax = "8"))
+	int32 ElectricalArrowLanes = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical|Arrows", meta = (EditCondition = "bIsElectrical", ClampMin = "1", ClampMax = "8"))
+	int32 ElectricalArrowsPerLane = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical|Arrows", meta = (EditCondition = "bIsElectrical", ClampMin = "0.0"))
+	float ElectricalArrowSpeed = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical|Arrows", meta = (EditCondition = "bIsElectrical", ClampMin = "0.1"))
+	float ElectricalArrowSize = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Electrical|Arrows", meta = (EditCondition = "bIsElectrical"))
+	FLinearColor ElectricalArrowColor = FLinearColor(0.0f, 0.8f, 1.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Electrical|Arrows", meta = (EditCondition = "bIsElectrical"))
+	TObjectPtr<UStaticMesh> ElectricalArrowMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Electrical|Arrows", meta = (EditCondition = "bIsElectrical"))
+	TObjectPtr<UMaterialInterface> ElectricalArrowMaterial;
+
+	UFUNCTION(BlueprintCallable, Category = "Electrical")
+	void SetElectricalFlowEnabled(bool bEnabled);
+
+	UFUNCTION(BlueprintPure, Category = "Electrical")
+	bool IsElectricalFlowActive() const { return bIsElectrical && bElectricalFlowEnabled; }
+
 
 	// Metahuman Professor Properties
 
@@ -230,4 +280,13 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<AAssemblyActor> AssemblyActor = nullptr;
+
+	void UpdateElectricalFlowArrows(float DeltaTime);
+	void EnsureElectricalFlowArrows();
+	void HideElectricalFlowArrows();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> ElectricalFlowArrows;
+
+	float ElectricalFlowPhase = 0.0f;
 };
