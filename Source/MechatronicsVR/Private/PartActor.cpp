@@ -15,6 +15,7 @@
 #include "../Lesson/AssembleStep.h"
 
 #include "Components/SphereComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 
 // Sets default values
@@ -56,6 +57,18 @@ APartActor::APartActor()
 		UE_LOG(LogTemp, Error, TEXT("Failed to load preview material!"));
 	}
 	
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ElectricalArrowMeshFinder(TEXT("/Engine/BasicShapes/Cone.Cone"));
+	if (ElectricalArrowMeshFinder.Succeeded())
+	{
+		ElectricalArrowMesh = ElectricalArrowMeshFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> ElectricalArrowMaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	if (ElectricalArrowMaterialFinder.Succeeded())
+	{
+		ElectricalArrowMaterial = ElectricalArrowMaterialFinder.Object;
+	}
+
     
 	// Configure for VR Template grabbing
 	
@@ -733,6 +746,161 @@ void APartActor::SetMotorSpeed(float Speed)
 	}
 }
 
+void APartActor::SetElectricalFlowEnabled(bool bEnabled)
+{
+	bElectricalFlowEnabled = bEnabled;
+	UpdateElectricalFlowArrows(0.0f);
+}
+
+void APartActor::EnsureElectricalFlowArrows()
+{
+	const int32 ArrowCount = FMath::Max(1, ElectricalArrowLanes) * FMath::Max(1, ElectricalArrowsPerLane);
+	if (ElectricalFlowArrows.Num() == ArrowCount)
+	{
+		return;
+	}
+
+	for (UStaticMeshComponent* Arrow : ElectricalFlowArrows)
+	{
+		if (Arrow)
+		{
+			Arrow->DestroyComponent();
+		}
+	}
+	ElectricalFlowArrows.Reset();
+
+	UMaterialInstanceDynamic* ArrowMaterial = ElectricalArrowMaterial ? UMaterialInstanceDynamic::Create(ElectricalArrowMaterial, this) : nullptr;
+	if (ArrowMaterial)
+	{
+		ArrowMaterial->SetVectorParameterValue(TEXT("Color"), ElectricalArrowColor);
+	}
+
+	for (int32 Index = 0; Index < ArrowCount; ++Index)
+	{
+		UStaticMeshComponent* Arrow = NewObject<UStaticMeshComponent>(this);
+		Arrow->SetMobility(EComponentMobility::Movable);
+		Arrow->SetStaticMesh(ElectricalArrowMesh);
+		Arrow->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Arrow->SetCastShadow(false);
+		Arrow->SetVisibility(false);
+		if (ArrowMaterial)
+		{
+			Arrow->SetMaterial(0, ArrowMaterial);
+		}
+		Arrow->SetupAttachment(Mesh);
+		Arrow->RegisterComponent();
+		ElectricalFlowArrows.Add(Arrow);
+	}
+}
+
+void APartActor::HideElectricalFlowArrows()
+{
+	for (UStaticMeshComponent* Arrow : ElectricalFlowArrows)
+	{
+		if (Arrow)
+		{
+			Arrow->SetVisibility(false);
+		}
+	}
+}
+
+void APartActor::UpdateElectricalFlowArrows(float DeltaTime)
+{
+	if (!IsElectricalFlowActive() || !Mesh || !Mesh->GetStaticMesh() || !ElectricalArrowMesh)
+	{
+		HideElectricalFlowArrows();
+		return;
+	}
+
+	EnsureElectricalFlowArrows();
+
+	ElectricalFlowPhase = FMath::Fmod(ElectricalFlowPhase + DeltaTime * ElectricalArrowSpeed, 1.0f);
+
+	const FBox PartBounds = Mesh->GetStaticMesh()->GetBoundingBox();
+	const FVector PartCenter = PartBounds.GetCenter();
+	const FVector PartExtent = PartBounds.GetExtent();
+
+	const FVector Axis = ElectricalFlowAxis.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector);
+	FVector SideA;
+	FVector SideB;
+	Axis.FindBestAxisVectors(SideA, SideB);
+	SideB = FVector::CrossProduct(SideA, Axis);
+
+	const double HalfLength = FMath::Abs(PartExtent.X * Axis.X) + FMath::Abs(PartExtent.Y * Axis.Y) + FMath::Abs(PartExtent.Z * Axis.Z);
+	const double TraceRadius = PartExtent.Size() * 1.5 + 1.0;
+	const double FlowSign = bReverseElectricalFlow ? -1.0 : 1.0;
+	const bool bCircular = ElectricalFlowMode == EElectricalFlowMode::Circular;
+	const int32 Lanes = FMath::Max(1, ElectricalArrowLanes);
+	const int32 ArrowsPerLane = FMath::Max(1, ElectricalArrowsPerLane);
+
+	const FBox ArrowBounds = ElectricalArrowMesh->GetBoundingBox();
+	const FVector ArrowMeshSize = ArrowBounds.GetSize().ComponentMax(FVector(UE_KINDA_SMALL_NUMBER));
+	const FVector ArrowDimensions(ElectricalArrowSize * 0.15, ElectricalArrowSize * 0.6, ElectricalArrowSize);
+
+	const FTransform& MeshTransform = Mesh->GetComponentTransform();
+	const FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(ElectricalFlowArrow), true);
+
+	for (int32 Lane = 0; Lane < Lanes; ++Lane)
+	{
+		for (int32 Slot = 0; Slot < ArrowsPerLane; ++Slot)
+		{
+			UStaticMeshComponent* Arrow = ElectricalFlowArrows[Lane * ArrowsPerLane + Slot];
+			if (!Arrow)
+			{
+				continue;
+			}
+
+			const double Progress = FMath::Frac((Slot + 0.5) / ArrowsPerLane + ElectricalFlowPhase);
+			double AxisOffset;
+			double Angle;
+			double ScaleFactor = 1.0;
+			if (bCircular)
+			{
+				AxisOffset = HalfLength * ((Lane + 0.5) / Lanes * 2.0 - 1.0);
+				Angle = FlowSign * Progress * UE_DOUBLE_TWO_PI;
+			}
+			else
+			{
+				AxisOffset = FlowSign * HalfLength * 0.9 * (Progress * 2.0 - 1.0);
+				Angle = static_cast<double>(Lane) / Lanes * UE_DOUBLE_TWO_PI;
+				ScaleFactor = FMath::Min(1.0, FMath::Sin(Progress * UE_DOUBLE_PI) * 4.0);
+			}
+
+			const FVector Radial = SideA * FMath::Cos(Angle) + SideB * FMath::Sin(Angle);
+			const FVector LocalFlow = bCircular
+				? (SideB * FMath::Cos(Angle) - SideA * FMath::Sin(Angle)) * FlowSign
+				: Axis * FlowSign;
+			const FVector LocalInner = PartCenter + Axis * AxisOffset;
+
+			FHitResult Hit;
+			if (ScaleFactor <= UE_KINDA_SMALL_NUMBER ||
+				!Mesh->LineTraceComponent(Hit, MeshTransform.TransformPosition(LocalInner + Radial * TraceRadius),
+					MeshTransform.TransformPosition(LocalInner), TraceParams))
+			{
+				Arrow->SetVisibility(false);
+				continue;
+			}
+
+			const FVector Normal = Hit.ImpactNormal;
+			const FVector Flow = FVector::VectorPlaneProject(MeshTransform.TransformVector(LocalFlow), Normal).GetSafeNormal();
+			if (Flow.IsNearlyZero())
+			{
+				Arrow->SetVisibility(false);
+				continue;
+			}
+
+			const FQuat Rotation = FRotationMatrix::MakeFromZX(Flow, Normal).ToQuat();
+			const FVector Dimensions = ArrowDimensions * ScaleFactor;
+			const FVector Scale = Dimensions / ArrowMeshSize;
+			const FVector SurfacePoint = Hit.ImpactPoint + Normal * (Dimensions.X * 0.5 + 0.1);
+			const FVector Location = SurfacePoint - Rotation.RotateVector(ArrowBounds.GetCenter() * Scale);
+
+			Arrow->SetWorldTransform(FTransform(Rotation, Location, Scale));
+			Arrow->SetVisibility(true);
+		}
+	}
+}
+
 
 // void APartActor::ClearSnapHighlight(APartActor* OtherPart)
 // {
@@ -842,6 +1010,8 @@ void APartActor::Tick(float DeltaTime)
 			2.0f
 		);
 	}
+
+	UpdateElectricalFlowArrows(DeltaTime);
 
 	if (!(bIsMotorized && MotorSpeed > KINDA_SMALL_NUMBER && Mesh)) return;
 
