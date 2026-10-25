@@ -1,246 +1,81 @@
-# 🎓 VR Mechatronics Interactive Lesson System
+# MechatronicsVR Architecture
 
-**Author**: [Your Name]  
-**Engine**: Unreal Engine 5.x (C++ + Blueprints)  
-**Purpose**: A fully physics-based VR educational environment where students learn mechatronics through interactive, step-by-step device assembly.
+## Overview
 
----
+MechatronicsVR is a Windows-focused virtual-reality training application built with Unreal Engine 5.7, C++, and Blueprint-authored content. Students manipulate physics-enabled mechatronics parts, connect compatible snap points, and follow step-by-step lessons in Unreal levels.
 
-## 📘 High-Level Summary
+The [architecture diagrams](.github/modernize/assessment/engines/facts/architecture-diagram.md) show the application-level flow and the principal component relationships. This document describes the current implementation; planned or incomplete capabilities are identified separately.
 
-This project simulates mechanical and electrical components of real-world devices (e.g., a DC Motor) in VR, allowing students to physically assemble parts, visualize behavior, and complete guided lessons. The goal is to create a modular, interactive, and educationally valuable experience.
+## Runtime Architecture
 
----
+### Level and lesson startup
 
-## 🔧 Core Design Principles
+`AMechatronicsGameMode` creates a `ULessonManagerComponent` and a `ULessonUIManagerComponent`. Its default pawn class is configured to the VR Template pawn Blueprint. A level can configure an `AutoStartLessonData` asset; when auto-start is enabled, the GameMode starts that lesson after a short delay.
 
-- **Physics-Based**: All parts simulate physics, collisions, and constraints.
-- **Modular**: Parts, behaviors, and lessons are reusable and data-driven.
-- **VR-Interactive**: Users interact via motion controllers (grab, assemble, press).
-- **Lesson-Driven**: Each level is a standalone educational lesson.
-- **Performance-Safe**: Avoids shader stutter and runtime loading hitches.
+`ULessonManagerComponent` initializes from the Data Asset's `StepDefinitions`. Each entry supplies a configured, instanced `ULessonStep`; the manager binds to step-completion events, links the steps in order, and activates them. Steps can complete in response to events or manager polling, depending on their configuration. When configured to auto-advance, the manager waits for the transition delay before starting the next step.
 
----
+### Lesson steps and presentation
 
-## 📂 Project Structure
+The step base class provides lifecycle, reset, completion, and update events. C++ step implementations in the project include:
 
-### 📁 Levels
+- `UAssembleStep` — checks target-part presence and connections, or full assembly when configured.
+- `UFocusStep` — checks the player's focus against a target.
+- `UInteractionStep` — checks a configured interaction with a target actor.
+- `UQuizLessonStep` and `UMetahumanLessonStep` — additional step implementations present in source.
 
-Each `.umap` file is a separate lesson:
+`ULessonUIManagerComponent` manages Unreal widget components and lesson UI presentation, including instructions, progress, and part highlighting. The level GameMode supplies the UI manager to the lesson manager.
 
-- `L_Lesson_01_Intro.umap`
-- `L_Lesson_02_ArmatureAssembly.umap`
-- ...
+### VR interaction and assembly
 
-### 📁 DataAssets
+The VR pawn and motion-controller components provide tracked input. `UGrabComponent` handles grabbing and releasing parts; `UGrabRayCaster` supports controller-directed interaction. `APartActor` contains a physics-enabled mesh, grab component, assembly component, snap validator, and snap-preview behavior.
 
-Each lesson is configured via:
+`USnapPointComponent` defines snap IDs and compatible parts or snap IDs. `USnapValidatorComponent` checks compatibility and, during an assembly step, can restrict valid connections to the step's target part classes. `AAssemblyActor` records parts and logical connections, updates its assembly state, and broadcasts connection and state-change events used by lesson steps.
 
-- `DA_Lesson_01.uasset`
-- `DA_Lesson_02.uasset`
-- ...
+### Part behavior and visual feedback
 
----
+Part actors support configurable motor parameters and electrical-flow visualization. Electrical flow is represented by animated arrows rendered on the part mesh; direction can be linear or circular and can be reversed. This is a visual teaching aid, not an electrical-circuit simulation.
 
-## ⚙️ System Architecture
+Snap previews provide ghost outlines and placement arrows. Assembly steps can enable previews for their target parts and clear them when the step stops.
 
-### 1. GameInstance
+## Content and Technology
 
-Global state and flow manager:
+| Area | Current implementation |
+|---|---|
+| Engine | Unreal Engine 5.7 (`MechatronicsVR.uproject`) |
+| Application code | C++ Unreal module with Blueprint integration |
+| Input and VR | Enhanced Input and HeadMountedDisplay modules; OpenXR and OculusXR plugins enabled |
+| User interface | Unreal Motion Graphics (UMG), Widget Components, and Blueprint-configured widgets |
+| Lesson content | Unreal maps and Data Assets with instanced lesson steps |
+| Interactive content | Blueprint actor assets, meshes, materials, audio, and other Unreal assets |
+| External services | No required application database, cache, message broker, or web API |
 
-- `ActiveLessonData` (UDataAsset)
-- `LoadNextLesson()`, `StartLesson(FName)`
-- Persistent across level transitions
+The project includes a DC motor asset collection under `Content/DCMotorAssets`, including battery, horseshoe magnet, stator, and test-map content. Runtime lesson and assembly state is held in memory; authored maps, Data Assets, and other content are stored as Unreal project assets.
 
----
+## Runtime Flow
 
-### 2. LessonManager (`ALessonManager`)
+1. Unreal loads a level and selects its configured GameMode.
+2. The GameMode initializes the lesson and UI manager components.
+3. If configured, the GameMode starts its lesson Data Asset.
+4. The lesson manager activates the first configured step and updates lesson UI.
+5. The student uses VR controls to manipulate parts and interact with the assembly.
+6. Snap validation checks compatible points and current assembly-step targets.
+7. The assembly actor records valid logical connections and broadcasts state events.
+8. The active step checks its completion condition; the lesson manager updates progress and advances or completes the lesson.
 
-Spawned per level. Controls:
+## Current Limitations and Design Considerations
 
-- `TArray<ULessonStep*>` (steps for current lesson)
-- `AdvanceStep()`, `CheckStepCompletion()`
+- **Logical connections are not guaranteed physical joints.** Physics-constraint creation methods exist in `AAssemblyActor`, but `ConnectParts` currently has the constraint-creation call commented out. It records the connection and updates assembly state without creating that constraint.
+- **Lesson progress is not persisted to disk.** `UMechatronicsGameInstance` has save/load entry points, but `SaveLessonProgress` and `LoadLessonProgress` are placeholders.
+- **Cross-level lesson navigation needs validation.** Lesson-library and level-loading APIs exist on the GameInstance, but the current `LoadNextLesson` implementation uses the previous-lesson guard and previous index. Do not rely on it for next-lesson navigation until corrected.
+- **Asset configuration is part of the runtime contract.** Each lesson level must use a GameMode whose lesson Data Asset and assembly references match that level's content.
+- **Electrical-flow arrows are illustrative.** They do not calculate current, voltage, or circuit connectivity.
 
-**Step Types:**
+## Key Source Locations
 
-- `UAssembleStep`: Waits for part snap
-- `UFocusStep`: Waits for player to focus on object
-- `UInteractionStep`: Waits for UI or tool use
-
----
-
-### 3. Assembly System
-
-**`AAssemblyActor`**
-
-- Contains `TArray<APartActor*>`
-- Handles physics constraints
-- Validates assembled state
-
-**`APartActor`**
-
-- `UStaticMeshComponent` (SimulatePhysics = true)
-- `UAssemblyComponent` (logical metadata)
-  - `SnapPoints[]` (`USnapPointComponent`)
-  - `BehaviorComponents[]` (`UComponentBehavior`)
-
-**Constraints:**
-
-- Created using `UPhysicsConstraintComponent`
-- Types: Fixed, Hinge, Prismatic
-- Configured based on SnapPoint metadata
-
----
-
-### 4. Behavior System
-
-**`UComponentBehavior` (ActorComponent)**
-
-Attached to parts to trigger logic such as:
-
-- Spinning motors
-- Visualizing magnetic fields
-- Showing educational overlays
-
-Functions:
-
-- `OnAssembled()`
-- `OnActivated()`
-- `OnDisassembled()`
-
----
-
-### 5. Interaction System
-
-- VR motion controllers grab physics-enabled parts
-- Snap validation via overlapping `SnapPoints`
-- Valid connections trigger constraint creation
-
----
-
-## 🔄 Runtime Flow
-
-```plaintext
-GameInstance
-   ↓
-Load Lesson Level (.umap)
-   ↓
-LessonManager reads DA_Lesson_XX
-   ↓
-Player interacts (grab, assemble, focus)
-   ↓
-SnapPoints matched → constraint created
-   ↓
-ComponentBehavior triggers
-   ↓
-LessonStep marked complete
-   ↓
-Advance to next step or next level
-```
-
----
-
-## 🔩 Physics Constraint Types
-
-| From       | To         | Type   | Purpose                  |
-|------------|------------|--------|--------------------------|
-| Armature   | Shaft      | Hinge  | Allows motor rotation    |
-| Shaft      | Housing    | Fixed  | Holds motor in place     |
-| Commutator | Armature   | Fixed  | Rotates with motor       |
-| Brush      | Commutator | None   | Overlap triggers logic   |
-| Magnet     | Housing    | Fixed  | Static field component   |
-
----
-
-## 🧪 Shader Precompilation & Stutter Avoidance
-
-### Problems to Avoid
-
-- Shader hitches on first use
-- Runtime loading stutter
-
-### Solutions
-
-1. **Warm-Up Level (`L_WarmupShaders`)**
-   - Place every material and mesh in-scene
-
-2. **Enable Shader Code Libraries**
-   - Project Settings → Rendering
-   - Run: `RunUAT.bat BuildShaderArchive`
-
-3. **Preload Assets**
-   - Avoid runtime loading
-   - Use `StreamableManager` for soft references
-
-4. **Use Fade or Loading Screen**
-   - Prevents user interaction until everything’s ready
-
----
-
-## 🎓 Lesson = Level Design
-
-Each `.umap` is its own lesson.
-
-- Contains its own `AAssemblyActor`, parts, and `ALessonManager`
-- `UGameInstance` manages flow between lessons
-- Each level uses a `DA_Lesson_XX` to define:
-  - Objectives
-  - Step sequence
-  - Instruction content
-
----
-
-## 🧱 Class Overview
-
-```plaintext
-UGameInstance
- └─ ActiveLessonData : UDataAsset
- └─ LoadNextLesson()
-
-ALessonManager
- └─ Steps : TArray<ULessonStep>
-     ├─ UAssembleStep
-     ├─ UFocusStep
-     └─ UInteractionStep
-
-AAssemblyActor
- └─ APartActor[]
-     └─ UAssemblyComponent
-         ├─ SnapPoints : USnapPointComponent[]
-         └─ Behaviors : UComponentBehavior[]
-```
-
----
-
-## 📦 Naming Conventions
-
-| Asset Type         | Prefix | Example             |
-|--------------------|--------|---------------------|
-| Level              | `L_`   | `L_Lesson_01_Intro` |
-| Lesson Data        | `DA_`  | `DA_Lesson_01`      |
-| Part Actor         | `BP_`  | `BP_Commutator`     |
-| Snap Component     | `SPC_` | `SPC_BrushMount`    |
-| Behavior Component | `CB_`  | `CB_SpinMotor`      |
-
----
-
-## ✅ Future Roadmap
-
-- Blueprint lesson step system
-- Behavior template expansion (fields, forces, visuals)
-- Save/load student progress
-- Performance profiling + hardware scaling
-
----
-
-## 📌 TL;DR
-
-A modular, VR-based instructional simulation system built in Unreal Engine using:
-
-- Physics-based part assembly
-- Modular behaviors
-- Blueprint-driven lessons
-- Performance-optimized runtime
-- Per-level instructional structure
-
-Ready to scale into schools, labs, or interactive demos.
+- GameMode and level lesson startup: [MechatronicsGameMode](Source/MechatronicsVR/Private/MechatronicsGameMode.cpp)
+- Lesson sequencing and step activation: [LessonManagerComponent](Source/MechatronicsVR/Lesson/LessonManagerComponent.cpp)
+- Lesson step data: [LessonTypes](Source/MechatronicsVR/Lesson/LessonTypes.h) and [LessonDataAsset](Source/MechatronicsVR/Lesson/LessonDataAsset.h)
+- Parts and visual behavior: [PartActor](Source/MechatronicsVR/Public/PartActor.h) and [PartActor implementation](Source/MechatronicsVR/Private/PartActor.cpp)
+- Snap compatibility: [SnapPointComponent](Source/MechatronicsVR/Public/SnapPointComponent.h) and [SnapValidatorComponent](Source/MechatronicsVR/Private/SnapValidatorComponent.cpp)
+- Assembly state and connections: [AssemblyActor](Source/MechatronicsVR/Private/AssemblyActor.cpp)
+- Cross-level lesson state: [MechatronicsGameInstance](Source/MechatronicsVR/Private/MechatronicsGameInstance.cpp)
