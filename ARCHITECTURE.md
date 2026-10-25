@@ -44,6 +44,8 @@ Each lesson is configured via:
 
 ## ⚙️ System Architecture
 
+### See also our [diagram](https://github.com/oss-slu/mechatronics-vr/blob/main/.github/modernize/assessment/engines/facts/architecture-diagram.md)
+
 ### 1. GameInstance
 
 Global state and flow manager:
