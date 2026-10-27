@@ -421,6 +421,11 @@ void ULessonManagerComponent::DeactivateCurrentStep()
 		UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::DeactivateCurrentStep - Deactivating step %d"), CurrentStepIndex);
 		CurrentStep->StopTicking();
 		CurrentStep = nullptr;
+
+		if (UIManager)
+		{
+			UIManager->ClearHighlights();
+		}
 	}
 }
 

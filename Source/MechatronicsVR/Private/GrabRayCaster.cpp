@@ -91,10 +91,15 @@ void UGrabRayCaster::DeselectObject()
 	// if referencing an object previous tick
 	if (ActorRef != nullptr)
 	{
-		// set overlay material to none
-		if (UStaticMeshComponent* MeshComponent = ActorRef->FindComponentByClass<UStaticMeshComponent>())
+		if (APartActor* PartActor = Cast<APartActor>(ActorRef))
 		{
-			MeshComponent->SetOverlayMaterial(nullptr);
+			if (const AMechatronicsGameMode* MechGameMode = Cast<AMechatronicsGameMode>(GetWorld()->GetAuthGameMode()))
+			{
+				if (ULessonUIManagerComponent* UIManager = MechGameMode->GetUIManager())
+				{
+					UIManager->ResumeHighlightForPart(PartActor);
+				}
+			}
 		}
 		// dereference object
 		ActorRef = nullptr;
