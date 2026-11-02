@@ -1,0 +1,1 @@
+<horizonos:uses-horizonos-sdk xmlns:horizonos="http://schemas.horizonos/sdk" horizonos:minSdkVersion="205" horizonos:targetSdkVersion="205" />
