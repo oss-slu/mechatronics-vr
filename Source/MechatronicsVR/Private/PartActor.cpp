@@ -1018,7 +1018,7 @@ void APartActor::UpdateMotorSparks(float DeltaTime)
 				continue;
 			}
 
-			const FVector Tangential = FVector::CrossProduct(WorldAxis, Hit.ImpactPoint - WorldInner) * AngularSpeed * SparkVelocityScale;
+			const FVector Tangential = FVector::CrossProduct(WorldAxis, Hit.ImpactPoint - MeshTransform.GetLocation()) * AngularSpeed * SparkVelocityScale;
 			MotorSparkVelocities[FreeIndex] = Tangential + FMath::VRand() * Tangential.Size() * 0.25;
 			MotorSparkAges[FreeIndex] = 0.0f;
 			MotorSparks[FreeIndex]->SetWorldLocation(Hit.ImpactPoint);
