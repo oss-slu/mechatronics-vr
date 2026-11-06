@@ -142,7 +142,18 @@ public:
 	/** Hide the snap arrow */
 	void HideSnapArrow();
 
-	// /** Calculate where this part should be positioned when snapped */
+	/**
+	 * Calculates the world transform this part needs so its snap point lines up with a target snap point.
+	 *
+	 * Only rotation and location are solved; the returned scale is always this part's current actor
+	 * scale, so snapping onto a scaled actor never resizes the part. Used for the real snap, the
+	 * forced snap, and the ghost preview (Mesh is the root, so they share this transform).
+	 *
+	 * @param SourceSnapPoint One of this part's snap points. If null, the current actor transform is returned.
+	 * @param TargetSnapPoint The snap point to align to (on another part or the assembly base). If null,
+	 *        the current actor transform is returned.
+	 * @return The world transform to apply with SetActorTransform.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
 	FTransform CalculateSnapTransform(USnapPointComponent* SourceSnapPoint, USnapPointComponent* TargetSnapPoint) const;
 
@@ -274,6 +285,28 @@ public:
 
 private:
 	USnapPointComponent* FindAssemblySnapTarget() const;
+
+	/**
+	 * Whether the current lesson lets this part show snap previews.
+	 *
+	 * True when there is no lesson, the current step isn't an Assemble step, or this part is one
+	 * of the current AssembleStep's targets (UAssembleStep::IsTargetPart).
+	 */
+	bool IsPreviewAllowedByLesson() const;
+
+	/**
+	 * Whether another part should show the preview for Target instead of this one.
+	 *
+	 * Several unplaced parts can pick the same free snap point (e.g. two wires and the battery's
+	 * first terminal), which drew one arrow per part to the same spot. Only one part previews a
+	 * given snap point: a part held in a motion controller wins, otherwise the lowest object name
+	 * (so "Contact1" before "Contact2"). Once that part snaps, the next one's first free target
+	 * moves on (e.g. to the other terminal), giving one arrow at a time.
+	 *
+	 * @param Target The snap point this part would preview; nullptr returns false.
+	 * @return True if a competing part takes precedence for Target.
+	 */
+	bool IsOutrankedForPreviewTarget(const USnapPointComponent* Target) const;
 
 	UPROPERTY()
 	TObjectPtr<APartActor> PartAssembledOnto = nullptr;

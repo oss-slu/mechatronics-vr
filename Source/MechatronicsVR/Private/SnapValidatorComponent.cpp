@@ -40,7 +40,8 @@ bool USnapValidatorComponent::isSnapValid(USnapPointComponent* SnapPoint, const 
 	const UAssembleStep* AssembleStep = Cast<UAssembleStep>(LessonManager->CurrentStep);
 	if (!AssembleStep) return true;
 
-	if (AssembleStep->TargetPartClasses.Num() == 0)
+	// No class or name targets: the step doesn't restrict snapping.
+	if (AssembleStep->TargetPartClasses.Num() == 0 && !AssembleStep->UsesNamedTargets())
 	{
 		return true;
 	}
@@ -54,19 +55,10 @@ bool USnapValidatorComponent::isSnapValid(USnapPointComponent* SnapPoint, const 
 	const APartActor* PartA = Cast<APartActor>(OwnerA);
 	const APartActor* PartB = Cast<APartActor>(OwnerB);
 
-	// Lambda function to see if a part's class matches one in the current step
+	// A part may snap if the current step targets it (by name or by class; see IsTargetPart)
 	auto IsAllowedByStep  = [AssembleStep](const APartActor* Part)->bool
 	{
-		if (!Part) return false;
-
-		for (const TSubclassOf<APartActor>& Allowed : AssembleStep->TargetPartClasses)
-		{
-			if (*Allowed && Part->IsA(Allowed))
-			{
-				return true;
-			}
-		}
-		return false;
+		return AssembleStep->IsTargetPart(Part);
 	};
 	if (bAIsBase || bBIsBase)
 	{

@@ -789,21 +789,14 @@ void ULessonManagerComponent::ShowStepInstructions()
 		{
 			if (APartActor* PartActor = Cast<APartActor>(Actor))
 			{
-				// Check if this part matches any of our target classes
-				for (TSubclassOf<APartActor> TargetClass : AssembleStep->TargetPartClasses)
+				// Check if the step targets this part (by name or by class), and it isn't placed yet.
+				// bIsSnapped is only set for base snaps, so also skip parts already in the assembly.
+				if (AssembleStep->IsTargetPart(PartActor) && !PartActor->bIsSnapped &&
+					!AssemblyActor->Parts.Contains(PartActor))
 				{
-					if (PartActor->IsA(TargetClass))
-					{
-
-						if (!PartActor->bIsSnapped)  // ← Check the actual state
-						{
-							TargetParts.Add(PartActor);
-							UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Found target part: %s"), 
-								   *PartActor->GetName());
-							break;
-						}
-						
-					}
+					TargetParts.Add(PartActor);
+					UE_LOG(LogTemp, Log, TEXT("ShowStepInstructions: Found target part: %s"), 
+						   *PartActor->GetName());
 				}
 			}
 		}

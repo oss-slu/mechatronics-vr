@@ -89,7 +89,7 @@ TArray<FString> ULessonDataAsset::GetValidationErrors() const
 		// Type-specific validation
 		if (UAssembleStep* AssembleStep = Cast<UAssembleStep>(Step.StepInstance))
 		{
-			if (AssembleStep->TargetPartClasses.Num() == 0)
+			if (AssembleStep->TargetPartClasses.Num() == 0 && !AssembleStep->UsesNamedTargets())
 			{
 				Errors.Add(FString::Printf(TEXT("Step %d: Assembly step has no target parts"), i + 1));
 			}
