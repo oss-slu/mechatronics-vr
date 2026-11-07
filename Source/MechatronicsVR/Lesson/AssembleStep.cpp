@@ -4,7 +4,6 @@
 #include "AssembleStep.h"
 #include "AssemblyActor.h"
 #include "PartActor.h"
-#include "SnapPointComponent.h"
 #include "DSP/AudioDebuggingUtilities.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
@@ -35,11 +34,6 @@ bool UAssembleStep::CheckCompletion_Implementation() const
 	if (bRequireFullyAssembled)
 	{
 		return AssemblyActor->IsFullyAssembled();
-	}
-	// Named-instance targeting: every listed part must be snapped in (e.g. both wires).
-	if (UsesNamedTargets())
-	{
-		return AreAllNamedTargetsPlaced();
 	}
 	TMap<TSubclassOf<APartActor>, TArray<APartActor*>> Found;
 	if (!AreTargetsPresent(Found))
@@ -209,45 +203,6 @@ bool UAssembleStep::AreTargetsConnected(const TMap<TSubclassOf<APartActor>, TArr
 	return true;
 }
 
-bool UAssembleStep::AreAllNamedTargetsPlaced() const
-{
-	if (!IsValid(AssemblyActor)) return false;
-
-	// Every named part in the world, not just the ones already in the assembly.
-	TArray<APartActor*> TargetParts;
-	FindTargetPartInstances(TargetParts);
-
-	// Each listed name must resolve to a part, so a typo can't let the step pass early.
-	for (const FName& Name : TargetPartNames)
-	{
-		if (!TargetParts.ContainsByPredicate([&Name](const APartActor* P) { return P->GetFName() == Name; }))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("AssembleStep: no part named '%s' in the level"), *Name.ToString());
-			return false;
-		}
-	}
-
-	for (APartActor* Part : TargetParts)
-	{
-		// ConnectParts adds a part to Parts on a successful snap.
-		if (!AssemblyActor->Parts.Contains(Part)) return false;
-
-		// Use snap state rather than Connections: the AssemblyActor currently erases
-		// connections one tick after creating them, but bIsAssembled stays set.
-		bool bHasAssembledSnapPoint = false;
-		for (const USnapPointComponent* SnapPoint : Part->GetSnapPoints())
-		{
-			if (SnapPoint && SnapPoint->bIsAssembled)
-			{
-				bHasAssembledSnapPoint = true;
-				break;
-			}
-		}
-		if (!bHasAssembledSnapPoint) return false;
-	}
-	return true;
-}
-
 void UAssembleStep::HandleAssemblyStateChanged(EAssemblyState /*NewState*/)
 {
 	EvaluateConnectionStatus();
@@ -288,15 +243,9 @@ void UAssembleStep::HandlePartsConnected(APartActor* PartA, APartActor* PartB)
 	EvaluateConnectionStatus();
 }
 // Helper function to check if a single part is a target
-bool UAssembleStep::IsTargetPart(const APartActor* Part) const
+bool UAssembleStep::IsTargetPart(APartActor* Part) const
 {
 	if (!IsValid(Part)) return false;
-
-	// Named targets take priority over class targets when both are set.
-	if (UsesNamedTargets())
-	{
-		return TargetPartNames.Contains(Part->GetFName());
-	}
 
 	for (TSubclassOf<APartActor> TargetClass : TargetPartClasses)
 	{
@@ -328,8 +277,8 @@ void UAssembleStep::FindTargetPartInstances(TArray<APartActor*>& OutParts) const
 		return;
 	}
 
-	// If no targets specified, return empty
-	if (TargetPartClasses.Num() == 0 && !UsesNamedTargets())
+	// If no target classes specified, return empty
+	if (TargetPartClasses.Num() == 0)
 	{
 		return;
 	}

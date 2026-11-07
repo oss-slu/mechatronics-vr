@@ -218,7 +218,7 @@ bool APartActor::IsPreviewAllowedByLesson() const
 						UE_LOG(LogTemp, Warning, TEXT("%s: CurrentStep exists and is marked Assemble but cast to UAssembleStep failed. Skipping preview."), *GetName());
 						// Fall through and allow preview logic to continue without lesson filtering
 					}
-					else if (!AssembleStep->IsTargetPart(this))
+					else if (!AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
 					{
 						return false;
 					}

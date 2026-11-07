@@ -33,13 +33,14 @@
 
 **Found:** Electromagnetic Rotation lesson PIE test (Nov 2026) — motor Branch on `ArePartsConnected(Contact, Battery)` was true right after `TrySnapToPreview` and false the next frame.
 
-## AssembleStep Can Target Named Instances (TargetPartNames) or Classes
+## AssembleStep Targets Classes Only (Named-Instance Targeting Was Reverted)
 
-`TargetPartClasses` is satisfied by ANY one instance per class, so with two `BP_ContactPart` wires the step finished after the first. `UAssembleStep::TargetPartNames` (Nov 2026) lists specific parts by **object name** (`AActor::GetFName()`); when non-empty it overrides the classes everywhere, through `UAssembleStep::IsTargetPart` (completion, snap previews, `SnapValidatorComponent`, LessonManager instruction placement), and the step completes only when every named part is in `AssemblyActor->Parts` with an assembled snap point. Class-only steps behave as before, so old lessons need no migration.
+`TargetPartClasses` is satisfied by ANY one instance per class, so with two `BP_ContactPart` wires a step targeting that class finishes after the first one is placed. A `TargetPartNames` (match by object name) option was added in commit `0ec20f8` and then reverted on request (Nov 2026): `AssembleStep`, `LessonManagerComponent`, `LessonDataAsset` and `SnapValidatorComponent` were restored from `0ec20f8~1`. `DA_ElectromagneticRotationLesson` still has saved `TargetPartNames` data, which the engine ignores now that the property is gone.
 
-- Use object names, not Outliner labels: labels are editor-only. Rename the actor object to match its label from Python: `actor.modify(); actor.rename("Contact1")` (pointer references to it survive).
-- A data asset can't hard-reference level actors, and soft refs resolve to the editor world in PIE (needs `FSoftObjectPath::FixupForPIE`), which is why names were used.
-- Electromagnetic Rotation lesson: wires are objects `Contact1`/`Contact2`.
+If per-instance targeting is needed again:
+- Match object names (`AActor::GetFName()`), not Outliner labels, which are editor-only. Rename an actor object from Python with `actor.modify(); actor.rename("Contact1")` (the wires are already named `Contact1`/`Contact2`).
+- A data asset can't hard-reference level actors, and soft refs resolve to the editor world in PIE (they need `FSoftObjectPath::FixupForPIE`).
+- Check placement with snap state (`bIsAssembled`), not `Connections` (see the connection-wiping bug above).
 
 ## A Level Without an AssemblyActor Crashes on Snap
 
@@ -51,3 +52,17 @@
 - **Only Demo_LVL's GameMode runs.** Demo_LVL overrides to `GM_TestLesson` -> `DA_DemoLessonFull` (LessonManager `AssemblyActorClass = BP_DCAssembly`). The instance map's own GameMode override and `DA_ElectromagneticRotationLesson` are not used when playing Demo_LVL.
 - **Finding actors from Python:** `EditorActorSubsystem.get_all_level_actors()` doesn't return actors inside level instances. Use `unreal.GameplayStatics.get_all_actors_of_class(editor_world, cls)`, which walks every loaded level. Edit/save those actors via the instance's map (or Level Instance edit mode).
 - Parts find their AssemblyActor with `IsA(AssemblyActorClass)` over the whole world, so a `BP_DCAssembly` (a subclass) elsewhere in Demo_LVL could be picked by parts whose class is plain `AssemblyActor`.
+
+## Two Wires With the Class-Only AssembleStep: Use Sibling Blueprints
+
+To make a class-based step need both wires, each wire has its own Blueprint: `BP_ContactPart` (Contact1) and `BP_ContactPart2` (Contact2, made with `EditorAssetLibrary.duplicate_asset`, so its parent is `PartActor` too). They must be **siblings**: the step's check uses `IsA`, so if `BP_ContactPart2` were a child of `BP_ContactPart`, Contact2 alone would fill both class buckets and finish the step. The step uses `TargetPartClasses = [BP_ContactPart, BP_ContactPart2]`, `bRequireAllTargetsPresent = true`, and **`bRequireTargetConnected = false`**, because connections are wiped one tick after creation (see above), so by the time the second wire lands the first looks unconnected. "Present" means being in `AssemblyActor->Parts`, which only happens on a snap.
+
+- `BP_MotorAssembly.Contact2` is typed `BP_ContactPart2`, and its graph reads `ContactSnapPoint` from `BP_ContactPart2_C`. Python can't change a variable's type, so it was removed and re-added (`add_member_variable` + `get_object_reference_type`), then the two Get nodes were pasted as T3D and rewired.
+- To swap a placed actor's class: rename the old object, spawn the new class with the old transform (set scale separately), copy the cable settings, call `CableComponent.set_attach_end_to(actor, 'Magnet2')` (this works from Python, unlike setting `AttachEndTo.OtherActor`), repoint references, then destroy the old actor.
+- `DA_ElectromagneticRotationLesson` used to have two identical steps (`AssembleStep_0`, `ConnectContactToBattery`). The second was removed (Nov 2026) because, once step 0 needs both wires, it could never complete (its *connected* check fails after the wipe). Always dump every step and match by name before editing. Don't assume `step_definitions[0]` is the only step.
+- Removing a step from Python: write `step_definitions` back without the entry, then move the orphaned instanced step out of the asset (`orphan.rename('X_Removed', unreal.find_object(None, '/Engine/Transient'))`) before saving. Otherwise it's still saved into the .uasset. `unreal.get_transient_package()` doesn't exist.
+- Verified Nov 2026 with MCP `pie_control` `{"operation":"start","simulate":true,"map_path":"/Game/ElectromagneticRotationLesson/ElectroMagneticRotationLesson"}`, which runs the lesson's own GameMode: the step stayed incomplete after Contact1 and completed after Contact2.
+
+## Reading an Older Committed Version of an Asset
+
+`git show <commit>:<path>.uasset > Content/__Recover/<SameName>.uasset`, then `AssetRegistry.scan_paths_synchronous(['/Game/__Recover'])` and `load_asset`. The editor then keeps the file locked: it can't delete it (`delete_asset` returns False, and `rm` says "busy"). Delete `Content/__Recover/` after closing the editor, and never commit it.
