@@ -146,6 +146,59 @@ void APartActor::UpdatePreviewState()
 
 USnapPointComponent* APartActor::FindBestPreviewTarget() const
 {
+	if (!IsPreviewAllowedByLesson())
+	{
+		return nullptr;
+	}
+
+	USnapPointComponent* Target = FindAssemblySnapTarget();
+
+	// Only one part previews a given snap point at a time (see IsOutrankedForPreviewTarget).
+	if (Target && IsOutrankedForPreviewTarget(Target))
+	{
+		return nullptr;
+	}
+	return Target;
+}
+
+bool APartActor::IsOutrankedForPreviewTarget(const USnapPointComponent* Target) const
+{
+	UWorld* World = GetWorld();
+	if (!Target || !World) return false;
+
+	const bool bIAmHeld = IsAttachedToMotionController();
+
+	for (TActorIterator<APartActor> It(World); It; ++It)
+	{
+		const APartActor* Other = *It;
+		if (!Other || Other == this) continue;
+
+		// Only parts that would actually show a preview compete.
+		if (!Other->bAllowSnapArrow && !Other->bAllowGhostOutline) continue;
+		if (!Other->IsPreviewAllowedByLesson()) continue;
+
+		// Placed parts have their snap points assembled, so they return a different target or none.
+		if (Other->FindAssemblySnapTarget() != Target) continue;
+
+		const bool bOtherHeld = Other->IsAttachedToMotionController();
+		if (bOtherHeld != bIAmHeld)
+		{
+			// The part in the learner's hand always wins.
+			if (bOtherHeld) return true;
+			continue;
+		}
+
+		// Tie-break by object name so the order is stable every frame (Contact1 before Contact2).
+		if (Other->GetFName().LexicalLess(GetFName()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool APartActor::IsPreviewAllowedByLesson() const
+{
 	//checks to see if there is currently any lesson, and if so, only shows the snapping point if the current step
 	//is an assembly step AND if the current part is the target
 	if (UWorld* World = GetWorld())
@@ -167,14 +220,14 @@ USnapPointComponent* APartActor::FindBestPreviewTarget() const
 					}
 					else if (!AssembleStep->IsTargetPart(const_cast<APartActor*>(this)))
 					{
-						return nullptr;
+						return false;
 					}
 				}
 			}
 		}
 	}
 
-	return FindAssemblySnapTarget();
+	return true;
 }
 
 USnapPointComponent* APartActor::FindAssemblySnapTarget() const
@@ -462,9 +515,12 @@ void APartActor::ShowGhostOutline()
 	// Part figures out which snap points to use
 	if (!CurrentTargetSnapPoint)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ShowGhostOutline: No CurrentPreviewTarget set, returning early."));
+		// No target this frame (nothing free, or another part has priority): clear the ghost and
+		// the cached arrow endpoints so last frame's arrow isn't redrawn by ShowSnapArrow/Tick.
+		HideGhostOutline();
+		MySnapPoint = nullptr;
+		CandidateSnapPoint = nullptr;
 		return;
-
 	}
 
 	// Find which of MY snap points should connect
@@ -599,8 +655,10 @@ void APartActor::ShowSnapArrow()
 		return;
 	}
 
-	if (!MySnapPoint || !CandidateSnapPoint)
+	// Only draw toward this frame's target; stale endpoints would leave an arrow behind.
+	if (!CurrentTargetSnapPoint || !MySnapPoint || !CandidateSnapPoint)
 	{
+		HideSnapArrow();
 		return;
 	}
 
@@ -660,10 +718,20 @@ FTransform APartActor::CalculateSnapTransform(USnapPointComponent* SourceSnapPoi
     
 	
     
-	// Calculate
-	const FTransform NewActorWorld = SourceRelToActor.Inverse() * TargetSnapWorld;
-    
-	return NewActorWorld;
+	// Solve for rotation and location only, keeping this part's own scale. Multiplying full
+	// transforms (SourceRelToActor.Inverse() * TargetSnapWorld) also carries the TARGET's world
+	// scale onto this part, so a part snapped onto a scaled actor would grow or shrink.
+	const FVector ActorScale = GetActorScale3D();
+
+	// Rotate the part so its snap point faces the same way as the target snap point.
+	const FQuat NewRotation = TargetSnapWorld.GetRotation() * SourceRelToActor.GetRotation().Inverse();
+
+	// SourceRelToActor's location is in unscaled actor space, so apply our scale before rotating,
+	// then offset back from the target so the two snap points coincide.
+	const FVector NewLocation = TargetSnapWorld.GetLocation() -
+		NewRotation.RotateVector(ActorScale * SourceRelToActor.GetLocation());
+
+	return FTransform(NewRotation, NewLocation, ActorScale);
 }
 
 void APartActor::OnPartGrabbed() 

@@ -61,3 +61,13 @@ void APartActor::Tick(float DeltaTime)
 ```
 
 Additionally, `ShowGhostOutline()` and `ShowSnapArrow()` now immediately hide their visuals when their respective bools are false, ensuring immediate feedback when toggling the bools.
+
+## Several Parts Previewing the Same Snap Point (One Arrow at a Time)
+
+**Symptom:** both wires (Contact1, Contact2) drew arrows/ghosts to the battery's positive terminal at once. Each part independently takes the *first* free compatible snap point from `FindAssemblySnapTarget()`, so identical parts all pick the same one.
+
+**Fix (Nov 2026):** `APartActor::FindBestPreviewTarget` = `IsPreviewAllowedByLesson()` (the old lesson filter) + `FindAssemblySnapTarget()` + `IsOutrankedForPreviewTarget()`. When other unplaced parts with previews enabled resolve to the same snap point, only one previews it: the part held in a motion controller wins, otherwise the lowest object name (`FName::LexicalLess`). After it snaps, the next part's first free target moves on (Contact2 -> negative terminal). Works with or without a lesson running.
+
+**Second bug fixed with it:** `ShowSnapArrow` and `Tick` redraw from the cached `MySnapPoint`/`CandidateSnapPoint`, so a part that lost its target kept drawing last frame's arrow. `ShowGhostOutline` now hides and clears those when `CurrentTargetSnapPoint` is null, and `ShowSnapArrow` requires a current target.
+
+**Testing without VR:** MCP `/api/editor/pie_control` `{"operation":"start","simulate":true}` runs Simulate In Editor (BeginPlay/Tick, no player). Query `get_editor_subsystem(UnrealEditorSubsystem).get_game_world()`, call `find_best_preview_target()` / `try_snap_to_preview()` from Python, then `{"operation":"stop"}`. Status JSON has spaces (`"pie_active": true`), so strip whitespace before grepping. In the plain editor world `find_best_preview_target()` returns None because BeginPlay hasn't set `AssemblyActor`/`PartAssembledOnto`.
