@@ -201,6 +201,33 @@ public:
 	UFUNCTION(BlueprintPure,Category="Motor")
 	float GetCurrentRPM() const {return MotorSpeed * MaxRPM;}
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor|Sparks")
+	bool bEmitMotorSparks = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks", ClampMin = "0.0", ClampMax = "1.0"))
+	float SparkSpeedThreshold = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks", ClampMin = "0.0"))
+	float MaxSparksPerSecond = 60.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks", ClampMin = "0.05"))
+	float SparkLifetime = 0.35f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks", ClampMin = "0.0"))
+	float SparkVelocityScale = 3.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks", ClampMin = "0.01"))
+	float SparkSize = 0.3f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks"))
+	FLinearColor SparkColor = FLinearColor(1.0f, 0.45f, 0.05f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks"))
+	TObjectPtr<UStaticMesh> SparkMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Motor|Sparks", meta = (EditCondition = "bEmitMotorSparks"))
+	TObjectPtr<UMaterialInterface> SparkMaterial;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Electrical")
 	bool bIsElectrical = false;
 
@@ -322,4 +349,14 @@ private:
 	TArray<TObjectPtr<UStaticMeshComponent>> ElectricalFlowArrows;
 
 	float ElectricalFlowPhase = 0.0f;
+
+	void UpdateMotorSparks(float DeltaTime);
+	void EnsureMotorSparks();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStaticMeshComponent>> MotorSparks;
+
+	TArray<FVector> MotorSparkVelocities;
+	TArray<float> MotorSparkAges;
+	float MotorSparkSpawnAccumulator = 0.0f;
 };

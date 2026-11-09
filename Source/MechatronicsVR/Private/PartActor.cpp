@@ -69,6 +69,18 @@ APartActor::APartActor()
 		ElectricalArrowMaterial = ElectricalArrowMaterialFinder.Object;
 	}
 
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SparkMeshFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (SparkMeshFinder.Succeeded())
+	{
+		SparkMesh = SparkMeshFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> SparkMaterialFinder(TEXT("/Game/Materials/M_PartGlow.M_PartGlow"));
+	if (SparkMaterialFinder.Succeeded())
+	{
+		SparkMaterial = SparkMaterialFinder.Object;
+	}
+
     
 	// Configure for VR Template grabbing
 	
@@ -969,6 +981,153 @@ void APartActor::UpdateElectricalFlowArrows(float DeltaTime)
 	}
 }
 
+void APartActor::EnsureMotorSparks()
+{
+	const int32 SparkCount = FMath::Max(1, FMath::CeilToInt(MaxSparksPerSecond * SparkLifetime));
+	if (MotorSparks.Num() == SparkCount)
+	{
+		return;
+	}
+
+	for (UStaticMeshComponent* Spark : MotorSparks)
+	{
+		if (Spark)
+		{
+			Spark->DestroyComponent();
+		}
+	}
+	MotorSparks.Reset();
+	MotorSparkVelocities.Init(FVector::ZeroVector, SparkCount);
+	MotorSparkAges.Init(MAX_flt, SparkCount);
+
+	UMaterialInstanceDynamic* Material = SparkMaterial ? UMaterialInstanceDynamic::Create(SparkMaterial, this) : nullptr;
+	if (Material)
+	{
+		Material->SetVectorParameterValue(TEXT("GlowColor"), SparkColor);
+		Material->SetScalarParameterValue(TEXT("GlowIntensity"), 20.0f);
+	}
+
+	for (int32 Index = 0; Index < SparkCount; ++Index)
+	{
+		UStaticMeshComponent* Spark = NewObject<UStaticMeshComponent>(this);
+		Spark->SetMobility(EComponentMobility::Movable);
+		Spark->SetStaticMesh(SparkMesh);
+		Spark->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Spark->SetCastShadow(false);
+		Spark->SetVisibility(false);
+		Spark->SetUsingAbsoluteLocation(true);
+		Spark->SetUsingAbsoluteRotation(true);
+		Spark->SetUsingAbsoluteScale(true);
+		if (Material)
+		{
+			Spark->SetMaterial(0, Material);
+		}
+		Spark->SetupAttachment(Mesh);
+		Spark->RegisterComponent();
+		MotorSparks.Add(Spark);
+	}
+}
+
+void APartActor::UpdateMotorSparks(float DeltaTime)
+{
+	const float Intensity = SparkSpeedThreshold < 1.0f
+		? FMath::Clamp((MotorSpeed - SparkSpeedThreshold) / (1.0f - SparkSpeedThreshold), 0.0f, 1.0f)
+		: 0.0f;
+	const bool bEmitting = bEmitMotorSparks && bIsMotorized && Intensity > 0.0f && Mesh && Mesh->GetStaticMesh() && SparkMesh && IsPlacedInAssembly();
+
+	if (bEmitting)
+	{
+		EnsureMotorSparks();
+	}
+	if (MotorSparks.Num() == 0 || !SparkMesh)
+	{
+		return;
+	}
+
+	if (bEmitting)
+	{
+		const FBox PartBounds = Mesh->GetStaticMesh()->GetBoundingBox();
+		const FVector PartExtent = PartBounds.GetExtent();
+		const FVector Axis = MotorAxis.GetSafeNormal(UE_SMALL_NUMBER, FVector::UpVector);
+		FVector SideA;
+		FVector SideB;
+		Axis.FindBestAxisVectors(SideA, SideB);
+
+		const double HalfLength = FMath::Abs(PartExtent.X * Axis.X) + FMath::Abs(PartExtent.Y * Axis.Y) + FMath::Abs(PartExtent.Z * Axis.Z);
+		const double TraceRadius = PartExtent.Size() * 1.5 + 1.0;
+		const double AngularSpeed = GetCurrentRPM() * UE_DOUBLE_TWO_PI / 60.0;
+
+		const FTransform& MeshTransform = Mesh->GetComponentTransform();
+		const FVector WorldAxis = MeshTransform.TransformVectorNoScale(Axis);
+		const FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(MotorSpark), true);
+
+		MotorSparkSpawnAccumulator += DeltaTime * MaxSparksPerSecond * Intensity;
+		int32 FreeIndex = 0;
+		while (MotorSparkSpawnAccumulator >= 1.0f)
+		{
+			MotorSparkSpawnAccumulator -= 1.0f;
+			while (FreeIndex < MotorSparks.Num() && MotorSparkAges[FreeIndex] < SparkLifetime)
+			{
+				++FreeIndex;
+			}
+			if (FreeIndex >= MotorSparks.Num())
+			{
+				break;
+			}
+
+			const double Angle = FMath::FRand() * UE_DOUBLE_TWO_PI;
+			const FVector Radial = SideA * FMath::Cos(Angle) + SideB * FMath::Sin(Angle);
+			const FVector LocalInner = PartBounds.GetCenter() + Axis * HalfLength * FMath::FRandRange(-0.9, 0.9);
+			const FVector WorldInner = MeshTransform.TransformPosition(LocalInner);
+
+			FHitResult Hit;
+			if (!Mesh->LineTraceComponent(Hit, MeshTransform.TransformPosition(LocalInner + Radial * TraceRadius), WorldInner, TraceParams))
+			{
+				continue;
+			}
+
+			const FVector Tangential = FVector::CrossProduct(WorldAxis, Hit.ImpactPoint - MeshTransform.GetLocation()) * AngularSpeed * SparkVelocityScale;
+			MotorSparkVelocities[FreeIndex] = Tangential + FMath::VRand() * Tangential.Size() * 0.25;
+			MotorSparkAges[FreeIndex] = 0.0f;
+			MotorSparks[FreeIndex]->SetWorldLocation(Hit.ImpactPoint);
+		}
+		MotorSparkSpawnAccumulator = FMath::Min(MotorSparkSpawnAccumulator, 1.0f);
+	}
+	else
+	{
+		MotorSparkSpawnAccumulator = 0.0f;
+	}
+
+	const FVector Gravity(0.0, 0.0, GetWorld()->GetGravityZ());
+	const FVector SparkMeshSize = SparkMesh->GetBoundingBox().GetSize().ComponentMax(FVector(UE_KINDA_SMALL_NUMBER));
+
+	for (int32 Index = 0; Index < MotorSparks.Num(); ++Index)
+	{
+		UStaticMeshComponent* Spark = MotorSparks[Index];
+		if (!Spark)
+		{
+			continue;
+		}
+
+		MotorSparkAges[Index] += DeltaTime;
+		const float Fade = 1.0f - MotorSparkAges[Index] / SparkLifetime;
+		if (Fade <= 0.0f || MotorSparkVelocities[Index].IsNearlyZero())
+		{
+			MotorSparkAges[Index] = MAX_flt;
+			Spark->SetVisibility(false);
+			continue;
+		}
+
+		MotorSparkVelocities[Index] += Gravity * DeltaTime;
+		const FVector& Velocity = MotorSparkVelocities[Index];
+		const FVector Location = Spark->GetComponentLocation() + Velocity * DeltaTime;
+		const FVector Dimensions = FVector(SparkSize + Velocity.Size() * 0.02, SparkSize, SparkSize) * Fade;
+
+		Spark->SetWorldTransform(FTransform(Velocity.ToOrientationQuat(), Location, Dimensions / SparkMeshSize));
+		Spark->SetVisibility(true);
+	}
+}
+
 
 // void APartActor::ClearSnapHighlight(APartActor* OtherPart)
 // {
@@ -1080,6 +1239,7 @@ void APartActor::Tick(float DeltaTime)
 	}
 
 	UpdateElectricalFlowArrows(DeltaTime);
+	UpdateMotorSparks(DeltaTime);
 
 	if (!(bIsMotorized && MotorSpeed > KINDA_SMALL_NUMBER && Mesh)) return;
 
