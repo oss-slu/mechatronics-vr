@@ -74,6 +74,10 @@
 		{
 			"Name": "RemoteControlWebInterface",
 			"Enabled": true
+		},
+		{
+			"Name": "TextToSpeech",
+			"Enabled": true
 		}
 	]
 }
