@@ -180,6 +180,16 @@ protected:
     void DeactivateCurrentStep();
     void UpdateStepReferences();
 
+	/**
+	 * Finds the assembly in the world for a lesson's AssembleSteps.
+	 * Prefers an actor whose class is exactly AssemblyClass, then falls back to any subclass
+	 * (IsA). The exact pass matters when AssemblyClass is a base class such as AssemblyActor
+	 * and a subclass (e.g. BP_DCAssembly) also exists in the same world.
+	 * @param AssemblyClass Class to look for; may be null.
+	 * @return The matching assembly, or nullptr if none exists.
+	 */
+	AAssemblyActor* FindAssemblyOfClass(TSubclassOf<AAssemblyActor> AssemblyClass) const;
+
 	// === EVENT HANDLERS ===
     
 	UFUNCTION()

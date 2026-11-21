@@ -72,3 +72,19 @@ bel.compile_blueprint(bp)
 ```
 
 Placed actors get the new property after compile; set it with `actor.set_editor_property('Contact2', other_actor)` (the C++-style name works for BP variables) and save the level. Compiling a BP re-dirties levels that contain its instances, so save the level again afterward. Pasted T3D nodes land at the mouse cursor, not their `NodePosX/Y`.
+
+## Adding a Bool Variable: Use the Plugin's add_variable, and Always Read the Value Back
+
+`/api/blueprints/modify` `{"operation":"add_variable","variable_name":"bX","variable_type":"bool"}` works. Python `BlueprintEditorLibrary.add_member_variable` with a hand-built `EdGraphPinType` did **nothing** with no error, and `execute_script` still returns `success: true`. Afterwards mark it editable (`set_blueprint_variable_instance_editable`) and set the default through the CDO with the **C++-style name**: `d.set_editor_property('bUseTTS', True)`. The snake_case name (`use_tts`) raised and the exception was swallowed, leaving the default False. Verify with `get_editor_property('bUseTTS')` and `/api/blueprints/inspect`, not the script's `success`.
+
+## Reading Python Log Output Back
+
+`/api/editor/output_log` with `pattern` returns old matches too; give each script a unique prefix (`XX7 `) and wrap everything in try/except that logs `EXC`, otherwise failures are invisible.
+
+## get_graph Node Key Names
+
+Nodes use `node_id` in some responses and `id` in others; read `n.get('node_id') or n.get('id')`.
+
+## Don't Call export_data_table_to_json_string on DT_Subtitles (Nov 2026)
+
+`unreal.DataTableFunctionLibrary.export_data_table_to_json_string(dt)` on `/Game/Audio/Subtitles/DT_Subtitles` crashes the editor (`Assertion failed: Stack.Top() == EJson::Object`, JsonWriter.h:272), probably because the row struct has a nested array of cue structs. Read rows with `get_data_table_row_names` and `get_data_table_row_from_name`/per-row property access (or the MCP `data_assets` routes) instead.

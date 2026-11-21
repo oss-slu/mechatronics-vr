@@ -91,3 +91,20 @@ It re-runs the actor's construction script, replacing components (old ones appea
 ## Measuring Motor Spin From Python
 
 `time.sleep` in editor Python blocks the game thread, so sample the stator in two separate `execute_script` calls (store the first quaternion in a file). Euler pitch wraps at these angles, so compare quaternions: signed rotation about the stator's right vector. Unreal's `+Pitch` shows as negative about +Y; compare arrangements against each other rather than trusting the absolute sign.
+
+## Chaining Lessons: ULessonDataAsset::NextLesson (Nov 2026)
+
+To run lesson B after lesson A in the same level, set `A.NextLesson = B` (plus optional `NextLessonDelaySeconds`) and point the level's GameMode `AutoStartLessonData` at A. `AMechatronicsGameMode::HandleLessonCompleted` (bound to `LessonManager->OnLessonCompleted`) starts B on a timer. `UMechatronicsGameInstance::LoadNextLesson` is NOT used: it is buggy (checks `HasPreviousLesson`, loads index-1) and never starts the lesson in the GameMode.
+
+- **Per-lesson assembly:** the manager's `AssemblyActorClass` is one value per GameMode, so lessons that use different assemblies set `ULessonDataAsset::AssemblyActorClassOverride` (Electromagnetic = plain `AssemblyActor`, DC motor = `BP_DCAssembly`). `FindAssemblyOfClass` prefers an exact class match before `IsA`, because `BP_DCAssembly` is also an `AssemblyActor`.
+- **Bug fixed:** `CompleteCurrentStep` used to set `bIsLessonCompleted = true` before `EndLesson()`, and `EndLesson()` only broadcasts `OnLessonCompleted` when that flag is false, so the event never fired on a natural finish. Anything bound to it in Blueprints will now start firing.
+- `StopLesson()`/`EndPlay` set `bSuppressLessonChaining` so ending a lesson manually never starts the next one.
+- New UPROPERTYs on a data asset need an editor-closed build (Live Coding can't add properties).
+
+## Check Demo_LVL's GameMode Override First When No Lesson/Payton Runs (Nov 2026)
+
+Symptom: Payton never explains anything, because no lesson starts. Demo_LVL.umap was re-saved by the editor with its World Settings GameMode override **empty**, so the project default (plain `MechatronicsGameMode`, no `AutoStartLessonData`) ran. Check with Python: `get_editor_subsystem(UnrealEditorSubsystem).get_editor_world().get_world_settings().get_editor_property('default_game_mode')` should be `GM_TestLesson_C`; or `grep -a -c GM_TestLesson Content/Demo_LVL.umap` (0 = missing). Fix: `ws.modify(); ws.set_editor_property('default_game_mode', gm_bp.generated_class())` then `EditorLoadingAndSavingUtils.save_current_level()`.
+
+## Giving Payton Lines in a Lesson (Electromagnetic Rotation, Nov 2026)
+
+Payton only speaks for `MetahumanLessonStep`s, so a lesson with none is silent. Each line needs: (1) a `SoundWave` as the lookup key (duplicate any existing one, it is never played; `/Game/Audio/ElectromagneticRotation/EM_Intro`, `EM_Spinning`); (2) an entry in the **VRPawn CDO** `SubtitleTrackBySound` map (sound -> row name); (3) a `DT_Subtitles` row (`Cues` array of `Caption` + `SecondsUntilNext`). Add rows with `DataTableFunctionLibrary.fill_data_table_from_json_string(dt, json)` which **replaces the whole table**: pass every row as `{"Name":..., "Cues":[ "<cue text>", ...]}` where `Cues` is a real JSON array (a single string gives "Expected Array, got String" and wipes the cues) and each element is a cue in ImportText form (`(Caption=INVTEXT("..."),SecondsUntilNext=5.0)`); reuse existing rows' exported text split at top-level commas to keep their localization keys. It returns a bool, not a problems list. Undo an unsaved bad import with `EditorLoadingAndSavingUtils.reload_packages([pkg], unreal.ReloadPackagesInteractionMode.ASSUME_POSITIVE)` (the default interactive mode pops a modal "Message" dialog that blocks the editor and every REST call).

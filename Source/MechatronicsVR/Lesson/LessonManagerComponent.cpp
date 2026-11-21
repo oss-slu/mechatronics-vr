@@ -319,7 +319,8 @@ void ULessonManagerComponent::CompleteCurrentStep()
 	if (CurrentStepIndex >= LessonSteps.Num() - 1)
 	{
 		UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::CompleteCurrentStep - Lesson completed"));
-		bIsLessonCompleted = true;
+		// Don't set bIsLessonCompleted here: EndLesson() sets it and only broadcasts
+		// OnLessonCompleted when it was still false, so setting it first silenced the event.
 		EndLesson();
 
 		//notify game instance
@@ -442,31 +443,42 @@ void ULessonManagerComponent::UpdateStepReferences()
 	if (UMetahumanLessonStep* MetahumanLessonStep = Cast<UMetahumanLessonStep>(CurrentStep))
 	{
 		MetahumanLessonStep->SetWorldContext(GetOwner());
+
+		// Tell the step which lesson it belongs to (the lesson's assembly) so only that
+		// lesson's instructor speaks when the world has more than one.
+		TSubclassOf<AAssemblyActor> AnchorClass = AssemblyActorClass;
+		if (CurrentLessonData && CurrentLessonData->AssemblyActorClassOverride)
+		{
+			AnchorClass = CurrentLessonData->AssemblyActorClassOverride;
+		}
+		AAssemblyActor* Anchor = AnchorClass ? FindAssemblyOfClass(AnchorClass) : AssemblyActor.Get();
+		MetahumanLessonStep->SetAnchorActor(Anchor);
 	}
 	
 	// Update references for specific step types
 	if (UAssembleStep* AssembleStep = Cast<UAssembleStep>(CurrentStep))
 	{
-		if (AssemblyActorClass)
+		// A lesson can name its own assembly class; otherwise use this manager's class.
+		TSubclassOf<AAssemblyActor> EffectiveAssemblyClass = AssemblyActorClass;
+		if (CurrentLessonData && CurrentLessonData->AssemblyActorClassOverride)
+		{
+			EffectiveAssemblyClass = CurrentLessonData->AssemblyActorClassOverride;
+		}
+
+		if (EffectiveAssemblyClass)
 		{
 			if (!AssembleStep->AssemblyActor)
 			{
-				for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
+				if (AAssemblyActor* PotentialAssembly = FindAssemblyOfClass(EffectiveAssemblyClass))
 				{
-					AAssemblyActor* PotentialAssembly = *It;
-					if (PotentialAssembly && 
-						PotentialAssembly->IsA(AssemblyActorClass))
-					{
-						AssembleStep->SetAssemblyActor(PotentialAssembly);
-						UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::UpdateStepReferences - Set AssemblyActor for AssembleStep: %s"), 
-							   *PotentialAssembly->GetName());
-						break;
-					}
+					AssembleStep->SetAssemblyActor(PotentialAssembly);
+					UE_LOG(LogTemp, Log, TEXT("LessonManagerComponent::UpdateStepReferences - Set AssemblyActor for AssembleStep: %s"),
+						   *PotentialAssembly->GetName());
 				}
-				if (!AssembleStep->AssemblyActor)
+				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::UpdateStepReferences - Could not find instance of class %s for AssembleStep"), 
-						   *AssemblyActorClass->GetName());
+					UE_LOG(LogTemp, Warning, TEXT("LessonManagerComponent::UpdateStepReferences - Could not find instance of class %s for AssembleStep"),
+						   *EffectiveAssemblyClass->GetName());
 				}
 			}
 		}
@@ -488,6 +500,35 @@ void ULessonManagerComponent::UpdateStepReferences()
 	// TODO: Update other step types as needed
 }
 
+
+AAssemblyActor* ULessonManagerComponent::FindAssemblyOfClass(TSubclassOf<AAssemblyActor> AssemblyClass) const
+{
+	UWorld* World = GetWorld();
+	if (!World || !AssemblyClass)
+	{
+		return nullptr;
+	}
+
+	// Pass 1: exact class. Pass 2: any subclass.
+	AAssemblyActor* SubclassMatch = nullptr;
+	for (TActorIterator<AAssemblyActor> It(World); It; ++It)
+	{
+		AAssemblyActor* Candidate = *It;
+		if (!Candidate)
+		{
+			continue;
+		}
+		if (Candidate->GetClass() == AssemblyClass)
+		{
+			return Candidate;
+		}
+		if (!SubclassMatch && Candidate->IsA(AssemblyClass))
+		{
+			SubclassMatch = Candidate;
+		}
+	}
+	return SubclassMatch;
+}
 
 // === EVENT HANDLERS ===
 

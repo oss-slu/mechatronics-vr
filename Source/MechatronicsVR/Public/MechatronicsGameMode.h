@@ -99,7 +99,15 @@ protected:
     
 	/** Initialize lesson system components */
 	void InitializeLessonSystem();
-	
+
+	/**
+	 * Bound to LessonManager->OnLessonCompleted. If the finished lesson has a NextLesson,
+	 * starts it after the lesson's NextLessonDelaySeconds. Ignored when the lesson was
+	 * ended by StopLesson() or level shutdown rather than finishing its last step.
+	 * @param LessonData The lesson that just ended (may be null).
+	 */
+	UFUNCTION()
+	void HandleLessonCompleted(ULessonDataAsset* LessonData);
 
 
 
@@ -110,4 +118,10 @@ private:
 	/** Track if lesson system has been initialized */
 	bool bLessonSystemInitialized = false;
 	FTimerHandle LessonStartTimerHandle;
+
+	/** Timer that starts the follow-up lesson after one completes. */
+	FTimerHandle NextLessonTimerHandle;
+
+	/** True while StopLesson()/EndPlay is ending a lesson, so that end doesn't chain to NextLesson. */
+	bool bSuppressLessonChaining = false;
 };
