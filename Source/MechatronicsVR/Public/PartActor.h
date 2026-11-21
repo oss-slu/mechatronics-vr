@@ -42,6 +42,18 @@ public:
 	TObjectPtr<USnapPointComponent> CurrentTargetSnapPoint = nullptr;
 	bool bIsSnapped = false;
 
+	/**
+	 * Whether a learner can pull this part back out once it has snapped into place. Off by default.
+	 *
+	 * When off, TrySnapToPreview locks the part (GrabComponent->bIsGrabbable = false) exactly as
+	 * before. When on, the part stays grabbable after it snaps; the next grab (a fresh trigger press,
+	 * since the VR pawn only calls TryGrab on press) detaches it via AAssemblyActor::DetachPart, which
+	 * frees its snap points so it can be snapped again, e.g. onto the other battery terminal.
+	 * Enable it per Blueprint or per placed instance, e.g. on the electromagnetic-rotation contacts.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Assembly Configuration")
+	bool bCanDetachWhenSnapped = false;
+
 	/** Check if we should show preview based on grab state and nearby snap points */
 	UFUNCTION(BlueprintCallable, Category = "Snap Preview")
 	void UpdatePreviewState();

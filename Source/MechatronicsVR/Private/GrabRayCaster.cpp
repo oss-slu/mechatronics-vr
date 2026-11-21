@@ -32,6 +32,14 @@ void UGrabRayCaster::SuckObjectToSource() const
 		return;
 	}
 
+	// Detachable parts stay grabbable after snapping, so also refuse to pull a placed part from a distance:
+	// the impulse would yank it out of the assembly without going through AAssemblyActor::DetachPart.
+	// It has to be grabbed by hand instead.
+	if (const APartActor* Part = Cast<APartActor>(ActorRef); Part && Part->IsPlacedInAssembly())
+	{
+		return;
+	}
+
 	UStaticMeshComponent* MeshComponent = ActorRef->FindComponentByClass<UStaticMeshComponent>();
 	if (UPrimitiveComponent* PrimitiveComp = MeshComponent)
 	{
@@ -160,6 +168,13 @@ UGrabComponent* UGrabRayCaster::CheckReachForGrabComponent()
 			{
 				// Non-grabbable objects (e.g. snapped parts) must not be targeted, or the pull would re-enable their physics
 				if (!GrabComponent->bIsGrabbable)
+				{
+					DeselectObject();
+					return nullptr;
+				}
+
+				// Placed-but-detachable parts are grabbable, but must not be targeted for the distance pull (see SuckObjectToSource).
+				if (const APartActor* HitPart = Cast<APartActor>(GrabActor); HitPart && HitPart->IsPlacedInAssembly())
 				{
 					DeselectObject();
 					return nullptr;

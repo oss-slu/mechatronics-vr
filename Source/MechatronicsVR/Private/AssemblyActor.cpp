@@ -190,6 +190,11 @@ bool AAssemblyActor::ConnectParts(APartActor* PartA, APartActor* PartB, USnapPoi
 	SnapPointA->bIsAssembled = true;
 	SnapPointB->bIsAssembled = true;
 
+	// Remember who each snap point is mated to, so gameplay can ask "which terminal?" even though
+	// Connections gets wiped next tick (see CleanupInvalidConstraints) and so DetachPart can undo this.
+	SnapPointA->ConnectedSnapPoint = SnapPointB;
+	SnapPointB->ConnectedSnapPoint = SnapPointA;
+
 	// update assembly state
 	UpdateAssemblyState();
 
@@ -293,6 +298,70 @@ bool AAssemblyActor::DisconnectParts(APartActor* PartA, APartActor* PartB)
     
 	return true;
 	
+}
+
+bool AAssemblyActor::DetachPart(APartActor* Part)
+{
+	if (!Part)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AAssemblyActor::DetachPart: Part is null"));
+		return false;
+	}
+
+	// Work from the snap points rather than Connections: Connections is emptied every tick, and
+	// DisconnectParts can't handle base connections (their PartA is null).
+	TArray<TPair<USnapPointComponent*, APartActor*>> Released; // (my snap point, part on the other end or null for base)
+	for (USnapPointComponent* MySnap : Part->GetSnapPoints())
+	{
+		if (!MySnap || !MySnap->bIsAssembled)
+		{
+			continue;
+		}
+
+		APartActor* OtherPart = nullptr;
+		if (USnapPointComponent* OtherSnap = MySnap->ConnectedSnapPoint)
+		{
+			OtherSnap->bIsAssembled = false;
+			OtherSnap->ConnectedSnapPoint = nullptr;
+			OtherPart = Cast<APartActor>(OtherSnap->GetOwner());
+		}
+		MySnap->bIsAssembled = false;
+		MySnap->ConnectedSnapPoint = nullptr;
+
+		// Drop any connection record that still references the freed snap point.
+		Connections.RemoveAll([MySnap](const FPartConnection& C)
+		{
+			return C.SnapPointA == MySnap || C.SnapPointB == MySnap;
+		});
+
+		Released.Emplace(MySnap, OtherPart);
+	}
+
+	if (Released.IsEmpty())
+	{
+		return false;
+	}
+
+	// Only leave the assembly once none of the part's snap points are still mated.
+	const bool bStillMated = Part->GetSnapPoints().ContainsByPredicate([](const USnapPointComponent* S)
+	{
+		return S && S->bIsAssembled;
+	});
+	if (!bStillMated)
+	{
+		Parts.Remove(Part);
+	}
+
+	UpdateAssemblyState();
+
+	for (const TPair<USnapPointComponent*, APartActor*>& Entry : Released)
+	{
+		OnPartDisconnected.Broadcast(Part, Entry.Value);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("AAssemblyActor::DetachPart: Detached %s (%d snap point(s) freed)"),
+		*Part->GetName(), Released.Num());
+	return true;
 }
 
 // ================== ASSEMBLY STATE MANAGEMENT ==================

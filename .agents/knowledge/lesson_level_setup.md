@@ -66,3 +66,28 @@ To make a class-based step need both wires, each wire has its own Blueprint: `BP
 ## Reading an Older Committed Version of an Asset
 
 `git show <commit>:<path>.uasset > Content/__Recover/<SameName>.uasset`, then `AssetRegistry.scan_paths_synchronous(['/Game/__Recover'])` and `load_asset`. The editor then keeps the file locked: it can't delete it (`delete_asset` returns False, and `rm` says "busy"). Delete `Content/__Recover/` after closing the editor, and never commit it.
+
+## Which Terminal a Contact Is On: ConnectedSnapPoint (Nov 2026)
+
+`ConnectParts` now sets `SnapPointA->ConnectedSnapPoint = SnapPointB` and vice versa (cleared by `DetachPart`). Because `Connections` is wiped every tick, this is how Blueprints learn what a snap point is plugged into: `Contact.ContactSnapPoint.ConnectedSnapPoint.SnapID` is `BatteryPositiveTerminal` or `BatteryNegativeTerminal`. `BP_MotorAssembly` uses it to pick the spin direction (Contact1 on `+` = original spin, on `-` = reversed). The contacts (`BP_ContactPart`, `BP_ContactPart2`) are the grabbable parts at the cable ends and have `bCanDetachWhenSnapped = true`; cables themselves aren't grabbable.
+
+## Editing Actors of a Level Instance From Python: Load the Real Map, Not the Editor-World Copy (Nov 2026)
+
+`get_all_actors_of_class(editor_world, ...)` returns the level instance's actors from a **temporary copy** (package `/Temp/Game/<Map>_LevelInstance_<id>_0`). `set_editor_property` + `save_asset`/`save_packages` on those never reach the real `.umap` (it stays unmodified, and `save_asset` still returns True). Instead load the real map as an asset and edit its actors by path, then save the loaded world:
+
+```python
+P='/Game/ElectromagneticRotationLesson/ElectroMagneticRotationLesson'
+w=unreal.EditorAssetLibrary.load_asset(P)
+a=unreal.find_object(None, P+'.ElectroMagneticRotationLesson:PersistentLevel.Contact1')
+a.modify(); a.set_editor_property('can_detach_when_snapped', True)
+unreal.EditorAssetLibrary.save_loaded_asset(w, False)
+```
+This also fixed instances that read the old default after a Blueprint class-default change (the in-memory map was stale: `inst=False` while `cdo=True`). Resaving rewrote the map from 36 KB to 120 KB because it was stale against the current Blueprints (new BP_Stator/HorseshoeMagnet/magnetic-field instance data); that is expected.
+
+## Don't Call set_editor_property on Placed Blueprint Actors in PIE
+
+It re-runs the actor's construction script, replacing components (old ones appear as `TRASH_SnapPointComponent_0` at world (0,0,0)) while `UAssemblyComponent` keeps its cached snap-point list, so snapping then targets stale snap points and gives wrong results. In PIE tests use function calls only (`set_actor_location`, `try_snap_to_preview`, `detach_part`, `grab_component.try_grab(mc)` with `unreal.new_object(unreal.MotionControllerComponent, outer=actor)` as a stand-in hand) and fix property values before starting PIE.
+
+## Measuring Motor Spin From Python
+
+`time.sleep` in editor Python blocks the game thread, so sample the stator in two separate `execute_script` calls (store the first quaternion in a file). Euler pitch wraps at these angles, so compare quaternions: signed rotation about the stator's right vector. Unreal's `+Pitch` shows as negative about +Y; compare arrangements against each other rather than trusting the absolute sign.
