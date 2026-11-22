@@ -39,6 +39,14 @@ Normal PIE (`pie_control` `{"operation":"start"}`) on `Demo_LVL` spawns VRPawn, 
 
 `BP_Payton.bUseTTS` (instance-editable bool, default true) turns the voice off while keeping subtitles. In `SpeakNextCue`: `Display Subtitle -> Branch(bUseTTS)`; True -> `Speak on Channel`, False -> straight to `Set SpeechCueIndex` (skips speaking). The cue timer's `Time` is `SelectFloat(A=0.1, B=cue.SecondsUntilNext, bPickA=bUseTTS)`, so with TTS off each caption stays up for its authored `SecondsUntilNext` before `CheckSpeechFinished` advances (it sees "not speaking" and moves on). Per-instance override: tick/untick `bUseTTS` on the Payton in the level.
 
+## "Attempted to access index N from array Cues of length N" Fixed by Reordering Exec (Nov 2026)
+
+**Symptom:** on the last cue of every `DT_Subtitles` row, PIE logs `Attempted to access index 3 from array Cues_... of length 3` plus `Accessed None reading structure SecondsUntilNext` on the `Set Timer by Function Name` node in BP_Payton's `SpeakNextCue`. It was always there; a longer row (EM_Reverse) just made it noticeable.
+
+**Cause:** the pure nodes feeding the timer's `Time` (`GET Cues[SpeechCueIndex]` -> Break -> `SecondsUntilNext` -> SelectFloat) are re-evaluated when the timer executes, and `Set SpeechCueIndex` (index++) ran *before* the timer. So the timer read cue `index+1`: out of range on the last cue, and with `bUseTTS` off every caption waited for the *next* cue's `SecondsUntilNext`.
+
+**Fix:** swap the order to `Display Subtitle -> Branch(bUseTTS) -> (Speak on Channel | else) -> Set Timer -> Set SpeechCueIndex`. Done via `/api/blueprints/modify` `disconnect_pins` (`execute`/`then` of the Set Index node) and `connect_pins` (`source_node_id`, `source_pin`, `target_node_id`, `target_pin`, `graph_name`, `blueprint_path`). General rule: a pure node reads variables at the moment of its *consumer*, not where it sits in the graph, so don't mutate a variable before an impure node that reads it through a pure chain. `/api/blueprints/modify` compiles but doesn't save: call `EditorAssetLibrary.save_asset` afterwards.
+
 ## Pasting a Function Call With a Wrong Name Silently Drops the Node
 
 A T3D `K2Node_CallFunction` whose `MemberName` doesn't exist (I used `SelectDouble`) simply doesn't appear after Ctrl+V; no error. Look the C++ name up in the engine header (`D:/Epic Games/UE_5.7/Engine/Source/Runtime/Engine/Classes/Kismet/KismetMathLibrary.h` has `SelectFloat(double A, double B, bool bPickA)`). Python's snake_case name (`select_float`) is a hint, not proof.

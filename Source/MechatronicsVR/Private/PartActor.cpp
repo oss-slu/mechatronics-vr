@@ -1196,17 +1196,36 @@ void APartActor::BeginPlay()
 
 	if (AssemblyActorClass)
 	{
+		// Prefer an assembly of exactly AssemblyActorClass. Subclasses (e.g. BP_DCAssembly) also pass IsA, so a
+		// world holding several assemblies (Demo_LVL) would otherwise hand a part to whichever was listed first,
+		// and the lesson step watching the other assembly would never see the part. Fall back to IsA only if
+		// there is no exact match.
+		AAssemblyActor* SubclassMatch = nullptr;
 		for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
 		{
 			AAssemblyActor* PotentialAssembly = *It;
-			if  (PotentialAssembly && 
-				PotentialAssembly->IsA(AssemblyActorClass))
+			if (!PotentialAssembly || !PotentialAssembly->IsA(AssemblyActorClass))
+			{
+				continue;
+			}
+			if (PotentialAssembly->GetClass() == AssemblyActorClass)
 			{
 				AssemblyActor = PotentialAssembly;
-				UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"), 
-					*GetName(), *AssemblyActor->GetName());
 				break;
 			}
+			if (!SubclassMatch)
+			{
+				SubclassMatch = PotentialAssembly;
+			}
+		}
+		if (!AssemblyActor)
+		{
+			AssemblyActor = SubclassMatch;
+		}
+		if (AssemblyActor)
+		{
+			UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"),
+				*GetName(), *AssemblyActor->GetName());
 		}
 		if (!AssemblyActor)
 		{

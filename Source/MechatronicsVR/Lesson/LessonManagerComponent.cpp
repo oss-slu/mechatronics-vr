@@ -7,6 +7,7 @@
 #include "InteractionStep.h"
 #include "QuizLessonStep.h"
 #include "MetahumanLessonStep.h"
+#include "TerminalSwapStep.h"
 #include "MechatronicsGameInstance.h"
 #include "AssemblyActor.h"
 #include "EngineUtils.h"
@@ -438,6 +439,13 @@ void ULessonManagerComponent::UpdateStepReferences()
 	if (UQuizLessonStep* QuizLessonStep = Cast<UQuizLessonStep>(CurrentStep))
 	{
 		QuizLessonStep->SetWorldContext(GetOwner());
+	}
+
+	// Steps live in a data asset, so without this their GetWorld() is null: UTerminalSwapStep could not find the
+	// watched part and its tick timer never started.
+	if (UTerminalSwapStep* TerminalSwapStep = Cast<UTerminalSwapStep>(CurrentStep))
+	{
+		TerminalSwapStep->SetWorldContext(GetOwner());
 	}
 
 	if (UMetahumanLessonStep* MetahumanLessonStep = Cast<UMetahumanLessonStep>(CurrentStep))
