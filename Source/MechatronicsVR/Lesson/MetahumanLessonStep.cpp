@@ -6,6 +6,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/Level.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Character.h"
+#include "UObject/UnrealType.h"
 
 UMetahumanLessonStep::UMetahumanLessonStep()
 {
@@ -65,5 +67,23 @@ void UMetahumanLessonStep::PlayVoiceLine()
 			*Chosen->GetName(), Chosen->GetLevel() ? *Chosen->GetLevel()->GetOuter()->GetName() : TEXT("?"));
 		// Call professor's voice line function with attached audio and animation asset
 		Chosen->TriggerVoiceLine(VoiceLine, VoiceAnimation);
+
+		// The TTS rewrite of BP_Payton removed its SpawnSoundAttached nodes, so the recorded VoiceLine is never
+		// played by the Blueprint any more. A Payton that is NOT using TTS (BP_Payton::bUseTTS == false, e.g. the
+		// DC motor lesson's instructor) would then show subtitles in silence, so play the recording from here.
+		// bUseTTS is a Blueprint variable, so it is read by name; an instructor without it is treated as non-TTS.
+		bool bInstructorUsesTTS = false;
+		if (const FBoolProperty* UseTTSProp = FindFProperty<FBoolProperty>(Chosen->GetClass(), TEXT("bUseTTS")))
+		{
+			bInstructorUsesTTS = UseTTSProp->GetPropertyValue_InContainer(Chosen);
+		}
+
+		if (!bInstructorUsesTTS && VoiceLine)
+		{
+			USceneComponent* AttachTo = Chosen->GetMesh() ? Chosen->GetMesh() : Chosen->GetRootComponent();
+			UGameplayStatics::SpawnSoundAttached(VoiceLine, AttachTo);
+			UE_LOG(LogTemp, Log, TEXT("MetahumanLessonStep: playing recorded voice line %s on %s"),
+				*VoiceLine->GetName(), *Chosen->GetName());
+		}
 	}
 }

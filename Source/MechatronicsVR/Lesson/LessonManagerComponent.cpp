@@ -8,6 +8,7 @@
 #include "QuizLessonStep.h"
 #include "MetahumanLessonStep.h"
 #include "TerminalSwapStep.h"
+#include "WalkToAreaStep.h"
 #include "MechatronicsGameInstance.h"
 #include "AssemblyActor.h"
 #include "EngineUtils.h"
@@ -446,6 +447,12 @@ void ULessonManagerComponent::UpdateStepReferences()
 	if (UTerminalSwapStep* TerminalSwapStep = Cast<UTerminalSwapStep>(CurrentStep))
 	{
 		TerminalSwapStep->SetWorldContext(GetOwner());
+	}
+
+	// Same reason as above: UWalkToAreaStep needs a world to find its tagged area and the player's camera.
+	if (UWalkToAreaStep* WalkToAreaStep = Cast<UWalkToAreaStep>(CurrentStep))
+	{
+		WalkToAreaStep->SetWorldContext(GetOwner());
 	}
 
 	if (UMetahumanLessonStep* MetahumanLessonStep = Cast<UMetahumanLessonStep>(CurrentStep))
