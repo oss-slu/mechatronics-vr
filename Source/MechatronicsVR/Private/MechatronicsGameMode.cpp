@@ -93,7 +93,10 @@ void AMechatronicsGameMode::InitializeLessonSystem()
 	}
 
 	LessonManager->SetUIManager(UIManager);
-	
+
+	// Chain lessons: when one finishes, HandleLessonCompleted starts its NextLesson
+	LessonManager->OnLessonCompleted.AddDynamic(this, &AMechatronicsGameMode::HandleLessonCompleted);
+
 	bLessonSystemInitialized = true;
 	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode: Lesson system initialized successfully"));
 	
@@ -152,7 +155,31 @@ void AMechatronicsGameMode::StopLesson()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode::StopLesson - Stopping current lesson"));
+
+	// A manual stop cancels any pending follow-up and must not start one
+	GetWorldTimerManager().ClearTimer(NextLessonTimerHandle);
+	bSuppressLessonChaining = true;
 	LessonManager->EndLesson();
+	bSuppressLessonChaining = false;
+}
+
+void AMechatronicsGameMode::HandleLessonCompleted(ULessonDataAsset* LessonData)
+{
+	if (bSuppressLessonChaining || !LessonData || !LessonData->NextLesson)
+	{
+		return;
+	}
+
+	ULessonDataAsset* Next = LessonData->NextLesson;
+	UE_LOG(LogTemp, Log, TEXT("MechatronicsGameMode: '%s' completed, starting '%s' in %.1fs"),
+		*LessonData->LessonTitle, *Next->LessonTitle, LessonData->NextLessonDelaySeconds);
+
+	// Always defer (even with a 0 delay): this runs inside the finishing step's completion
+	// broadcast, and re-initializing the manager there would rebuild the steps mid-callback.
+	GetWorldTimerManager().SetTimer(NextLessonTimerHandle, [this, Next]()
+	{
+		StartLesson(Next);
+	}, FMath::Max(LessonData->NextLessonDelaySeconds, 0.01f), false);
 }
 
 bool AMechatronicsGameMode::IsLessonActive() const

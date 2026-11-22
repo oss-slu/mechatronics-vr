@@ -66,3 +66,62 @@ To make a class-based step need both wires, each wire has its own Blueprint: `BP
 ## Reading an Older Committed Version of an Asset
 
 `git show <commit>:<path>.uasset > Content/__Recover/<SameName>.uasset`, then `AssetRegistry.scan_paths_synchronous(['/Game/__Recover'])` and `load_asset`. The editor then keeps the file locked: it can't delete it (`delete_asset` returns False, and `rm` says "busy"). Delete `Content/__Recover/` after closing the editor, and never commit it.
+
+## Which Terminal a Contact Is On: ConnectedSnapPoint (Nov 2026)
+
+`ConnectParts` now sets `SnapPointA->ConnectedSnapPoint = SnapPointB` and vice versa (cleared by `DetachPart`). Because `Connections` is wiped every tick, this is how Blueprints learn what a snap point is plugged into: `Contact.ContactSnapPoint.ConnectedSnapPoint.SnapID` is `BatteryPositiveTerminal` or `BatteryNegativeTerminal`. `BP_MotorAssembly` uses it to pick the spin direction (Contact1 on `+` = original spin, on `-` = reversed). The contacts (`BP_ContactPart`, `BP_ContactPart2`) are the grabbable parts at the cable ends and have `bCanDetachWhenSnapped = true`; cables themselves aren't grabbable.
+
+## Editing Actors of a Level Instance From Python: Load the Real Map, Not the Editor-World Copy (Nov 2026)
+
+`get_all_actors_of_class(editor_world, ...)` returns the level instance's actors from a **temporary copy** (package `/Temp/Game/<Map>_LevelInstance_<id>_0`). `set_editor_property` + `save_asset`/`save_packages` on those never reach the real `.umap` (it stays unmodified, and `save_asset` still returns True). Instead load the real map as an asset and edit its actors by path, then save the loaded world:
+
+```python
+P='/Game/ElectromagneticRotationLesson/ElectroMagneticRotationLesson'
+w=unreal.EditorAssetLibrary.load_asset(P)
+a=unreal.find_object(None, P+'.ElectroMagneticRotationLesson:PersistentLevel.Contact1')
+a.modify(); a.set_editor_property('can_detach_when_snapped', True)
+unreal.EditorAssetLibrary.save_loaded_asset(w, False)
+```
+This also fixed instances that read the old default after a Blueprint class-default change (the in-memory map was stale: `inst=False` while `cdo=True`). Resaving rewrote the map from 36 KB to 120 KB because it was stale against the current Blueprints (new BP_Stator/HorseshoeMagnet/magnetic-field instance data); that is expected.
+
+## Don't Call set_editor_property on Placed Blueprint Actors in PIE
+
+It re-runs the actor's construction script, replacing components (old ones appear as `TRASH_SnapPointComponent_0` at world (0,0,0)) while `UAssemblyComponent` keeps its cached snap-point list, so snapping then targets stale snap points and gives wrong results. In PIE tests use function calls only (`set_actor_location`, `try_snap_to_preview`, `detach_part`, `grab_component.try_grab(mc)` with `unreal.new_object(unreal.MotionControllerComponent, outer=actor)` as a stand-in hand) and fix property values before starting PIE.
+
+## Measuring Motor Spin From Python
+
+`time.sleep` in editor Python blocks the game thread, so sample the stator in two separate `execute_script` calls (store the first quaternion in a file). Euler pitch wraps at these angles, so compare quaternions: signed rotation about the stator's right vector. Unreal's `+Pitch` shows as negative about +Y; compare arrangements against each other rather than trusting the absolute sign.
+
+## Chaining Lessons: ULessonDataAsset::NextLesson (Nov 2026)
+
+To run lesson B after lesson A in the same level, set `A.NextLesson = B` (plus optional `NextLessonDelaySeconds`) and point the level's GameMode `AutoStartLessonData` at A. `AMechatronicsGameMode::HandleLessonCompleted` (bound to `LessonManager->OnLessonCompleted`) starts B on a timer. `UMechatronicsGameInstance::LoadNextLesson` is NOT used: it is buggy (checks `HasPreviousLesson`, loads index-1) and never starts the lesson in the GameMode.
+
+- **Per-lesson assembly:** the manager's `AssemblyActorClass` is one value per GameMode, so lessons that use different assemblies set `ULessonDataAsset::AssemblyActorClassOverride` (Electromagnetic = plain `AssemblyActor`, DC motor = `BP_DCAssembly`). `FindAssemblyOfClass` prefers an exact class match before `IsA`, because `BP_DCAssembly` is also an `AssemblyActor`.
+- **Bug fixed:** `CompleteCurrentStep` used to set `bIsLessonCompleted = true` before `EndLesson()`, and `EndLesson()` only broadcasts `OnLessonCompleted` when that flag is false, so the event never fired on a natural finish. Anything bound to it in Blueprints will now start firing.
+- `StopLesson()`/`EndPlay` set `bSuppressLessonChaining` so ending a lesson manually never starts the next one.
+- New UPROPERTYs on a data asset need an editor-closed build (Live Coding can't add properties).
+
+## Check Demo_LVL's GameMode Override First When No Lesson/Payton Runs (Nov 2026)
+
+Symptom: Payton never explains anything, because no lesson starts. Demo_LVL.umap was re-saved by the editor with its World Settings GameMode override **empty**, so the project default (plain `MechatronicsGameMode`, no `AutoStartLessonData`) ran. Check with Python: `get_editor_subsystem(UnrealEditorSubsystem).get_editor_world().get_world_settings().get_editor_property('default_game_mode')` should be `GM_TestLesson_C`; or `grep -a -c GM_TestLesson Content/Demo_LVL.umap` (0 = missing). Fix: `ws.modify(); ws.set_editor_property('default_game_mode', gm_bp.generated_class())` then `EditorLoadingAndSavingUtils.save_current_level()`.
+
+## Adding a Payton Step to an Existing Lesson From Python (Nov 2026)
+
+Worked for the "try reversing the motor connections" step (`EM_Reverse`, appended after `EM_Spinning`):
+- `step_definitions` entries are `LessonStepData` structs (`step_class`, `step_instance`), not step objects. `MetahumanLessonStep`/`LessonStep` entries keep `step_class = None`; build one with `entry = unreal.LessonStepData(); entry.set_editor_property('step_instance', new)`, create the step with `unreal.new_object(unreal.MetahumanLessonStep, outer=da, name=...)`, set `previous_step`/`next_step` on both neighbours, then write the whole list back and `save_asset`.
+- The duplicated `SoundWave` (`duplicate_asset`) is **only in memory** until you call `EditorAssetLibrary.save_asset` on it; `git status` won't show it otherwise and the step's `voice_line` would dangle after a restart.
+- Read `DT_Subtitles` safely with `get_data_table_column_names(dt)[0]` + `get_data_table_column_as_string(dt, col)` (one ImportText string per row, `((Caption=..,SecondsUntilNext=..),(...))`); split on `"),(Caption="` to get per-cue strings for the replace-everything `fill_data_table_from_json_string`. Verify afterwards by counting `Caption=` per row.
+- VRPawn map: `cdo.get_editor_property('SubtitleTrackBySound')` returns a dict-like; copy it to a Python dict, add `{sound: 'RowName'}`, `set_editor_property('SubtitleTrackBySound', d)`, `save_asset('/Game/VRTemplate/Blueprints/VRPawn')`.
+- That extra step (`EM_Reverse`) was later **removed on request**: the "try swapping the wires" instruction is now just a cue at the end of the `EM_Intro` row, so it plays up front and never depends on a step completing. Prefer adding narration to an existing row over a new step when the line shouldn't wait for anything. Removing a step is covered in the "Two Wires" section (move the orphan to the transient package; also clear its `voice_line` and the VRPawn map entry before deleting the sound).
+- **Two bugs kept Payton's `EM_Spinning` (and its "swap the wires" line) from ever playing (Nov 2026):**
+  1. A plain `LessonStep` (`LessonStep_0`, "Now that the circut is complete the motor spins") has `bWantsTickWhileActive = false` and nothing calls `CompleteStep()` on it, so it never advances. It used to be the last step, so nobody noticed. It was removed from `DA_ElectromagneticRotationLesson`. Never put a plain `LessonStep` mid-lesson; use a `MetahumanLessonStep` (completes when Payton finishes) or an `AssembleStep`.
+  2. In Demo_LVL, `APartActor` picked its assembly with `IsA(AssemblyActorClass)` over the whole world, and `BP_DCAssembly` is a subclass of `AssemblyActor`. Depending on actor order, the contacts joined the DC assembly while the step watched `AssemblyActor_0`, so both wires connected but `AssembleStep_0` never completed (log: `Parts Contact1/Contact2 ... connected` with no `Completing step`). Fixed in `PartActor.cpp` by preferring `GetClass() == AssemblyActorClass`, then falling back to `IsA` (same rule as the LessonManager). Applied with Live Coding: do a full `Build.bat` when the editor is closed.
+  - Repro/verify: PIE `{"operation":"start","simulate":true,"map_path":"/Game/Demo_LVL"}`, `lm.go_to_step(1)`, then for each contact `c.find_best_preview_target()` + `c.set_actor_location(target.get_world_location() + Vector(0,0,5))` in one script call and `c.try_snap_to_preview()` in a **later** call (Tick must set `CurrentTargetSnapPoint` in between). Check `AssemblyActor.Parts` of both assemblies. The result varies run to run, so run it several times.
+
+## Holding Payton Until the Wires Are Swapped: UTerminalSwapStep (Nov 2026)
+
+`UTerminalSwapStep` (`Source/MechatronicsVR/Lesson/TerminalSwapStep.*`) watches one part class (`WatchedPartClass`, e.g. `BP_ContactPart`) and completes when its terminal (`SnapPoint->ConnectedSnapPoint->SnapID`) differs from the first terminal it was seen on during the step; a detached wire just waits. Intended chain in `DA_ElectromagneticRotationLesson`: `MetahumanLessonStep_1` (EM_Spinning, ends on "try swapping the wires") -> `TerminalSwapStep` -> `MetahumanLessonStep` for `EM_Outro` ("Next, we will build a full DC motor"), which is the last step so the chained DC lesson only starts after the swap. The step overrides `TickStep` because the base `ULessonStep::TickStep` calls `StopTicking()` before checking, i.e. its timer only fires once. It's a new UCLASS, so it needs an editor-closed build (Live Coding can't add classes). `EM_Outro` sound key, VRPawn map entry and `DT_Subtitles` row were added ahead of the step.
+
+## Giving Payton Lines in a Lesson (Electromagnetic Rotation, Nov 2026)
+
+Payton only speaks for `MetahumanLessonStep`s, so a lesson with none is silent. Each line needs: (1) a `SoundWave` as the lookup key (duplicate any existing one, it is never played; `/Game/Audio/ElectromagneticRotation/EM_Intro`, `EM_Spinning`); (2) an entry in the **VRPawn CDO** `SubtitleTrackBySound` map (sound -> row name); (3) a `DT_Subtitles` row (`Cues` array of `Caption` + `SecondsUntilNext`). Add rows with `DataTableFunctionLibrary.fill_data_table_from_json_string(dt, json)` which **replaces the whole table**: pass every row as `{"Name":..., "Cues":[ "<cue text>", ...]}` where `Cues` is a real JSON array (a single string gives "Expected Array, got String" and wipes the cues) and each element is a cue in ImportText form (`(Caption=INVTEXT("..."),SecondsUntilNext=5.0)`); reuse existing rows' exported text split at top-level commas to keep their localization keys. It returns a bool, not a problems list. Undo an unsaved bad import with `EditorLoadingAndSavingUtils.reload_packages([pkg], unreal.ReloadPackagesInteractionMode.ASSUME_POSITIVE)` (the default interactive mode pops a modal "Message" dialog that blocks the editor and every REST call).

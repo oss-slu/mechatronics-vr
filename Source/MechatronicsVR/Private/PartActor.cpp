@@ -244,82 +244,74 @@ bool APartActor::IsPreviewAllowedByLesson() const
 
 USnapPointComponent* APartActor::FindAssemblySnapTarget() const
 {
-    // Get all my snap points 
-    TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
-    
-    // FIRST: Check if we have a specific actor we should assemble onto
-    if (PartAssembledOnto && PartAssembledOnto->IsValidLowLevelFast())
-    {
-        TArray<USnapPointComponent*> TargetSnapPoints = PartAssembledOnto->GetSnapPoints();
-        
-        for (USnapPointComponent* TargetSnapPoint : TargetSnapPoints)
-        {
-            if (!TargetSnapPoint || TargetSnapPoint->bIsAssembled)
-            {
-                continue;
-            }
-            
-            // Check each of my snap points for compatibility
-            for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
-            {
-                if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
-                {
-                    continue;
-                }
-                
-                // Check bidirectional compatibility
-                if (OtherSnapPoint->CanAcceptPoint(TargetSnapPoint) && 
-                    TargetSnapPoint->CanAcceptPoint(OtherSnapPoint))
-                {
-                    // Found a compatible one - just return it!
-                    UE_LOG(LogTemp, Log, TEXT("%s: Found target on specified actor %s"), 
-                        *GetName(), *PartAssembledOnto->GetName());
-                    return TargetSnapPoint;
-                }
-            }
-        }
-    }
-    else if (PartAssembledOnto)
-    {
-        // PartAssembledOnto was set but is not valid
-        UE_LOG(LogTemp, Warning, TEXT("%s: PartAssembledOnto is set but invalid; skipping specified actor search."), *GetName());
-    }
-    
+	// Get all my snap points
+	const TArray<USnapPointComponent*> MySnapPoints = GetSnapPoints();
 
-		// SECOND: Try the assembly base
-		// Check assembly's base snap points
-		if (!AssemblyActor || !AssemblyActor->IsValidLowLevelFast())
+	// Of the free, mutually compatible targets, returns the one nearest to the matching snap point on
+	// this part. Nearest (not first in list order) is what lets a learner choose between two
+	// compatible targets, e.g. plug a contact into the battery's negative terminal instead of the
+	// positive one, by moving it there.
+	const auto FindClosestTarget = [&MySnapPoints](const TArray<USnapPointComponent*>& Targets) -> USnapPointComponent*
+	{
+		USnapPointComponent* Best = nullptr;
+		float BestDistance = FLT_MAX;
+		for (USnapPointComponent* Target : Targets)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("%s: No AssemblyActor available for base snap search; skipping."), *GetName());
-		}
-		else
-		{
-			TArray<USnapPointComponent*> BaseSnapPoints = AssemblyActor->GetBaseSnapPoints();
-			for (USnapPointComponent* BaseSnapPoint : BaseSnapPoints)
+			if (!Target || Target->bIsAssembled)
 			{
-				if (!BaseSnapPoint || BaseSnapPoint->bIsAssembled)
+				continue;
+			}
+
+			for (const USnapPointComponent* Mine : MySnapPoints)
+			{
+				if (!Mine || Mine->bIsAssembled)
 				{
 					continue;
 				}
-			    
-				// Check each of my snap points for compatibility with base
-				for (USnapPointComponent* OtherSnapPoint : MySnapPoints)
+
+				// Check bidirectional compatibility
+				if (Mine->CanAcceptPoint(Target) && Target->CanAcceptPoint(Mine))
 				{
-					if (!OtherSnapPoint || OtherSnapPoint->bIsAssembled)
+					const float Distance = FVector::Dist(Mine->GetComponentLocation(), Target->GetComponentLocation());
+					if (Distance < BestDistance)
 					{
-						continue;
-					}
-			        
-					if (OtherSnapPoint->CanAcceptPoint(BaseSnapPoint) && BaseSnapPoint->CanAcceptPoint(OtherSnapPoint))
-					{
-						// Found compatible base - return it!
-						UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"), *GetName(), *BaseSnapPoint->GetName());
-						return BaseSnapPoint;
+						BestDistance = Distance;
+						Best = Target;
 					}
 				}
 			}
-		}	
-    return nullptr;  // No compatible target found
+		}
+		return Best;
+	};
+
+	// FIRST: Check if we have a specific actor we should assemble onto
+	if (PartAssembledOnto && PartAssembledOnto->IsValidLowLevelFast())
+	{
+		if (USnapPointComponent* Found = FindClosestTarget(PartAssembledOnto->GetSnapPoints()))
+		{
+			UE_LOG(LogTemp, Log, TEXT("%s: Found target %s on specified actor %s"),
+				*GetName(), *Found->GetName(), *PartAssembledOnto->GetName());
+			return Found;
+		}
+	}
+	else if (PartAssembledOnto)
+	{
+		// PartAssembledOnto was set but is not valid
+		UE_LOG(LogTemp, Warning, TEXT("%s: PartAssembledOnto is set but invalid; skipping specified actor search."), *GetName());
+	}
+
+	// SECOND: Try the assembly base
+	if (!AssemblyActor || !AssemblyActor->IsValidLowLevelFast())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s: No AssemblyActor available for base snap search; skipping."), *GetName());
+	}
+	else if (USnapPointComponent* Found = FindClosestTarget(AssemblyActor->GetBaseSnapPoints()))
+	{
+		UE_LOG(LogTemp, Log, TEXT("%s: Found base snap point %s"), *GetName(), *Found->GetName());
+		return Found;
+	}
+
+	return nullptr;  // No compatible target found
 }
 
 bool APartActor::TrySnapToPreview()
@@ -372,8 +364,16 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 		{
 			Mesh->SetSimulatePhysics(false);
 			Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			// A part only reads as ECC_PhysicsBody while it simulates physics, and the VR pawn's near-grab
+			// sphere trace (VRPawn::GetGrabComponentNearMotionController) only looks for PhysicsBody. Snapping turns
+			// physics off, which would make a detachable part invisible to the hand, so pin the object type.
+			if (bCanDetachWhenSnapped)
+			{
+				Mesh->SetCollisionObjectType(ECC_PhysicsBody);
+			}
 		}
-		GrabComponent->bIsGrabbable = false;
+		// Locked once placed unless this part is allowed to be pulled back out.
+		GrabComponent->bIsGrabbable = bCanDetachWhenSnapped;
 		HideGhostOutline();
 		CurrentTargetSnapPoint = nullptr;
 		UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to base"));
@@ -400,8 +400,16 @@ if (AssemblyActor->GetBaseSnapPoints().Contains(CurrentTargetSnapPoint))
 				{
 					Mesh->SetSimulatePhysics(false);
 					Mesh->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+					// A part only reads as ECC_PhysicsBody while it simulates physics, and the VR pawn's near-grab
+					// sphere trace (VRPawn::GetGrabComponentNearMotionController) only looks for PhysicsBody. Snapping turns
+					// physics off, which would make a detachable part invisible to the hand, so pin the object type.
+					if (bCanDetachWhenSnapped)
+					{
+						Mesh->SetCollisionObjectType(ECC_PhysicsBody);
+					}
 				}
-				GrabComponent->bIsGrabbable = false;
+				// Locked once placed unless this part is allowed to be pulled back out.
+				GrabComponent->bIsGrabbable = bCanDetachWhenSnapped;
 				HideGhostOutline();
 				CurrentTargetSnapPoint = nullptr;
 				UE_LOG(LogTemp, Warning, TEXT("  - Successfully snapped to part %s"), *TargetPart->GetName());
@@ -758,8 +766,21 @@ void APartActor::OnPartGrabbed()
 	UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed - PreviewMaterial: %s"), 
 		PreviewMaterial ? TEXT("Valid") : TEXT("NULL"));
 
+	// A detachable part that was placed in the assembly is being pulled back out. TryGrab has already
+	// disabled physics and attached us to the hand, so only the assembly bookkeeping is left: free our
+	// snap points (and the ones we were mated to) so we can be snapped again, possibly elsewhere.
+	if (bCanDetachWhenSnapped && IsPlacedInAssembly())
+	{
+		if (IsValid(AssemblyActor))
+		{
+			AssemblyActor->DetachPart(this);
+		}
+		bIsSnapped = false;
+		UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed: %s detached from assembly."), *GetName());
+	}
+
 	//Stops parts from being grabbed if its already in an assembly
-	
+
 	if (bIsSnapped)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("OnPartGrabbed: %s is already assembled, rejecting grab."), *GetName())
@@ -1175,17 +1196,36 @@ void APartActor::BeginPlay()
 
 	if (AssemblyActorClass)
 	{
+		// Prefer an assembly of exactly AssemblyActorClass. Subclasses (e.g. BP_DCAssembly) also pass IsA, so a
+		// world holding several assemblies (Demo_LVL) would otherwise hand a part to whichever was listed first,
+		// and the lesson step watching the other assembly would never see the part. Fall back to IsA only if
+		// there is no exact match.
+		AAssemblyActor* SubclassMatch = nullptr;
 		for (TActorIterator<AAssemblyActor> It(GetWorld()); It; ++It)
 		{
 			AAssemblyActor* PotentialAssembly = *It;
-			if  (PotentialAssembly && 
-				PotentialAssembly->IsA(AssemblyActorClass))
+			if (!PotentialAssembly || !PotentialAssembly->IsA(AssemblyActorClass))
+			{
+				continue;
+			}
+			if (PotentialAssembly->GetClass() == AssemblyActorClass)
 			{
 				AssemblyActor = PotentialAssembly;
-				UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"), 
-					*GetName(), *AssemblyActor->GetName());
 				break;
 			}
+			if (!SubclassMatch)
+			{
+				SubclassMatch = PotentialAssembly;
+			}
+		}
+		if (!AssemblyActor)
+		{
+			AssemblyActor = SubclassMatch;
+		}
+		if (AssemblyActor)
+		{
+			UE_LOG(LogTemp, Log, TEXT("%s: Found AssemblyActor: %s"),
+				*GetName(), *AssemblyActor->GetName());
 		}
 		if (!AssemblyActor)
 		{

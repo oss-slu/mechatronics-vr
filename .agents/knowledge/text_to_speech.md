@@ -34,3 +34,25 @@ What worked for adding ~65 nodes:
 ## Testing Without a Headset
 
 Normal PIE (`pie_control` `{"operation":"start"}`) on `Demo_LVL` spawns VRPawn, and `DA_DemoLessonFull` auto-starts with a MetahumanLessonStep that triggers Payton's Intro line. Run a tiny sampling script via `execute_script` every ~0.25s from outside (a `sleep` inside editor Python blocks the game thread), logging `IsSpeakingOnChannel('Professor')`, `Face.get_anim_instance().bPlayVoiceLine`, `SpeechCueIndex`, and `LessonManager.get_current_step()`.
+
+## bUseTTS Toggle (Nov 2026)
+
+`BP_Payton.bUseTTS` (instance-editable bool, default true) turns the voice off while keeping subtitles. In `SpeakNextCue`: `Display Subtitle -> Branch(bUseTTS)`; True -> `Speak on Channel`, False -> straight to `Set SpeechCueIndex` (skips speaking). The cue timer's `Time` is `SelectFloat(A=0.1, B=cue.SecondsUntilNext, bPickA=bUseTTS)`, so with TTS off each caption stays up for its authored `SecondsUntilNext` before `CheckSpeechFinished` advances (it sees "not speaking" and moves on). Per-instance override: tick/untick `bUseTTS` on the Payton in the level.
+
+## "Attempted to access index N from array Cues of length N" Fixed by Reordering Exec (Nov 2026)
+
+**Symptom:** on the last cue of every `DT_Subtitles` row, PIE logs `Attempted to access index 3 from array Cues_... of length 3` plus `Accessed None reading structure SecondsUntilNext` on the `Set Timer by Function Name` node in BP_Payton's `SpeakNextCue`. It was always there; a longer row (EM_Reverse) just made it noticeable.
+
+**Cause:** the pure nodes feeding the timer's `Time` (`GET Cues[SpeechCueIndex]` -> Break -> `SecondsUntilNext` -> SelectFloat) are re-evaluated when the timer executes, and `Set SpeechCueIndex` (index++) ran *before* the timer. So the timer read cue `index+1`: out of range on the last cue, and with `bUseTTS` off every caption waited for the *next* cue's `SecondsUntilNext`.
+
+**Fix:** swap the order to `Display Subtitle -> Branch(bUseTTS) -> (Speak on Channel | else) -> Set Timer -> Set SpeechCueIndex`. Done via `/api/blueprints/modify` `disconnect_pins` (`execute`/`then` of the Set Index node) and `connect_pins` (`source_node_id`, `source_pin`, `target_node_id`, `target_pin`, `graph_name`, `blueprint_path`). General rule: a pure node reads variables at the moment of its *consumer*, not where it sits in the graph, so don't mutate a variable before an impure node that reads it through a pure chain. `/api/blueprints/modify` compiles but doesn't save: call `EditorAssetLibrary.save_asset` afterwards.
+
+## Pasting a Function Call With a Wrong Name Silently Drops the Node
+
+A T3D `K2Node_CallFunction` whose `MemberName` doesn't exist (I used `SelectDouble`) simply doesn't appear after Ctrl+V; no error. Look the C++ name up in the engine header (`D:/Epic Games/UE_5.7/Engine/Source/Runtime/Engine/Classes/Kismet/KismetMathLibrary.h` has `SelectFloat(double A, double B, bool bPickA)`). Python's snake_case name (`select_float`) is a hint, not proof.
+
+## TTS Is Per-Instance: Electromagnetic Payton On, DC Motor Payton Off (Nov 2026)
+
+`BP_Payton` class default `bUseTTS = False` (the "Remove TTS for instructor for now" commit). Demo_LVL contains two Paytons, one in each level instance (`BP_Payton_C_1` in `ElectroMagneticRotationLesson` and in `DCMotorLesson`). Requested setup: Electromagnetic instance `bUseTTS = True`, DC motor instance False. Set it on the real map (`find_object(None, '/Game/ElectromagneticRotationLesson/ElectroMagneticRotationLesson.ElectroMagneticRotationLesson:PersistentLevel.BP_Payton_C_1')`, `modify()`, `set_editor_property('bUseTTS', True)`, `save_loaded_asset(world)`), not the CDO.
+
+**Open risk:** `UMetahumanLessonStep::PlayVoiceLine` triggers `GetAllActorsOfClass(AMetahumanBase)[0]`, i.e. whichever Payton the world lists first, not the one near the lesson. With two Paytons in Demo_LVL the lesson may talk through the other one (a TTS-off Payton shows subtitles but is silent). Subtitles come from the VRPawn, so seeing subtitles doesn't prove which Payton was triggered. Also note an interrupted script can still have run: re-read state (here it had set the CDO to True) before assuming nothing happened.

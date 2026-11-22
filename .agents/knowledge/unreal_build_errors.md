@@ -25,3 +25,11 @@ Check `Binaries/Win64/UnrealEditor-MechatronicsVR.dll`'s timestamp against `git 
 ## Live Coding From Outside the Editor (Function-Body Changes Only)
 
 For .cpp body changes (no UPROPERTY/UFUNCTION/class-layout changes) you don't need to close the editor: run `unreal.SystemLibrary.execute_console_command(None, "LiveCoding.Compile")` through MCP `execute_script`, then look for "Live coding succeeded" in the output log (pattern `Live coding`; there are no `LogLiveCoding` lines in the plugin's log). The patch only lives in the running editor: do a full `Build.bat MechatronicsVREditor Win64 Development -Project=... -WaitMutex` the next time the editor is closed. With the editor open, `Build.bat` refuses to build.
+
+## Editor Crash Editing a Level Instance: "Shader compilation failures are Fatal" (Nov 2026)
+
+**Symptom:** The editor crashes every time the Electromagnetic Rotation Level Instance is edited in Demo_LVL. `Saved/Logs/MechatronicsVR.log` shows `LogRHI: Error: Failed to create graphics pipeline` (Vertex/Pixel `<unknown>`, RTV format 0x18 = R10G10B10A2) then `PipelineStateCache.cpp Line 584 ... Shader compilation failures are Fatal`, on a Background Worker thread. Breadcrumb: `EditorVisualizeLevelInstance > PostProcessing > Scene`. It reproduced 4 times in a row, so it is deterministic.
+
+**Cause:** Not project code or the level's contents. The GPU driver (RTX 3060 Laptop, NVIDIA 617.14, D3D12) fails to build the PSO for the editor's Level Instance highlight pass, and UE treats that as fatal. An Intel UHD iGPU is also present (Optimus laptop).
+
+**Fix:** not verified yet. Try in order: clear NVIDIA's shader cache (`%LOCALAPPDATA%\NVIDIA\DXCache`) and the project's DerivedDataCache; roll back or update the NVIDIA driver (clean install); launch the editor with `-dx11`. Update this entry with whichever one works.

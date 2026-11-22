@@ -7,8 +7,10 @@
 #include "LessonTypes.h"
 #include "LessonDataAsset.generated.h"
 
+class AAssemblyActor;
+
 /**
- * 
+ *
  */
 UCLASS(BlueprintType, Category = "Lesson System")
 class MECHATRONICSVR_API ULessonDataAsset : public UDataAsset
@@ -49,6 +51,27 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
 	float LessonTimeoutMinutes = 0.0f; // 0 = no timeout
+
+	// === LESSON SEQUENCING ===
+
+	/**
+	 * Lesson to start automatically once this one is completed (null = the sequence ends here).
+	 * Handled by AMechatronicsGameMode, so both lessons must be playable in the same level.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sequencing")
+	TObjectPtr<ULessonDataAsset> NextLesson;
+
+	/** Seconds to wait after this lesson completes before NextLesson starts. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sequencing", meta = (ClampMin = "0.0"))
+	float NextLessonDelaySeconds = 3.0f;
+
+	/**
+	 * Optional: the assembly this lesson's AssembleSteps work on. When set it replaces the
+	 * LessonManager's AssemblyActorClass for this lesson, so lessons that share a level
+	 * (and a GameMode) can each use a different assembly. Null = use the manager's class.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sequencing")
+	TSubclassOf<AAssemblyActor> AssemblyActorClassOverride;
 public:
 	// validation functions
 	UFUNCTION(BlueprintCallable, Category = "Lesson Validation" )

@@ -156,6 +156,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Assembly")
 	bool DisconnectParts(APartActor* PartA, APartActor* PartB);
 
+	/**
+	 * Pulls a placed part out of the assembly so it can be re-snapped somewhere else.
+	 *
+	 * Frees every snap point of the part that is currently mated (on the part and on whatever it was
+	 * mated to, including assembly base snap points), clears their ConnectedSnapPoint links, drops
+	 * matching Connections entries, removes the part from Parts once none of its snap points are
+	 * still mated, and broadcasts OnPartDisconnected once per freed snap point. Works from snap-point
+	 * state rather than Connections, because Connections is emptied every tick and
+	 * DisconnectParts can't handle base connections (PartA is null).
+	 *
+	 * Does not touch the part's physics, collision or grab state; APartActor::OnPartGrabbed does that.
+	 *
+	 * @param Part The placed part to detach. Must be non-null.
+	 * @return True if at least one snap point was freed; false if Part is null or wasn't mated.
+	 * @see APartActor::bCanDetachWhenSnapped
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Assembly")
+	bool DetachPart(APartActor* Part);
+
 	/** Check if assembly is complete */
 	UFUNCTION(BlueprintCallable, Category = "Assembly")
 	bool IsFullyAssembled() const;

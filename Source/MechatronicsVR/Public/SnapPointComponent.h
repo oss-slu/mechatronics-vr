@@ -35,6 +35,18 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Assembly")
 	bool bIsAssembled = false;
 
+	/**
+	 * The snap point this one is currently mated to (null while unassembled).
+	 *
+	 * Set on both ends by AAssemblyActor::ConnectParts and cleared by AAssemblyActor::DetachPart.
+	 * AAssemblyActor::Connections is wiped every tick (constraints are never created), so this is
+	 * the reliable way to ask "which terminal is this contact plugged into?". For example the
+	 * motor reads ContactSnapPoint->ConnectedSnapPoint->SnapID to tell the battery's positive
+	 * terminal from its negative one and pick the spin direction.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Assembly")
+	TObjectPtr<USnapPointComponent> ConnectedSnapPoint = nullptr;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snap Point")
 	FString Metadata;
 
